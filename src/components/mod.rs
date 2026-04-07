@@ -1,4 +1,5 @@
 pub mod app;
-pub mod facet_panel;
-pub mod resource_card;
-pub mod result_panel;
+pub mod controls;
+pub mod detail_panel;
+pub mod map_canvas;
+pub mod palette;

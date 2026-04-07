@@ -1,5 +1,6 @@
 mod components;
 mod logic;
+mod map_bridge;
 mod model;
 mod storage;
 
