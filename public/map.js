@@ -434,31 +434,18 @@ function drawResourceNode(parentG, node, rx, ry) {
   const color = clusterColor(r.attrs && r.attrs[lastAxis]);
 
   const nodeG = parentG.append('g')
-    .attr('class', 'mini-node')
+    .attr('class', hasChildren ? 'mini-node has-children' : 'mini-node')
     .attr('transform', `translate(${rx},${ry})`)
     .style('opacity', 0)
     .style('cursor', 'pointer')
     .datum(r);
 
-  if (hasChildren) {
-    // 子を内包する外枠円（破線）
-    nodeG.append('circle')
-      .attr('class', 'mini-node-container')
-      .attr('r', node.r)
-      .attr('fill', color)
-      .attr('fill-opacity', 0.06)
-      .attr('stroke', color)
-      .attr('stroke-width', 1)
-      .attr('stroke-dasharray', '3,2')
-      .attr('stroke-opacity', 0.5);
-  }
-
-  // リソース本体の円
+  // リソース本体の円（子がある場合は node.r まで拡張、子はこの円の内側に描画される）
   nodeG.append('circle')
     .attr('class', 'mini-node-circle')
-    .attr('r', baseR)
+    .attr('r', node.r)
     .attr('fill', color)
-    .attr('fill-opacity', filteredIds.has(r.id) ? 0.85 : 0.12)
+    .attr('fill-opacity', filteredIds.has(r.id) ? (hasChildren ? 0.55 : 0.85) : 0.12)
     .attr('stroke', '#0d1117')
     .attr('stroke-width', 1);
 
@@ -527,9 +514,10 @@ function updateFilterOpacity() {
 
   g.selectAll('.mini-node').each(function (d) {
     if (!d) return;
+    const isParent = d3.select(this).classed('has-children');
     d3.select(this).select('.mini-node-circle')
       .transition().duration(250)
-      .attr('fill-opacity', filteredIds.has(d.id) ? 0.85 : 0.1);
+      .attr('fill-opacity', filteredIds.has(d.id) ? (isParent ? 0.55 : 0.85) : 0.1);
   });
 
   g.selectAll('.child-node').each(function (d) {
