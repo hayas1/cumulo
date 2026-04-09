@@ -18,10 +18,10 @@ pub fn App() -> impl IntoView {
     // 現在のズームレベル（D3から通知）
     let zoom_level = create_rw_signal(0u32);
 
-    // ズーム軸（MapConfigの初期値から設定、Controls で変更可能）
+    // ズーム軸（1軸から始め、Controls の＋ボタンで追加）
     let zoom_axes = create_rw_signal({
         let cfg = store.get_untracked();
-        cfg.map_config.zoom_axes.to_vec()
+        vec![cfg.map_config.zoom_axes[0].clone()]
     });
 
     view! {

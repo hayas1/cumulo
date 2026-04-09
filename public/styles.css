@@ -216,6 +216,12 @@ body {
   font-size: 0.75rem;
 }
 
+.axis-item {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 .axis-select {
   background: var(--bg-base);
   border: 1px solid var(--border);
@@ -228,6 +234,31 @@ body {
   outline: none;
 }
 .axis-select:focus { border-color: var(--accent); }
+
+.axis-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: 0.1rem 0.2rem;
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+}
+.axis-remove:hover { opacity: 1; color: #e05c5c; }
+
+.axis-add {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+.axis-add:hover { border-color: var(--accent); color: var(--accent); }
 
 .controls-right {
   display: flex;

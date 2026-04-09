@@ -32,47 +32,96 @@ pub fn Controls(
             <div class="controls-left">
                 <span class="controls-label">"ズーム軸:"</span>
                 <div class="zoom-axes-row">
+                    // 軸セレクト（動的リスト）
                     {move || {
-                        (0usize..3)
-                            .map(|i| {
-                                let dims = dimensions.get();
-                                let current = zoom_axes
-                                    .with(|a| a.get(i).cloned().unwrap_or_default());
+                        let axes = zoom_axes.get();
+                        let dims = dimensions.get();
+                        let can_remove = axes.len() > 1;
+                        axes.into_iter()
+                            .enumerate()
+                            .map(|(i, current)| {
+                                let dims_i = dims.clone();
                                 view! {
                                     {if i > 0 {
-                                        Some(
-                                            view! { <span class="axis-arrow">"›"</span> },
-                                        )
+                                        Some(view! { <span class="axis-arrow">"›"</span> })
                                     } else {
                                         None
                                     }}
-                                    <select
-                                        class="axis-select"
-                                        on:change=move |ev| {
-                                            let val = event_target_value(&ev);
-                                            zoom_axes
-                                                .update(|a| {
-                                                    if let Some(slot) = a.get_mut(i) {
-                                                        *slot = val;
+                                    <span class="axis-item">
+                                        <select
+                                            class="axis-select"
+                                            on:change=move |ev| {
+                                                let val = event_target_value(&ev);
+                                                zoom_axes
+                                                    .update(|a| {
+                                                        if let Some(slot) = a.get_mut(i) {
+                                                            *slot = val;
+                                                        }
+                                                    });
+                                            }
+                                        >
+                                            {dims_i
+                                                .into_iter()
+                                                .map(|(id, label)| {
+                                                    let sel = id == current;
+                                                    view! {
+                                                        <option value={id} selected=sel>
+                                                            {label}
+                                                        </option>
                                                     }
-                                                });
-                                        }
-                                    >
-                                        {dims
-                                            .into_iter()
-                                            .map(|(id, label)| {
-                                                let selected = id == current;
+                                                })
+                                                .collect::<Vec<_>>()}
+                                        </select>
+                                        {if can_remove {
+                                            Some(
                                                 view! {
-                                                    <option value={id} selected=selected>
-                                                        {label}
-                                                    </option>
-                                                }
-                                            })
-                                            .collect::<Vec<_>>()}
-                                    </select>
+                                                    <button
+                                                        class="axis-remove"
+                                                        title="この軸を削除"
+                                                        on:click=move |_| {
+                                                            zoom_axes.update(|a| { a.remove(i); });
+                                                        }
+                                                    >
+                                                        "×"
+                                                    </button>
+                                                },
+                                            )
+                                        } else {
+                                            None
+                                        }}
+                                    </span>
                                 }
                             })
                             .collect::<Vec<_>>()
+                    }}
+                    // ＋ボタン（未使用のdimがある間だけ表示）
+                    {move || {
+                        let axes = zoom_axes.get();
+                        let dims = dimensions.get();
+                        if axes.len() >= dims.len() {
+                            return None;
+                        }
+                        let dims_clone = dims.clone();
+                        Some(
+                            view! {
+                                <button
+                                    class="axis-add"
+                                    title="ズーム軸を追加"
+                                    on:click=move |_| {
+                                        let cur = zoom_axes.get();
+                                        if let Some((id, _)) = dims_clone
+                                            .iter()
+                                            .find(|(id, _)| !cur.contains(id))
+                                        {
+                                            let new_id = id.clone();
+                                            zoom_axes.update(|a| a.push(new_id));
+                                        }
+                                    }
+                                >
+                                    "＋"
+                                </button>
+                            },
+                        )
                     }}
                 </div>
             </div>
