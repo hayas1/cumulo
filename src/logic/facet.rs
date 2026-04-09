@@ -35,8 +35,13 @@ pub fn available_facets(
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect();
-            if let Some(order) = &dim.ordered_values {
-                vals.sort_by_key(|v| order.iter().position(|o| o == v).unwrap_or(usize::MAX));
+            if !dim.values.is_empty() {
+                vals.sort_by_key(|v| {
+                    dim.values
+                        .iter()
+                        .position(|dv| &dv.value == v)
+                        .unwrap_or(usize::MAX)
+                });
             } else {
                 vals.sort();
             }
@@ -46,22 +51,9 @@ pub fn available_facets(
         .collect()
 }
 
-/// DimensionのmappingsからこのリソースのDimension値を解決する
+/// Dimensionのsource_keyからこのリソースのDimension値を解決する
 pub fn resolve_dimension(resource: &Resource, dim: &Dimension) -> Option<String> {
-    for mapping in &dim.mappings {
-        let matches = mapping
-            .conditions
-            .iter()
-            .all(|(k, v)| resource.attrs.get(k).map(|s| s.as_str()) == Some(v.as_str()));
-        if matches {
-            let raw = resource.attrs.get(&mapping.source_key)?;
-            return Some(match &mapping.value_map {
-                Some(map) => map.get(raw).cloned().unwrap_or_else(|| raw.clone()),
-                None => raw.clone(),
-            });
-        }
-    }
-    None
+    resource.attrs.get(&dim.id).cloned()
 }
 
 /// パレット用: 現在の絞り込み後リソースから選択可能な (attr_key, value) ペアを返す。

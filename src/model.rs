@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 /// サブリソース（BQのdataset、Auroraのdbなど）
@@ -30,18 +31,15 @@ pub struct Resource {
 pub struct Dimension {
     pub id: String,
     pub label: String,
-    pub mappings: Vec<TagMapping>,
-    pub ordered_values: Option<Vec<String>>,
+    /// あり得る値の列挙（順序＋カラー）。空なら動的に収集してアルファベット順。
+    pub values: Vec<DimensionValue>,
 }
 
-/// attrsのどのキーをこのDimensionの値として解釈するかの定義
+/// Dimensionに属する値の定義
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct TagMapping {
-    /// マッチ条件（AND）。空なら全リソースに適用。
-    pub conditions: Vec<(String, String)>,
-    pub source_key: String,
-    /// 値の読み替えマップ（表記ゆれ吸収）
-    pub value_map: Option<HashMap<String, String>>,
+pub struct DimensionValue {
+    pub value: String,
+    pub color: Option<String>,
 }
 
 /// マップビューの設定

@@ -31,7 +31,15 @@ pub fn MapCanvas(
         }
     });
 
-    // ── Effect 3: フィルター更新 ──────────────────────────────────────────────
+    // ── Effect 3b: ディメンション（カラー定義含む）更新 ──────────────────────
+    create_effect(move |_| {
+        let dimensions = store.get().dimensions;
+        if let Ok(json) = serde_json::to_string(&dimensions) {
+            map_bridge::update_dimensions(&json);
+        }
+    });
+
+    // ── Effect 4: フィルター更新 ──────────────────────────────────────────────
     create_effect(move |_| {
         let tags = selected_tags.get();
         if let Ok(json) = serde_json::to_string(&tags) {
@@ -39,7 +47,7 @@ pub fn MapCanvas(
         }
     });
 
-    // ── Effect 4: ズーム軸更新 ────────────────────────────────────────────────
+    // ── Effect 5: ズーム軸更新 ────────────────────────────────────────────────
     create_effect(move |_| {
         let axes = zoom_axes.get();
         if let Ok(json) = serde_json::to_string(&axes) {

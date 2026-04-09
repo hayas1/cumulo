@@ -52,6 +52,10 @@ pub fn update_zoom_axes(json: &str) {
     call1("cumuloUpdateZoomAxes", json);
 }
 
+pub fn update_dimensions(json: &str) {
+    call1("cumuloUpdateDimensions", json);
+}
+
 pub fn zoom_to_fit() {
     call0("cumuloZoomToFit");
 }

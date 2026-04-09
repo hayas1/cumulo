@@ -2,94 +2,110 @@
   {
     "id": "vendor",
     "label": "ベンダー",
-    "mappings": [
+    "values": [
       {
-        "conditions": [],
-        "source_key": "vendor",
-        "value_map": null
+        "value": "AWS",
+        "color": "#378ADD"
+      },
+      {
+        "value": "GCP",
+        "color": "#1D9E75"
+      },
+      {
+        "value": "Azure",
+        "color": "#7F77DD"
+      },
+      {
+        "value": "Datadog",
+        "color": "#E24B4A"
+      },
+      {
+        "value": "Sentry",
+        "color": "#9B6DD6"
       }
-    ],
-    "ordered_values": ["AWS", "GCP", "Azure", "Datadog", "Sentry"]
-  },
-  {
-    "id": "project_scope",
-    "label": "プロジェクト / アカウント",
-    "mappings": [
-      {
-        "conditions": [["vendor", "GCP"]],
-        "source_key": "project",
-        "value_map": null
-      },
-      {
-        "conditions": [["vendor", "AWS"]],
-        "source_key": "account",
-        "value_map": null
-      },
-      {
-        "conditions": [["vendor", "Azure"]],
-        "source_key": "subscription",
-        "value_map": null
-      },
-      {
-        "conditions": [],
-        "source_key": "project",
-        "value_map": null
-      }
-    ],
-    "ordered_values": null
+    ]
   },
   {
     "id": "env",
     "label": "環境",
-    "mappings": [
+    "values": [
       {
-        "conditions": [],
-        "source_key": "env",
-        "value_map": {
-          "production": "prod",
-          "prd": "prod",
-          "stg": "staging",
-          "develop": "dev",
-          "development": "dev"
-        }
+        "value": "prod",
+        "color": "#E24B4A"
+      },
+      {
+        "value": "staging",
+        "color": "#BA7517"
+      },
+      {
+        "value": "dev",
+        "color": "#378ADD"
       }
-    ],
-    "ordered_values": ["prod", "staging", "dev"]
+    ]
   },
   {
     "id": "service",
-    "label": "サービス / プロダクト",
-    "mappings": [
+    "label": "プロダクト",
+    "values": [
       {
-        "conditions": [],
-        "source_key": "service",
-        "value_map": null
+        "value": "auth",
+        "color": "#E24B4A"
+      },
+      {
+        "value": "payment",
+        "color": "#378ADD"
+      },
+      {
+        "value": "infra",
+        "color": "#1D9E75"
+      },
+      {
+        "value": "analytics",
+        "color": "#7F77DD"
       }
-    ],
-    "ordered_values": null
+    ]
   },
   {
     "id": "resource_type",
-    "label": "リソース種別",
-    "mappings": [
+    "label": "リソース",
+    "values": [
       {
-        "conditions": [],
-        "source_key": "resource_type",
-        "value_map": null
+        "value": "BigQuery",
+        "color": "#1D9E75"
+      },
+      {
+        "value": "Aurora",
+        "color": "#378ADD"
+      },
+      {
+        "value": "RDS",
+        "color": "#5090D0"
+      },
+      {
+        "value": "GCS",
+        "color": "#0F6E56"
+      },
+      {
+        "value": "APM",
+        "color": "#E24B4A"
+      },
+      {
+        "value": "CosmosDB",
+        "color": "#7F77DD"
+      },
+      {
+        "value": "EC2",
+        "color": "#BA7517"
+      },
+      {
+        "value": "ErrorTrack",
+        "color": "#9B6DD6"
       }
-    ],
-    "ordered_values": null
+    ]
   },
   {
     "id": "team",
     "label": "チーム",
-    "mappings": [
-      {
-        "conditions": [],
-        "source_key": "team",
-        "value_map": null
-      }
-    ],
-    "ordered_values": null
+    "values": []
   }
 ]

@@ -14,28 +14,12 @@ let initialized = false;
 let svg, g, zoom;
 let W = 900, H = 600;
 
-// ── ベンダー / クラスタカラー ─────────────────────────────────────────────────
-const COLORS = {
-  GCP:     '#1D9E75',
-  AWS:     '#378ADD',
-  Azure:   '#7F77DD',
-  Datadog: '#E24B4A',
-  Sentry:  '#9B6DD6',
-};
-const RESOURCE_TYPE_COLORS = {
-  BigQuery:   '#1D9E75',
-  Aurora:     '#378ADD',
-  RDS:        '#378ADD',
-  GCS:        '#0F6E56',
-  APM:        '#E24B4A',
-  CosmosDB:   '#7F77DD',
-  EC2:        '#BA7517',
-  ErrorTrack: '#9B6DD6',
-};
+// ── クラスタカラー（dimensions.json から動的に構築） ─────────────────────────
+let valueColors = {};
 const DEFAULT_COLOR = '#6b8099';
 
 function clusterColor(key) {
-  return COLORS[key] || RESOURCE_TYPE_COLORS[key] || DEFAULT_COLOR;
+  return valueColors[key] || DEFAULT_COLOR;
 }
 
 // ── パブリックAPI ─────────────────────────────────────────────────────────────
@@ -104,6 +88,19 @@ window.cumuloUpdateZoomAxes = function (axesJson) {
       zoomToFit();
     }
   } catch (e) { console.error('cumuloUpdateZoomAxes', e); }
+};
+
+window.cumuloUpdateDimensions = function (json) {
+  try {
+    const dimensions = JSON.parse(json);
+    valueColors = {};
+    dimensions.forEach(dim => {
+      (dim.values || []).forEach(dv => {
+        if (dv.color) valueColors[dv.value] = dv.color;
+      });
+    });
+    if (initialized) render();
+  } catch (e) { console.error('cumuloUpdateDimensions', e); }
 };
 
 window.cumuloZoomToFit = function () { zoomToFit(); };
@@ -259,8 +256,6 @@ function render() {
   // ── ミニノード（クラスタ内の個別リソース） ────────────────────────────
   clusterG.each(function (cluster) {
     const el = d3.select(this);
-    const n = cluster.items.length;
-
     cluster.items.forEach((r, i) => {
       // ゴールデンアングル螺旋でリソースをクラスタ内に配置
       const goldenAngle = 137.508 * (Math.PI / 180);
