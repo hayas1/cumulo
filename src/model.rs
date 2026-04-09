@@ -2,15 +2,6 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-/// サブリソース（BQのdataset、Auroraのdbなど）
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ChildResource {
-    pub id: String,
-    pub name: String,
-    pub freq: u32,
-    pub console_url: String,
-}
-
 /// クラウドリソース（物理的な実体）
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Resource {
@@ -19,11 +10,24 @@ pub struct Resource {
     /// キー名はユーザー定義。システムは強制しない。
     pub attrs: HashMap<String, String>,
     pub console_url: String,
-    pub created_at: String,
+    pub created_at: Option<String>,
     /// アクセス頻度（表示サイズに使用）
     pub freq: u32,
     pub parent_id: Option<String>,
-    pub children: Vec<ChildResource>,
+}
+
+impl Resource {
+    /// 親リソースの attrs を継承した実効 attrs を返す（子が優先）
+    pub fn effective_attrs<'a>(&'a self, all: &'a [Resource]) -> HashMap<String, String> {
+        if let Some(pid) = &self.parent_id {
+            if let Some(parent) = all.iter().find(|r| &r.id == pid) {
+                let mut merged = parent.effective_attrs(all);
+                merged.extend(self.attrs.clone());
+                return merged;
+            }
+        }
+        self.attrs.clone()
+    }
 }
 
 /// 論理軸の定義。ファセット推論とクラスタリングの両方に使う。

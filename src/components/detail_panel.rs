@@ -19,6 +19,18 @@ pub fn DetailPanel(
         s.resources.iter().find(|r| r.id == id).cloned()
     });
 
+    let children = create_memo(move |_| {
+        let id = selected_id.get()?;
+        let s = store.get();
+        let kids: Vec<_> = s
+            .resources
+            .iter()
+            .filter(|r| r.parent_id.as_deref() == Some(id.as_str()))
+            .cloned()
+            .collect();
+        Some(kids)
+    });
+
     view! {
         <Show when=move || resource.get().is_some()>
             <div class="detail-panel">
@@ -29,16 +41,15 @@ pub fn DetailPanel(
                             let url = r.console_url.clone();
                             let freq = r.freq;
 
+                            let s = store.get();
                             let mut attrs_sorted: Vec<_> = r
-                                .attrs
-                                .iter()
-                                .map(|(k, v)| (k.clone(), v.clone()))
+                                .effective_attrs(&s.resources)
+                                .into_iter()
                                 .collect();
                             attrs_sorted.sort_by_key(|(k, _)| k.clone());
 
-                            // children を2つのクロージャ用に事前クローン
-                            let children = r.children.clone();
-                            let children_check = children.clone();
+                            let kids = children.get().unwrap_or_default();
+                            let kids_check = kids.clone();
 
                             view! {
                                 // ヘッダー
@@ -70,14 +81,15 @@ pub fn DetailPanel(
                                     </div>
 
                                     // 子リソース
-                                    <Show when=move || !children_check.is_empty()>
+                                    <Show when=move || !kids_check.is_empty()>
                                         <div class="detail-section-title">"子リソース"</div>
                                         <div class="detail-children">
-                                            {children
+                                            {kids
                                                 .iter()
                                                 .map(|c| {
                                                     let curl = c.console_url.clone();
                                                     let cfreq = c.freq;
+                                                    let cid = c.id.clone();
                                                     view! {
                                                         <div class="child-row">
                                                             <span class="child-name">
@@ -93,6 +105,14 @@ pub fn DetailPanel(
                                                                 }
                                                             >
                                                                 "→"
+                                                            </button>
+                                                            <button
+                                                                class="child-select"
+                                                                on:click=move |_| {
+                                                                    selected_id.set(Some(cid.clone()))
+                                                                }
+                                                            >
+                                                                "詳細"
                                                             </button>
                                                         </div>
                                                     }

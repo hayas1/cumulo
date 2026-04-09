@@ -14,21 +14,25 @@
       "team": "platform"
     },
     "console_url": "https://console.cloud.google.com/bigquery?project=gamma-proj",
-    "created_at": "2026-01-01T00:00:00Z",
-    "children": [
-      {
-        "id": "r1c1",
-        "name": "dataset_events",
-        "freq": 8,
-        "console_url": "https://console.cloud.google.com/bigquery?project=gamma-proj&d=events"
-      },
-      {
-        "id": "r1c2",
-        "name": "dataset_users",
-        "freq": 4,
-        "console_url": "https://console.cloud.google.com/bigquery?project=gamma-proj&d=users"
-      }
-    ]
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "r1c1",
+    "name": "dataset_events",
+    "freq": 8,
+    "parent_id": "r1",
+    "attrs": {},
+    "console_url": "https://console.cloud.google.com/bigquery?project=gamma-proj&d=events",
+    "created_at": null
+  },
+  {
+    "id": "r1c2",
+    "name": "dataset_users",
+    "freq": 4,
+    "parent_id": "r1",
+    "attrs": {},
+    "console_url": "https://console.cloud.google.com/bigquery?project=gamma-proj&d=users",
+    "created_at": null
   },
   {
     "id": "r2",
@@ -45,8 +49,7 @@
       "team": "platform"
     },
     "console_url": "https://console.cloud.google.com/bigquery?project=gamma-staging",
-    "created_at": "2026-01-01T00:00:00Z",
-    "children": []
+    "created_at": "2026-01-01T00:00:00Z"
   },
   {
     "id": "r3",
@@ -63,8 +66,7 @@
       "team": "backend"
     },
     "console_url": "https://console.aws.amazon.com/rds",
-    "created_at": "2026-01-01T00:00:00Z",
-    "children": []
+    "created_at": "2026-01-01T00:00:00Z"
   },
   {
     "id": "r4",
@@ -81,21 +83,25 @@
       "team": "platform"
     },
     "console_url": "https://console.aws.amazon.com/rds",
-    "created_at": "2026-01-01T00:00:00Z",
-    "children": [
-      {
-        "id": "r4c1",
-        "name": "db_auth_main",
-        "freq": 12,
-        "console_url": "https://console.aws.amazon.com/rds/home#database:id=auth-main"
-      },
-      {
-        "id": "r4c2",
-        "name": "db_auth_read",
-        "freq": 3,
-        "console_url": "https://console.aws.amazon.com/rds/home#database:id=auth-read"
-      }
-    ]
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "r4c1",
+    "name": "db_auth_main",
+    "freq": 12,
+    "parent_id": "r4",
+    "attrs": {},
+    "console_url": "https://console.aws.amazon.com/rds/home#database:id=auth-main",
+    "created_at": null
+  },
+  {
+    "id": "r4c2",
+    "name": "db_auth_read",
+    "freq": 3,
+    "parent_id": "r4",
+    "attrs": {},
+    "console_url": "https://console.aws.amazon.com/rds/home#database:id=auth-read",
+    "created_at": null
   },
   {
     "id": "r5",
@@ -112,8 +118,7 @@
       "team": "infra"
     },
     "console_url": "https://portal.azure.com/",
-    "created_at": "2026-01-01T00:00:00Z",
-    "children": []
+    "created_at": "2026-01-01T00:00:00Z"
   },
   {
     "id": "r6",
@@ -130,8 +135,7 @@
       "team": "platform"
     },
     "console_url": "https://app.datadoghq.com/apm/services/auth",
-    "created_at": "2026-01-01T00:00:00Z",
-    "children": []
+    "created_at": "2026-01-01T00:00:00Z"
   },
   {
     "id": "r7",
@@ -148,8 +152,7 @@
       "team": "backend"
     },
     "console_url": "https://sentry.io/",
-    "created_at": "2026-01-01T00:00:00Z",
-    "children": []
+    "created_at": "2026-01-01T00:00:00Z"
   },
   {
     "id": "r11",
@@ -166,14 +169,15 @@
       "team": "data"
     },
     "console_url": "https://console.cloud.google.com/bigquery?project=analytics-proj",
-    "created_at": "2026-01-01T00:00:00Z",
-    "children": [
-      {
-        "id": "r11c1",
-        "name": "dataset_metrics",
-        "freq": 9,
-        "console_url": "https://console.cloud.google.com/bigquery?project=analytics-proj&d=metrics"
-      }
-    ]
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "r11c1",
+    "name": "dataset_metrics",
+    "freq": 9,
+    "parent_id": "r11",
+    "attrs": {},
+    "console_url": "https://console.cloud.google.com/bigquery?project=analytics-proj&d=metrics",
+    "created_at": null
   }
 ]
