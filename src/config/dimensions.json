@@ -1,0 +1,95 @@
+[
+  {
+    "id": "vendor",
+    "label": "ベンダー",
+    "mappings": [
+      {
+        "conditions": [],
+        "source_key": "vendor",
+        "value_map": null
+      }
+    ],
+    "ordered_values": ["AWS", "GCP", "Azure", "Datadog", "Sentry"]
+  },
+  {
+    "id": "project_scope",
+    "label": "プロジェクト / アカウント",
+    "mappings": [
+      {
+        "conditions": [["vendor", "GCP"]],
+        "source_key": "project",
+        "value_map": null
+      },
+      {
+        "conditions": [["vendor", "AWS"]],
+        "source_key": "account",
+        "value_map": null
+      },
+      {
+        "conditions": [["vendor", "Azure"]],
+        "source_key": "subscription",
+        "value_map": null
+      },
+      {
+        "conditions": [],
+        "source_key": "project",
+        "value_map": null
+      }
+    ],
+    "ordered_values": null
+  },
+  {
+    "id": "env",
+    "label": "環境",
+    "mappings": [
+      {
+        "conditions": [],
+        "source_key": "env",
+        "value_map": {
+          "production": "prod",
+          "prd": "prod",
+          "stg": "staging",
+          "develop": "dev",
+          "development": "dev"
+        }
+      }
+    ],
+    "ordered_values": ["prod", "staging", "dev"]
+  },
+  {
+    "id": "service",
+    "label": "サービス / プロダクト",
+    "mappings": [
+      {
+        "conditions": [],
+        "source_key": "service",
+        "value_map": null
+      }
+    ],
+    "ordered_values": null
+  },
+  {
+    "id": "resource_type",
+    "label": "リソース種別",
+    "mappings": [
+      {
+        "conditions": [],
+        "source_key": "resource_type",
+        "value_map": null
+      }
+    ],
+    "ordered_values": null
+  },
+  {
+    "id": "team",
+    "label": "チーム",
+    "mappings": [
+      {
+        "conditions": [],
+        "source_key": "team",
+        "value_map": null
+      }
+    ],
+    "ordered_values": null
+  }
+]
