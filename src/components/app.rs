@@ -1,45 +1,64 @@
 use crate::model::AppStore;
 use crate::storage::load_from_storage;
 use leptos::*;
+use leptos_router::*;
 use super::{
-    controls::Controls, detail_panel::DetailPanel, map_canvas::MapCanvas, palette::Palette,
+    controls::Controls,
+    detail_panel::DetailPanel,
+    facet_view::FacetView,
+    map_canvas::MapCanvas,
+    palette::Palette,
 };
 
 #[component]
 pub fn App() -> impl IntoView {
     let (store, _set_store) = create_signal::<AppStore>(load_from_storage());
 
-    // パレットで選択中のタグ (attr_key, value) ペアのリスト
+    view! {
+        <div class="app">
+            <header class="app-header">
+                <A href="/" class="app-logo">
+                    "☁ Cumulo"
+                </A>
+                <nav class="app-nav">
+                    <A href="/facet" class="nav-link">
+                        "ファセット"
+                    </A>
+                    <A href="/map" class="nav-link">
+                        "マップ"
+                    </A>
+                </nav>
+            </header>
+            <div class="route-content">
+                <Routes>
+                    <Route path="/" view=move || view! { <FacetView store=store /> } />
+                    <Route path="/facet" view=move || view! { <FacetView store=store /> } />
+                    <Route path="/map" view=move || view! { <MapView store=store /> } />
+                </Routes>
+            </div>
+        </div>
+    }
+}
+
+#[component]
+fn MapView(store: ReadSignal<AppStore>) -> impl IntoView {
     let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
-
-    // D3で選択されたリソースのID
     let selected_resource_id = create_rw_signal(Option::<String>::None);
-
-    // 現在のズームレベル（D3から通知）
     let zoom_level = create_rw_signal(0u32);
-
-    // ズーム軸（1軸から始め、Controls の＋ボタンで追加）
     let zoom_axes = create_rw_signal({
         let cfg = store.get_untracked();
         vec![cfg.map_config.zoom_axes[0].clone()]
     });
 
     view! {
-        <div class="app">
-            <header class="app-header">
-                <span class="app-logo">"☁ Cumulo"</span>
-                <span class="app-tagline">"マルチクラウド リソースマップ"</span>
-            </header>
-
+        <div class="map-view">
             <Palette store=store selected_tags=selected_tags />
-
             <Controls
                 store=store
                 selected_tags=selected_tags
                 zoom_axes=zoom_axes
                 zoom_level=zoom_level.read_only()
             />
-
             <div class="map-area">
                 <MapCanvas
                     store=store
