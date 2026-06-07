@@ -106,18 +106,12 @@ pub fn SettingsModal(
                                 "data" => view! {
                                     <div class="settings-section">
                                         <h3 class="settings-section-title">"エクスポート"</h3>
-                                        <p class="settings-section-desc">
-                                            "リソース・ディメンション・マップ設定をすべてJSONファイルとして保存します。"
-                                        </p>
                                         <button class="settings-action-btn" on:click=on_export>
                                             "エクスポート"
                                         </button>
                                     </div>
                                     <div class="settings-section">
                                         <h3 class="settings-section-title">"インポート"</h3>
-                                        <p class="settings-section-desc">
-                                            "JSONファイルを読み込み、現在のデータをすべて置き換えます。"
-                                        </p>
                                         <button class="settings-action-btn" on:click=on_import_click>
                                             "インポート..."
                                         </button>
