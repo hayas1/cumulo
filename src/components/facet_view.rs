@@ -10,101 +10,22 @@ fn open_url(url: &str) {
 }
 
 #[component]
-pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
-    let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
-    let search_text = create_rw_signal(String::new());
-
-    // 現在の絞り込み条件にマッチする親リソースIDのセット
+pub fn FacetView(
+    store: ReadSignal<AppStore>,
+    selected_tags: RwSignal<Vec<(String, String)>>,
+) -> impl IntoView {
     let filtered_parent_ids = create_memo(move |_| {
         let s = store.get();
         let tags = selected_tags.get();
-        let search = search_text.get().to_lowercase();
-
         filter_resources(&s.resources, &tags)
             .into_iter()
             .filter(|r| r.parent_id.is_none())
-            .filter(|r| {
-                if search.is_empty() {
-                    return true;
-                }
-                if r.name.to_lowercase().contains(&search) {
-                    return true;
-                }
-                // 子リソース名でも検索
-                let child_match = s.resources.iter().any(|c| {
-                    c.parent_id.as_deref() == Some(r.id.as_str())
-                        && c.name.to_lowercase().contains(&search)
-                });
-                if child_match {
-                    return true;
-                }
-                r.effective_attrs(&s.resources)
-                    .values()
-                    .any(|v| v.to_lowercase().contains(&search))
-            })
             .map(|r| r.id.clone())
             .collect::<Vec<_>>()
     });
 
     view! {
         <div class="facet-view">
-            // ── 検索バー ────────────────────────────────────────────────
-            <div class="facet-search-bar">
-                <span class="search-icon">"🔍"</span>
-                <div class="search-pills">
-                    {move || {
-                        selected_tags
-                            .get()
-                            .into_iter()
-                            .map(|(k, v)| {
-                                let k2 = k.clone();
-                                let v2 = v.clone();
-                                view! {
-                                    <span class="tag-pill">
-                                        <span class="pill-key">{k}</span>
-                                        <span class="pill-sep">":"</span>
-                                        <span class="pill-val">{v}</span>
-                                        <button
-                                            class="pill-remove"
-                                            on:click=move |_| {
-                                                selected_tags
-                                                    .update(|t| {
-                                                        t.retain(|(tk, tv)| !(tk == &k2 && tv == &v2))
-                                                    });
-                                            }
-                                        >
-                                            "×"
-                                        </button>
-                                    </span>
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                    }}
-                    <input
-                        type="text"
-                        class="facet-search-input"
-                        placeholder="検索... (例: auth, prod, BigQuery)"
-                        prop:value=move || search_text.get()
-                        on:input=move |ev| search_text.set(event_target_value(&ev))
-                    />
-                </div>
-                <Show when=move || {
-                    !selected_tags.with(|t| t.is_empty())
-                        || !search_text.with(|s| s.is_empty())
-                }>
-                    <button
-                        class="facet-clear-btn"
-                        on:click=move |_| {
-                            selected_tags.update(|t| t.clear());
-                            search_text.set(String::new());
-                        }
-                    >
-                        "クリア"
-                    </button>
-                </Show>
-            </div>
-
-            // ── ボディ（サイドバー ＋ 結果） ─────────────────────────────
             <div class="facet-body">
 
                 // ── ファセットサイドバー ─────────────────────────────────
@@ -117,7 +38,6 @@ pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
                             .clone()
                             .into_iter()
                             .filter_map(|dim| {
-                                // このディメンション以外のタグで絞り込んだ上でカウント
                                 let tags_minus: Vec<_> = tags
                                     .iter()
                                     .filter(|(k, _)| k != &dim.id)
@@ -129,7 +49,7 @@ pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
                                     std::collections::HashMap::new();
                                 for r in &base {
                                     if r.parent_id.is_some() {
-                                        continue; // 子リソースはカウントしない
+                                        continue;
                                     }
                                     if let Some(val) = resolve_dimension(r, &dim) {
                                         *counts.entry(val).or_default() += 1;
@@ -145,7 +65,6 @@ pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
                                     .find(|(k, _)| k == &dim.id)
                                     .map(|(_, v)| v.clone());
 
-                                // dim.values に順序定義があればその順、なければカウント降順
                                 let mut vals: Vec<(String, usize)> =
                                     counts.into_iter().collect();
                                 if !dim.values.is_empty() {
@@ -156,9 +75,7 @@ pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
                                             .unwrap_or(usize::MAX)
                                     });
                                 } else {
-                                    vals.sort_by(|a, b| {
-                                        b.1.cmp(&a.1).then(a.0.cmp(&b.0))
-                                    });
+                                    vals.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
                                 }
 
                                 let dim_id = dim.id.clone();
@@ -185,18 +102,15 @@ pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
                                                         on:click=move |_| {
                                                             let d = did.clone();
                                                             let vv = v_click.clone();
-                                                            selected_tags
-                                                                .update(|t| {
-                                                                    let already = t
-                                                                        .iter()
-                                                                        .any(|(k, tv)| {
-                                                                            k == &d && tv == &vv
-                                                                        });
-                                                                    t.retain(|(k, _)| k != &d);
-                                                                    if !already {
-                                                                        t.push((d, vv));
-                                                                    }
-                                                                });
+                                                            selected_tags.update(|t| {
+                                                                let already = t
+                                                                    .iter()
+                                                                    .any(|(k, tv)| k == &d && tv == &vv);
+                                                                t.retain(|(k, _)| k != &d);
+                                                                if !already {
+                                                                    t.push((d, vv));
+                                                                }
+                                                            });
                                                         }
                                                     >
                                                         <span class="fv-dot">
@@ -238,9 +152,7 @@ pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
                         }
 
                         view! {
-                            <div class="results-count">
-                                {parents.len()} " 件"
-                            </div>
+                            <div class="results-count">{parents.len()} " 件"</div>
                             <div class="results-list">
                                 {parents
                                     .into_iter()
@@ -268,9 +180,7 @@ pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
                                         view! {
                                             <div class="result-card">
                                                 <div class="result-card-header">
-                                                    <span class="result-name">
-                                                        {r.name.clone()}
-                                                    </span>
+                                                    <span class="result-name">{r.name.clone()}</span>
                                                     <button
                                                         class="result-open-btn"
                                                         on:click=move |_| open_url(&url)
@@ -293,34 +203,30 @@ pub fn FacetView(store: ReadSignal<AppStore>) -> impl IntoView {
                                                         .collect::<Vec<_>>()}
                                                 </div>
                                                 {if !children.is_empty() {
-                                                    Some(
-                                                        view! {
-                                                            <div class="result-children">
-                                                                {children
-                                                                    .into_iter()
-                                                                    .map(|c| {
-                                                                        let curl = c.console_url.clone();
-                                                                        view! {
-                                                                            <div class="result-child">
-                                                                                <span class="child-indent">
-                                                                                    "↳"
-                                                                                </span>
-                                                                                <span class="result-child-name">
-                                                                                    {c.name.clone()}
-                                                                                </span>
-                                                                                <button
-                                                                                    class="result-child-btn"
-                                                                                    on:click=move |_| open_url(&curl)
-                                                                                >
-                                                                                    "→"
-                                                                                </button>
-                                                                            </div>
-                                                                        }
-                                                                    })
-                                                                    .collect::<Vec<_>>()}
-                                                            </div>
-                                                        },
-                                                    )
+                                                    Some(view! {
+                                                        <div class="result-children">
+                                                            {children
+                                                                .into_iter()
+                                                                .map(|c| {
+                                                                    let curl = c.console_url.clone();
+                                                                    view! {
+                                                                        <div class="result-child">
+                                                                            <span class="child-indent">"↳"</span>
+                                                                            <span class="result-child-name">
+                                                                                {c.name.clone()}
+                                                                            </span>
+                                                                            <button
+                                                                                class="result-child-btn"
+                                                                                on:click=move |_| open_url(&curl)
+                                                                            >
+                                                                                "→"
+                                                                            </button>
+                                                                        </div>
+                                                                    }
+                                                                })
+                                                                .collect::<Vec<_>>()}
+                                                        </div>
+                                                    })
                                                 } else {
                                                     None
                                                 }}

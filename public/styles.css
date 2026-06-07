@@ -504,58 +504,6 @@ body {
   overflow: hidden;
 }
 
-/* Search bar */
-.facet-search-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.search-icon {
-  font-size: 0.9rem;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.search-pills {
-  flex: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-  min-height: 30px;
-}
-
-.facet-search-input {
-  flex: 1;
-  min-width: 200px;
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  font-size: 0.82rem;
-  font-family: var(--font-sans);
-  outline: none;
-  padding: 0.2rem 0;
-}
-.facet-search-input::placeholder { color: var(--text-muted); }
-
-.facet-clear-btn {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 0.72rem;
-  padding: 0.2rem 0.55rem;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.facet-clear-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
-
 /* Body */
 .facet-body {
   flex: 1;

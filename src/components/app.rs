@@ -13,6 +13,7 @@ use super::{
 #[component]
 pub fn App() -> impl IntoView {
     let (store, _set_store) = create_signal::<AppStore>(load_from_storage());
+    let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
 
     view! {
         <div class="app">
@@ -29,11 +30,21 @@ pub fn App() -> impl IntoView {
                     </A>
                 </nav>
             </header>
+            <Palette store=store selected_tags=selected_tags />
             <div class="route-content">
                 <Routes>
-                    <Route path="/" view=move || view! { <FacetView store=store /> } />
-                    <Route path="/facet" view=move || view! { <FacetView store=store /> } />
-                    <Route path="/map" view=move || view! { <MapView store=store /> } />
+                    <Route
+                        path="/"
+                        view=move || view! { <FacetView store=store selected_tags=selected_tags /> }
+                    />
+                    <Route
+                        path="/facet"
+                        view=move || view! { <FacetView store=store selected_tags=selected_tags /> }
+                    />
+                    <Route
+                        path="/map"
+                        view=move || view! { <MapView store=store selected_tags=selected_tags /> }
+                    />
                 </Routes>
             </div>
         </div>
@@ -41,8 +52,10 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
-fn MapView(store: ReadSignal<AppStore>) -> impl IntoView {
-    let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
+fn MapView(
+    store: ReadSignal<AppStore>,
+    selected_tags: RwSignal<Vec<(String, String)>>,
+) -> impl IntoView {
     let selected_resource_id = create_rw_signal(Option::<String>::None);
     let zoom_level = create_rw_signal(0u32);
     let zoom_axes = create_rw_signal({
@@ -52,7 +65,6 @@ fn MapView(store: ReadSignal<AppStore>) -> impl IntoView {
 
     view! {
         <div class="map-view">
-            <Palette store=store selected_tags=selected_tags />
             <Controls
                 store=store
                 selected_tags=selected_tags
