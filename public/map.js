@@ -433,12 +433,15 @@ function drawResourceNode(parentG, node, rx, ry) {
   const lastAxis = zoomAxes[zoomAxes.length - 1];
   const color = clusterColor(r.attrs && r.attrs[lastAxis]);
 
+  // クリック時に選択するリソース ID をクロージャで直接キャプチャ
+  const resourceId = r.id;
+
   const nodeG = parentG.append('g')
     .attr('class', hasChildren ? 'mini-node has-children' : 'mini-node')
+    .attr('data-id', resourceId)
     .attr('transform', `translate(${rx},${ry})`)
     .style('opacity', 0)
-    .style('cursor', 'pointer')
-    .datum(r);
+    .style('cursor', 'pointer');
 
   // リソース本体の円（子がある場合は node.r まで拡張、子はこの円の内側に描画される）
   nodeG.append('circle')
@@ -449,35 +452,40 @@ function drawResourceNode(parentG, node, rx, ry) {
     .attr('stroke', '#0d1117')
     .attr('stroke-width', 1);
 
+  // 名前ラベル: 円の内側中央に表示
+  const labelFs = Math.max(5, Math.min(9, node.r * 0.45));
+  const maxChars = Math.max(3, Math.floor(node.r * 1.6 / (labelFs * 0.55)));
+  const labelText = r.name.length > maxChars ? r.name.slice(0, maxChars - 1) + '…' : r.name;
   nodeG.append('text')
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle')
-    .attr('dy', node.r + 11)
-    .attr('font-size', 9)
+    .attr('dominant-baseline', 'middle')
+    .attr('font-size', labelFs)
     .attr('font-family', 'monospace')
-    .attr('fill', '#c9d1d9')
+    .attr('fill', '#e6edf3')
     .attr('pointer-events', 'none')
     .style('opacity', 0)
-    .text(r.name);
+    .text(labelText);
 
-  nodeG.on('click', (event, resource) => {
+  nodeG.on('click', (event) => {
     event.stopPropagation();
     const cb = window.__cumuloCallbacks.onResourceSelect;
-    if (cb) cb(resource.id);
+    if (cb) cb(resourceId);
   });
 
   // 子ノード: 親円の内側に配置
   const childOrbit = baseR + 6;  // 内部軌道半径（baseR のすぐ外、container の内側）
   node.children.forEach((child, ci) => {
+    const childId = child.id;
     const childAngle = (ci / Math.max(node.children.length, 1)) * 2 * Math.PI;
     const childR = Math.max(2, Math.min(4, (child.freq || 1) * 0.3 + 2));
 
     const childG = nodeG.append('g')
       .attr('class', 'child-node')
+      .attr('data-id', childId)
       .attr('transform', `translate(${Math.cos(childAngle) * childOrbit},${Math.sin(childAngle) * childOrbit})`)
       .style('opacity', 0)
-      .style('cursor', 'pointer')
-      .datum(child);
+      .style('cursor', 'pointer');
 
     childG.append('circle')
       .attr('class', 'child-node-circle')
@@ -488,21 +496,22 @@ function drawResourceNode(parentG, node, rx, ry) {
       .attr('stroke-width', 0.8)
       .attr('stroke-opacity', 0.7);
 
+    // 子ノードのラベルも内側中央に
     childG.append('text')
       .attr('class', 'child-label')
       .attr('text-anchor', 'middle')
-      .attr('dy', childR + 8)
-      .attr('font-size', 7)
+      .attr('dominant-baseline', 'middle')
+      .attr('font-size', Math.max(4, childR * 0.9))
       .attr('font-family', 'monospace')
-      .attr('fill', '#8b949e')
+      .attr('fill', '#e6edf3')
       .attr('pointer-events', 'none')
       .style('opacity', 0)
-      .text(child.name);
+      .text(child.name.length > 6 ? child.name.slice(0, 5) + '…' : child.name);
 
-    childG.on('click', (event, resource) => {
+    childG.on('click', (event) => {
       event.stopPropagation();
       const cb = window.__cumuloCallbacks.onResourceSelect;
-      if (cb) cb(resource.id);
+      if (cb) cb(childId);
     });
   });
 }
@@ -512,19 +521,23 @@ function drawResourceNode(parentG, node, rx, ry) {
 function updateFilterOpacity() {
   if (!g) return;
 
-  g.selectAll('.mini-node').each(function (d) {
-    if (!d) return;
-    const isParent = d3.select(this).classed('has-children');
-    d3.select(this).select('.mini-node-circle')
+  g.selectAll('.mini-node').each(function () {
+    const el = d3.select(this);
+    const id = el.attr('data-id');
+    if (!id) return;
+    const isParent = el.classed('has-children');
+    el.select('.mini-node-circle')
       .transition().duration(250)
-      .attr('fill-opacity', filteredIds.has(d.id) ? (isParent ? 0.55 : 0.85) : 0.1);
+      .attr('fill-opacity', filteredIds.has(id) ? (isParent ? 0.55 : 0.85) : 0.1);
   });
 
-  g.selectAll('.child-node').each(function (d) {
-    if (!d) return;
-    d3.select(this).select('.child-node-circle')
+  g.selectAll('.child-node').each(function () {
+    const el = d3.select(this);
+    const id = el.attr('data-id');
+    if (!id) return;
+    el.select('.child-node-circle')
       .transition().duration(250)
-      .attr('fill-opacity', filteredIds.has(d.id) ? 0.9 : 0.1);
+      .attr('fill-opacity', filteredIds.has(id) ? 0.9 : 0.1);
   });
 
   g.selectAll('.cluster-bg').each(function (d) {
