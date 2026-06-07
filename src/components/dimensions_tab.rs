@@ -3,6 +3,12 @@ use crate::storage::save_to_storage;
 use leptos::html::Input;
 use leptos::*;
 
+fn confirm(msg: &str) -> bool {
+    web_sys::window()
+        .and_then(|w| w.confirm_with_message(msg).ok())
+        .unwrap_or(false)
+}
+
 fn new_dim_id() -> String {
     let n = (js_sys::Math::random() * 1e15) as u64;
     format!("dim{n:x}")
@@ -31,6 +37,7 @@ fn commit_chip(
 
 fn remove_chip(editing_chip: RwSignal<Option<(usize, usize)>>, store: RwSignal<AppStore>) {
     let Some((di, vi)) = editing_chip.get_untracked() else { return };
+    if !confirm("この値を削除しますか？") { return; }
     store.update(|s| {
         if let Some(dim) = s.dimensions.get_mut(di) {
             if vi < dim.values.len() {
@@ -150,6 +157,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                 <button
                                     class="dim-row-delete"
                                     on:click=move |_| {
+                                        if !confirm("このディメンションを削除しますか？") { return; }
                                         editing_chip.set(None);
                                         editing_dim.set(None);
                                         store.update(|s| s.dimensions.retain(|d| d.id != dim_id_del));
