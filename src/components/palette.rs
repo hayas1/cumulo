@@ -9,6 +9,7 @@ pub fn Palette(
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());
     let focused_index = create_rw_signal(Option::<usize>::None);
+    let is_focused = create_rw_signal(false);
 
     let suggestions = create_memo(move |_| {
         let s = store.get();
@@ -35,6 +36,11 @@ pub fn Palette(
         });
         input_text.set(String::new());
         focused_index.set(None);
+    };
+
+    // 入力中（フォーカスあり＋文字あり）かつ候補があるときだけポップアップを表示
+    let show_popup = move || {
+        is_focused.get() && !input_text.with(|t| t.is_empty()) && suggestions.with(|s| !s.is_empty())
     };
 
     view! {
@@ -68,56 +74,99 @@ pub fn Palette(
                         })
                         .collect::<Vec<_>>()
                 }}
-                <input
-                    type="text"
-                    class="palette-input"
-                    placeholder="絞り込み... (例: service, auth)"
-                    prop:value=move || input_text.get()
-                    on:input=move |ev| {
-                        input_text.set(event_target_value(&ev));
-                        focused_index.set(None);
-                    }
-                    on:keydown=move |ev| {
-                        let count = suggestions.with(|s| s.len());
-                        if count == 0 {
-                            return;
+
+                <div class="palette-input-wrapper">
+                    <input
+                        type="text"
+                        class="palette-input"
+                        placeholder="絞り込み... (例: service, auth)"
+                        prop:value=move || input_text.get()
+                        on:focus=move |_| is_focused.set(true)
+                        on:blur=move |_| is_focused.set(false)
+                        on:input=move |ev| {
+                            input_text.set(event_target_value(&ev));
+                            focused_index.set(None);
                         }
-                        match ev.key().as_str() {
-                            "ArrowDown" | "ArrowRight" => {
-                                ev.prevent_default();
-                                focused_index.update(|fi| {
-                                    *fi = Some(match *fi {
-                                        None => 0,
-                                        Some(i) => (i + 1) % count,
-                                    });
-                                });
+                        on:keydown=move |ev| {
+                            let count = suggestions.with(|s| s.len());
+                            if count == 0 {
+                                return;
                             }
-                            "ArrowUp" | "ArrowLeft" => {
-                                ev.prevent_default();
-                                focused_index.update(|fi| {
-                                    *fi = Some(match *fi {
-                                        None | Some(0) => count - 1,
-                                        Some(i) => i - 1,
+                            match ev.key().as_str() {
+                                "ArrowDown" => {
+                                    ev.prevent_default();
+                                    focused_index.update(|fi| {
+                                        *fi = Some(match *fi {
+                                            None => 0,
+                                            Some(i) => (i + 1) % count,
+                                        });
                                     });
-                                });
-                            }
-                            "Enter" => {
-                                if let Some(idx) = focused_index.get_untracked() {
-                                    if let Some((k, v)) =
-                                        suggestions.with(|s| s.get(idx).cloned())
-                                    {
-                                        ev.prevent_default();
-                                        commit_tag(k, v);
+                                }
+                                "ArrowUp" => {
+                                    ev.prevent_default();
+                                    focused_index.update(|fi| {
+                                        *fi = Some(match *fi {
+                                            None | Some(0) => count - 1,
+                                            Some(i) => i - 1,
+                                        });
+                                    });
+                                }
+                                "Enter" => {
+                                    if let Some(idx) = focused_index.get_untracked() {
+                                        if let Some((k, v)) =
+                                            suggestions.with(|s| s.get(idx).cloned())
+                                        {
+                                            ev.prevent_default();
+                                            commit_tag(k, v);
+                                        }
                                     }
                                 }
+                                "Escape" => {
+                                    focused_index.set(None);
+                                    is_focused.set(false);
+                                }
+                                _ => {}
                             }
-                            "Escape" => {
-                                focused_index.set(None);
-                            }
-                            _ => {}
                         }
-                    }
-                />
+                    />
+                    // 入力中のみ表示するポップアップ
+                    <Show when=show_popup>
+                        <div class="palette-popup">
+                            {move || {
+                                let fi = focused_index.get();
+                                suggestions
+                                    .get()
+                                    .into_iter()
+                                    .enumerate()
+                                    .map(|(i, (k, v))| {
+                                        let k2 = k.clone();
+                                        let v2 = v.clone();
+                                        let is_focused_item = fi == Some(i);
+                                        view! {
+                                            <button
+                                                class=if is_focused_item {
+                                                    "popup-item focused"
+                                                } else {
+                                                    "popup-item"
+                                                }
+                                                // mousedown で prevent_default → blur を防いで確定
+                                                on:mousedown=move |ev| {
+                                                    ev.prevent_default();
+                                                    commit_tag(k2.clone(), v2.clone());
+                                                }
+                                            >
+                                                <span class="sug-key">{k}</span>
+                                                <span class="sug-sep">":"</span>
+                                                <span class="sug-val">{v}</span>
+                                            </button>
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                            }}
+                        </div>
+                    </Show>
+                </div>
+
                 <Show when=move || !selected_tags.with(|t| t.is_empty())>
                     <button
                         class="palette-clear-btn"
@@ -130,26 +179,21 @@ pub fn Palette(
                     </button>
                 </Show>
             </div>
+
+            // 既存の横並びチップ（常時表示）
             <Show when=move || suggestions.with(|s| !s.is_empty())>
                 <div class="palette-suggestions">
                     <span class="suggestions-label">"候補:"</span>
                     {move || {
-                        let fi = focused_index.get();
                         suggestions
                             .get()
                             .into_iter()
-                            .enumerate()
-                            .map(|(i, (k, v))| {
+                            .map(|(k, v)| {
                                 let k2 = k.clone();
                                 let v2 = v.clone();
-                                let is_focused = fi == Some(i);
                                 view! {
                                     <button
-                                        class=if is_focused {
-                                            "suggestion-btn focused"
-                                        } else {
-                                            "suggestion-btn"
-                                        }
+                                        class="suggestion-btn"
                                         on:click=move |_| {
                                             commit_tag(k2.clone(), v2.clone());
                                         }
