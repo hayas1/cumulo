@@ -358,11 +358,9 @@ body {
   cursor: pointer;
   font-size: 0.65rem;
   line-height: 1;
-  opacity: 0;
   padding: 0.1rem 0.2rem;
-  transition: opacity 0.12s, color 0.12s;
+  transition: color 0.12s;
 }
-.val-chip-wrap:hover .val-chip-delete { opacity: 1; }
 .val-chip-delete:hover { color: #f87171; }
 
 .val-swatch {
