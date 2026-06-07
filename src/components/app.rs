@@ -5,6 +5,7 @@ use leptos_router::*;
 use super::{
     controls::Controls,
     detail_panel::DetailPanel,
+    facet_sidebar::FacetSidebar,
     facet_view::FacetView,
     map_canvas::MapCanvas,
     palette::Palette,
@@ -72,6 +73,7 @@ fn MapView(
                 zoom_level=zoom_level.read_only()
             />
             <div class="map-area">
+                <FacetSidebar store=store selected_tags=selected_tags />
                 <MapCanvas
                     store=store
                     selected_tags=selected_tags
