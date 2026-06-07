@@ -10,12 +10,19 @@ static MAP_CONFIG_JSON: &str = include_str!("config/map_config.json");
 pub fn load_from_storage() -> AppStore {
     match LocalStorage::get::<AppStore>(STORAGE_KEY) {
         Ok(store) => store,
-        Err(_) => default_app_store(),
+        Err(e) => {
+            web_sys::console::warn_1(
+                &format!("[cumulo] load_from_storage failed ({e:?}), using defaults").into(),
+            );
+            default_app_store()
+        }
     }
 }
 
 pub fn save_to_storage(store: &AppStore) {
-    let _ = LocalStorage::set(STORAGE_KEY, store);
+    if let Err(e) = LocalStorage::set(STORAGE_KEY, store) {
+        web_sys::console::error_1(&format!("[cumulo] save_to_storage failed: {e:?}").into());
+    }
 }
 
 pub fn default_app_store() -> AppStore {
