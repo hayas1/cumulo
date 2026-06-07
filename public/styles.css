@@ -301,20 +301,21 @@ body {
 .dim-input:focus { border-color: var(--accent); outline: none; }
 .dim-input-id { flex: 0 0 120px; font-family: var(--font-mono); font-size: 0.75rem; }
 
-.dim-commit-btn, .dim-row-delete {
+.dim-row-delete, .dim-row-cancel {
   background: none;
   border: 1px solid var(--border);
   border-radius: 5px;
-  color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 0.75rem;
+  margin-left: auto;
   padding: 0.2rem 0.5rem;
   white-space: nowrap;
 }
-.dim-commit-btn:hover { border-color: var(--accent); color: var(--accent); }
-.dim-row-delete { margin-left: auto; }
+.dim-row-delete { color: var(--text-secondary); }
 .dim-row-delete:hover { border-color: #f87171; color: #f87171; }
+.dim-row-cancel { color: var(--text-muted); }
+.dim-row-cancel:hover { border-color: var(--border); color: var(--text-primary); }
 
 /* ── Value chips ─────────────────────────────────────────── */
 
@@ -323,6 +324,13 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+
+.val-chip-wrap {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.1rem;
+  position: relative;
 }
 
 .val-chip {
@@ -341,6 +349,21 @@ body {
 }
 .val-chip:hover  { border-color: var(--accent); }
 .val-chip.editing { border-color: var(--accent); background: rgba(88,166,255,0.08); }
+
+.val-chip-delete {
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.65rem;
+  line-height: 1;
+  opacity: 0;
+  padding: 0.1rem 0.2rem;
+  transition: opacity 0.12s, color 0.12s;
+}
+.val-chip-wrap:hover .val-chip-delete { opacity: 1; }
+.val-chip-delete:hover { color: #f87171; }
 
 .val-swatch {
   border-radius: 50%;
@@ -397,18 +420,18 @@ body {
   width: 36px;
 }
 
-.chip-editor-delete {
+.chip-editor-cancel {
   background: none;
   border: 1px solid transparent;
   border-radius: 5px;
-  color: #f87171;
+  color: var(--text-muted);
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 0.75rem;
   padding: 0.22rem 0.55rem;
   white-space: nowrap;
 }
-.chip-editor-delete:hover { border-color: #f87171; }
+.chip-editor-cancel:hover { border-color: var(--border); color: var(--text-primary); }
 
 .chip-editor-randomize {
   align-items: center;

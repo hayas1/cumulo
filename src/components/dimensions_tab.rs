@@ -23,10 +23,20 @@ fn random_nice_color() -> String {
     PALETTE[idx.min(PALETTE.len() - 1)].to_string()
 }
 
+// Returns true when focus moved outside `selector` (or to null).
 fn focus_left(ev: &web_sys::FocusEvent, selector: &str) -> bool {
     !ev.related_target()
         .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
         .and_then(|el| el.closest(selector).ok())
+        .flatten()
+        .is_some()
+}
+
+// Returns true when focus moved to an element matching `target_sel`.
+fn focus_going_to(ev: &web_sys::FocusEvent, target_sel: &str) -> bool {
+    ev.related_target()
+        .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+        .and_then(|el| el.closest(target_sel).ok())
         .flatten()
         .is_some()
 }
@@ -131,17 +141,24 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             {move || {
                 let s = store.get();
                 s.dimensions.clone().into_iter().enumerate().map(|(di, dim)| {
+                    // dim_id_del is captured by the delete-button reactive closure below.
                     let dim_id_del = dim.id.clone();
 
                     view! {
                         <div class="dim-row">
+
+                            // ── Dimension header ──────────────────────────────
                             <div class="dim-row-header">
+                                // Name button / editor
                                 {move || {
                                     if editing_dim.get() == Some(di) {
                                         view! {
                                             <div class="dim-name-editor"
                                                 on:focusout=move |ev: web_sys::FocusEvent| {
-                                                    if focus_left(&ev, ".dim-name-editor") {
+                                                    // Don't commit when focus moves to the cancel button.
+                                                    if !focus_going_to(&ev, ".dim-row-cancel")
+                                                        && focus_left(&ev, ".dim-name-editor")
+                                                    {
                                                         commit_dim(editing_dim, label_ref, id_ref, store);
                                                     }
                                                 }
@@ -161,70 +178,119 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 }
                                             >
                                                 <span class="dim-label-text">
-                                                    {if dim.label.is_empty() { "（ラベルなし）".into() } else { dim.label.clone() }}
+                                                    {if dim.label.is_empty() {
+                                                        "（ラベルなし）".into()
+                                                    } else {
+                                                        dim.label.clone()
+                                                    }}
                                                 </span>
                                                 <span class="dim-id-text">{dim.id.clone()}</span>
                                             </button>
                                         }.into_view()
                                     }
                                 }}
-                                <button
-                                    class="dim-row-delete"
-                                    on:click=move |_| {
+
+                                // × delete  ↔  キャンセル (while editing name)
+                                {move || {
+                                    if editing_dim.get() == Some(di) {
+                                        view! {
+                                            <button
+                                                class="dim-row-cancel"
+                                                on:click=move |_| editing_dim.set(None)
+                                            >
+                                                "キャンセル"
+                                            </button>
+                                        }.into_view()
+                                    } else {
                                         let dim_id = dim_id_del.clone();
-                                        ask_confirm(
-                                            "このディメンションを削除しますか？",
-                                            move || {
-                                                editing_chip.set(None);
-                                                editing_dim.set(None);
-                                                store.update(|s| s.dimensions.retain(|d| d.id != dim_id));
-                                                save_to_storage(&store.get_untracked());
-                                            },
-                                            confirm_msg,
-                                            confirm_action,
-                                        );
+                                        view! {
+                                            <button
+                                                class="dim-row-delete"
+                                                on:click=move |_| {
+                                                    let id = dim_id.clone();
+                                                    ask_confirm(
+                                                        "このディメンションを削除しますか？",
+                                                        move || {
+                                                            editing_chip.set(None);
+                                                            editing_dim.set(None);
+                                                            store.update(|s| s.dimensions.retain(|d| d.id != id));
+                                                            save_to_storage(&store.get_untracked());
+                                                        },
+                                                        confirm_msg,
+                                                        confirm_action,
+                                                    );
+                                                }
+                                            >
+                                                "×"
+                                            </button>
+                                        }.into_view()
                                     }
-                                >
-                                    "×"
-                                </button>
+                                }}
                             </div>
 
+                            // ── Value chips ───────────────────────────────────
                             <div class="dim-chips">
                                 {dim.values.iter().enumerate().map(|(vi, val)| {
                                     let val_color = val.color.clone();
                                     view! {
-                                        <button
-                                            class="val-chip"
-                                            class:editing=move || editing_chip.get() == Some((di, vi))
-                                            on:click=move |_| {
-                                                editing_dim.set(None);
-                                                let cur = editing_chip.get_untracked();
-                                                if cur == Some((di, vi)) {
-                                                    commit_chip(editing_chip, val_ref, color_ref, store);
-                                                } else {
-                                                    if cur.is_some() {
+                                        <div class="val-chip-wrap">
+                                            <button
+                                                class="val-chip"
+                                                class:editing=move || editing_chip.get() == Some((di, vi))
+                                                on:click=move |_| {
+                                                    editing_dim.set(None);
+                                                    let cur = editing_chip.get_untracked();
+                                                    if cur == Some((di, vi)) {
+                                                        // clicking active chip closes editor (commit)
                                                         commit_chip(editing_chip, val_ref, color_ref, store);
-                                                    }
-                                                    editing_chip.set(Some((di, vi)));
-                                                }
-                                            }
-                                        >
-                                            <span
-                                                class="val-swatch"
-                                                style=move || {
-                                                    let color = if editing_chip.get() == Some((di, vi)) {
-                                                        preview_color.get()
-                                                            .unwrap_or_else(|| val_color.clone().unwrap_or_else(|| "#6e7681".into()))
                                                     } else {
-                                                        val_color.clone().unwrap_or_else(|| "#6e7681".into())
-                                                    };
-                                                    format!("background:{color}")
+                                                        if cur.is_some() {
+                                                            commit_chip(editing_chip, val_ref, color_ref, store);
+                                                        }
+                                                        editing_chip.set(Some((di, vi)));
+                                                    }
                                                 }
-                                            />
-                                            <span class="val-label">
-                                                {if val.value.is_empty() { "（空）".into() } else { val.value.clone() }}
-                                            </span>
-                                        </button>
+                                            >
+                                                <span
+                                                    class="val-swatch"
+                                                    style=move || {
+                                                        let color = if editing_chip.get() == Some((di, vi)) {
+                                                            preview_color.get().unwrap_or_else(|| {
+                                                                val_color.clone().unwrap_or_else(|| "#6e7681".into())
+                                                            })
+                                                        } else {
+                                                            val_color.clone().unwrap_or_else(|| "#6e7681".into())
+                                                        };
+                                                        format!("background:{color}")
+                                                    }
+                                                />
+                                                <span class="val-label">
+                                                    {if val.value.is_empty() { "（空）".into() } else { val.value.clone() }}
+                                                </span>
+                                            </button>
+                                            // × per-chip delete button
+                                            <button
+                                                class="val-chip-delete"
+                                                on:click=move |_| {
+                                                    ask_confirm(
+                                                        "この値を削除しますか？",
+                                                        move || {
+                                                            store.update(|s| {
+                                                                if let Some(dim) = s.dimensions.get_mut(di) {
+                                                                    if vi < dim.values.len() { dim.values.remove(vi); }
+                                                                }
+                                                            });
+                                                            save_to_storage(&store.get_untracked());
+                                                            editing_chip.set(None);
+                                                        },
+                                                        confirm_msg,
+                                                        confirm_action,
+                                                    );
+                                                }
+                                            >
+                                                "×"
+                                            </button>
+                                        </div>
                                     }
                                 }).collect::<Vec<_>>()}
 
@@ -240,7 +306,10 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             store.update(|s| {
                                                 if let Some(d) = s.dimensions.get_mut(di) {
                                                     vi = d.values.len();
-                                                    d.values.push(DimensionValue { value: String::new(), color: None });
+                                                    d.values.push(DimensionValue {
+                                                        value: String::new(),
+                                                        color: None,
+                                                    });
                                                 }
                                             });
                                             vi
@@ -252,19 +321,26 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                 </button>
                             </div>
 
+                            // ── Chip editor ───────────────────────────────────
                             {move || {
                                 if editing_chip.get().map(|(d, _)| d) != Some(di) {
                                     return None;
                                 }
                                 Some(view! {
-                                    <div class="chip-editor"
+                                    <div
+                                        class="chip-editor"
                                         on:focusout=move |ev: web_sys::FocusEvent| {
                                             if focus_left(&ev, ".chip-editor") {
                                                 commit_chip(editing_chip, val_ref, color_ref, store);
                                             }
                                         }
                                     >
-                                        <input node_ref=val_ref class="chip-editor-val" type="text" placeholder="値" />
+                                        <input
+                                            node_ref=val_ref
+                                            class="chip-editor-val"
+                                            type="text"
+                                            placeholder="値"
+                                        />
                                         <input
                                             node_ref=color_ref
                                             class="chip-editor-color"
@@ -279,33 +355,20 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             class="chip-editor-randomize"
                                             on:click=move |_| {
                                                 let color = random_nice_color();
-                                                if let Some(el) = color_ref.get_untracked() { el.set_value(&color); }
+                                                if let Some(el) = color_ref.get_untracked() {
+                                                    el.set_value(&color);
+                                                }
                                                 preview_color.set(Some(color));
                                             }
                                         >
                                             <Icon icon=icon::HiArrowPathOutlineLg width="14" height="14" />
                                         </button>
+                                        // Cancel is inside .chip-editor so focusout won't commit.
                                         <button
-                                            class="chip-editor-delete"
-                                            on:click=move |_| {
-                                                let Some((di, vi)) = editing_chip.get_untracked() else { return };
-                                                ask_confirm(
-                                                    "この値を削除しますか？",
-                                                    move || {
-                                                        store.update(|s| {
-                                                            if let Some(dim) = s.dimensions.get_mut(di) {
-                                                                if vi < dim.values.len() { dim.values.remove(vi); }
-                                                            }
-                                                        });
-                                                        save_to_storage(&store.get_untracked());
-                                                        editing_chip.set(None);
-                                                    },
-                                                    confirm_msg,
-                                                    confirm_action,
-                                                );
-                                            }
+                                            class="chip-editor-cancel"
+                                            on:click=move |_| editing_chip.set(None)
                                         >
-                                            "削除"
+                                            "キャンセル"
                                         </button>
                                     </div>
                                 })
@@ -340,6 +403,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             </button>
         </div>
 
+        // ── 確認ダイアログ ────────────────────────────────────────
         {move || confirm_msg.get().map(|msg| view! {
             <div class="confirm-overlay" on:click=move |_| close_confirm()>
                 <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
