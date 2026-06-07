@@ -105,6 +105,13 @@ body {
 }
 .header-settings-btn:hover { color: var(--text-primary); }
 
+/* icondata_hi のアイコンは stroke/fill がハードコードされているため currentColor に上書き */
+.header-settings-btn svg *,
+.settings-action-btn svg * {
+  stroke: currentColor;
+  fill: none;
+}
+
 /* ── Settings modal ──────────────────────────────────────── */
 
 .settings-backdrop {
