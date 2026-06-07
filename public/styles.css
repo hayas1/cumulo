@@ -180,36 +180,46 @@ body {
 }
 .pill-remove:hover { color: var(--text-primary); }
 
-/* 候補サジェスト */
-.palette-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-  margin-top: 0.35rem;
+.palette-input-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
 }
 
-.suggestions-label {
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  white-space: nowrap;
-}
-
-.suggestion-btn {
-  background: var(--bg-card);
+/* 候補ドロップダウン */
+.palette-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  background: none;
+  border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-family: var(--font-sans);
-  padding: 0.15rem 0.45rem;
-  transition: border-color 0.12s, color 0.12s;
+  padding: 0.38rem 0.75rem;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
 }
-.suggestion-btn:hover { border-color: var(--accent); color: var(--accent); }
-.suggestion-btn.focused { border-color: var(--accent); color: var(--accent); background: rgba(88, 166, 255, 0.12); }
+.dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.dropdown-item.focused { background: rgba(88, 166, 255, 0.12); color: var(--text-primary); }
 
-.sug-key { color: var(--text-muted); margin-right: 0.1rem; }
+.sug-key { color: var(--text-muted); }
+.sug-sep { color: var(--border); margin: 0 0.1rem; }
 .sug-val { font-weight: 600; }
 
 /* ── Controls bar ────────────────────────────────────────── */
