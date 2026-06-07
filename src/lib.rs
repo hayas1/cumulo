@@ -1,4 +1,5 @@
 mod components;
+mod io;
 mod logic;
 mod map_bridge;
 mod model;
