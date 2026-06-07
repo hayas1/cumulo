@@ -68,95 +68,56 @@ pub fn Palette(
                         })
                         .collect::<Vec<_>>()
                 }}
-
-                // 入力欄 + ドロップダウンをまとめてラップ
-                <div class="palette-input-wrapper">
-                    <input
-                        type="text"
-                        class="palette-input"
-                        placeholder="絞り込み... (例: service, auth)"
-                        prop:value=move || input_text.get()
-                        on:input=move |ev| {
-                            input_text.set(event_target_value(&ev));
-                            focused_index.set(None);
+                <input
+                    type="text"
+                    class="palette-input"
+                    placeholder="絞り込み... (例: service, auth)"
+                    prop:value=move || input_text.get()
+                    on:input=move |ev| {
+                        input_text.set(event_target_value(&ev));
+                        focused_index.set(None);
+                    }
+                    on:keydown=move |ev| {
+                        let count = suggestions.with(|s| s.len());
+                        if count == 0 {
+                            return;
                         }
-                        on:keydown=move |ev| {
-                            let count = suggestions.with(|s| s.len());
-                            if count == 0 {
-                                return;
+                        match ev.key().as_str() {
+                            "ArrowDown" | "ArrowRight" => {
+                                ev.prevent_default();
+                                focused_index.update(|fi| {
+                                    *fi = Some(match *fi {
+                                        None => 0,
+                                        Some(i) => (i + 1) % count,
+                                    });
+                                });
                             }
-                            match ev.key().as_str() {
-                                "ArrowDown" => {
-                                    ev.prevent_default();
-                                    focused_index.update(|fi| {
-                                        *fi = Some(match *fi {
-                                            None => 0,
-                                            Some(i) => (i + 1) % count,
-                                        });
+                            "ArrowUp" | "ArrowLeft" => {
+                                ev.prevent_default();
+                                focused_index.update(|fi| {
+                                    *fi = Some(match *fi {
+                                        None | Some(0) => count - 1,
+                                        Some(i) => i - 1,
                                     });
-                                }
-                                "ArrowUp" => {
-                                    ev.prevent_default();
-                                    focused_index.update(|fi| {
-                                        *fi = Some(match *fi {
-                                            None | Some(0) => count - 1,
-                                            Some(i) => i - 1,
-                                        });
-                                    });
-                                }
-                                "Enter" => {
-                                    if let Some(idx) = focused_index.get_untracked() {
-                                        if let Some((k, v)) =
-                                            suggestions.with(|s| s.get(idx).cloned())
-                                        {
-                                            ev.prevent_default();
-                                            commit_tag(k, v);
-                                        }
+                                });
+                            }
+                            "Enter" => {
+                                if let Some(idx) = focused_index.get_untracked() {
+                                    if let Some((k, v)) =
+                                        suggestions.with(|s| s.get(idx).cloned())
+                                    {
+                                        ev.prevent_default();
+                                        commit_tag(k, v);
                                     }
                                 }
-                                "Escape" => {
-                                    focused_index.set(None);
-                                }
-                                _ => {}
                             }
+                            "Escape" => {
+                                focused_index.set(None);
+                            }
+                            _ => {}
                         }
-                    />
-                    // ドロップダウン候補
-                    <Show when=move || suggestions.with(|s| !s.is_empty())>
-                        <div class="palette-dropdown">
-                            {move || {
-                                let fi = focused_index.get();
-                                suggestions
-                                    .get()
-                                    .into_iter()
-                                    .enumerate()
-                                    .map(|(i, (k, v))| {
-                                        let k2 = k.clone();
-                                        let v2 = v.clone();
-                                        let is_focused = fi == Some(i);
-                                        view! {
-                                            <button
-                                                class=if is_focused {
-                                                    "dropdown-item focused"
-                                                } else {
-                                                    "dropdown-item"
-                                                }
-                                                on:click=move |_| {
-                                                    commit_tag(k2.clone(), v2.clone());
-                                                }
-                                            >
-                                                <span class="sug-key">{k}</span>
-                                                <span class="sug-sep">":"</span>
-                                                <span class="sug-val">{v}</span>
-                                            </button>
-                                        }
-                                    })
-                                    .collect::<Vec<_>>()
-                            }}
-                        </div>
-                    </Show>
-                </div>
-
+                    }
+                />
                 <Show when=move || !selected_tags.with(|t| t.is_empty())>
                     <button
                         class="palette-clear-btn"
@@ -169,6 +130,40 @@ pub fn Palette(
                     </button>
                 </Show>
             </div>
+            <Show when=move || suggestions.with(|s| !s.is_empty())>
+                <div class="palette-suggestions">
+                    <span class="suggestions-label">"候補:"</span>
+                    {move || {
+                        let fi = focused_index.get();
+                        suggestions
+                            .get()
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, (k, v))| {
+                                let k2 = k.clone();
+                                let v2 = v.clone();
+                                let is_focused = fi == Some(i);
+                                view! {
+                                    <button
+                                        class=if is_focused {
+                                            "suggestion-btn focused"
+                                        } else {
+                                            "suggestion-btn"
+                                        }
+                                        on:click=move |_| {
+                                            commit_tag(k2.clone(), v2.clone());
+                                        }
+                                    >
+                                        <span class="sug-key">{k}</span>
+                                        ":"
+                                        <span class="sug-val">{v}</span>
+                                    </button>
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    }}
+                </div>
+            </Show>
         </div>
     }
 }
