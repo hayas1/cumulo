@@ -326,13 +326,6 @@ body {
   gap: 0.35rem;
 }
 
-.val-chip-wrap {
-  align-items: center;
-  display: inline-flex;
-  gap: 0.1rem;
-  position: relative;
-}
-
 .val-chip {
   align-items: center;
   background: var(--bg-hover);
@@ -351,14 +344,11 @@ body {
 .val-chip.editing { border-color: var(--accent); background: rgba(88,166,255,0.08); }
 
 .val-chip-delete {
-  background: none;
-  border: none;
-  border-radius: 50%;
   color: var(--text-muted);
   cursor: pointer;
   font-size: 0.65rem;
   line-height: 1;
-  padding: 0.1rem 0.2rem;
+  margin-left: 0.1rem;
   transition: color 0.12s;
 }
 .val-chip-delete:hover { color: #f87171; }

@@ -233,45 +233,43 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                 {dim.values.iter().enumerate().map(|(vi, val)| {
                                     let val_color = val.color.clone();
                                     view! {
-                                        <div class="val-chip-wrap">
-                                            <button
-                                                class="val-chip"
-                                                class:editing=move || editing_chip.get() == Some((di, vi))
-                                                on:click=move |_| {
-                                                    editing_dim.set(None);
-                                                    let cur = editing_chip.get_untracked();
-                                                    if cur == Some((di, vi)) {
-                                                        // clicking active chip closes editor (commit)
+                                        <button
+                                            class="val-chip"
+                                            class:editing=move || editing_chip.get() == Some((di, vi))
+                                            on:click=move |_| {
+                                                editing_dim.set(None);
+                                                let cur = editing_chip.get_untracked();
+                                                if cur == Some((di, vi)) {
+                                                    commit_chip(editing_chip, val_ref, color_ref, store);
+                                                } else {
+                                                    if cur.is_some() {
                                                         commit_chip(editing_chip, val_ref, color_ref, store);
-                                                    } else {
-                                                        if cur.is_some() {
-                                                            commit_chip(editing_chip, val_ref, color_ref, store);
-                                                        }
-                                                        editing_chip.set(Some((di, vi)));
                                                     }
+                                                    editing_chip.set(Some((di, vi)));
                                                 }
-                                            >
-                                                <span
-                                                    class="val-swatch"
-                                                    style=move || {
-                                                        let color = if editing_chip.get() == Some((di, vi)) {
-                                                            preview_color.get().unwrap_or_else(|| {
-                                                                val_color.clone().unwrap_or_else(|| "#6e7681".into())
-                                                            })
-                                                        } else {
+                                            }
+                                        >
+                                            <span
+                                                class="val-swatch"
+                                                style=move || {
+                                                    let color = if editing_chip.get() == Some((di, vi)) {
+                                                        preview_color.get().unwrap_or_else(|| {
                                                             val_color.clone().unwrap_or_else(|| "#6e7681".into())
-                                                        };
-                                                        format!("background:{color}")
-                                                    }
-                                                />
-                                                <span class="val-label">
-                                                    {if val.value.is_empty() { "（空）".into() } else { val.value.clone() }}
-                                                </span>
-                                            </button>
-                                            // × per-chip delete button
-                                            <button
+                                                        })
+                                                    } else {
+                                                        val_color.clone().unwrap_or_else(|| "#6e7681".into())
+                                                    };
+                                                    format!("background:{color}")
+                                                }
+                                            />
+                                            <span class="val-label">
+                                                {if val.value.is_empty() { "（空）".into() } else { val.value.clone() }}
+                                            </span>
+                                            // × inside the chip — stop_propagation prevents opening editor
+                                            <span
                                                 class="val-chip-delete"
-                                                on:click=move |_| {
+                                                on:click=move |ev: web_sys::MouseEvent| {
+                                                    ev.stop_propagation();
                                                     ask_confirm(
                                                         "この値を削除しますか？",
                                                         move || {
@@ -289,8 +287,8 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 }
                                             >
                                                 "×"
-                                            </button>
-                                        </div>
+                                            </span>
+                                        </button>
                                     }
                                 }).collect::<Vec<_>>()}
 
