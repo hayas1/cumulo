@@ -123,8 +123,7 @@ body {
 }
 
 .palette-input {
-  flex: 1;
-  min-width: 160px;
+  width: 100%;
   background: var(--bg-base);
   border: 1px solid var(--border);
   border-radius: 6px;
