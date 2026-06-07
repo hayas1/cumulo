@@ -1,6 +1,8 @@
 use crate::model::{AppStore, Resource};
 use crate::storage::load_from_storage;
+use icondata as icon;
 use leptos::*;
+use leptos_icons::Icon;
 use leptos_router::*;
 use super::{
     controls::Controls,
@@ -32,8 +34,9 @@ pub fn App() -> impl IntoView {
                 <button
                     class="header-settings-btn"
                     on:click=move |_| settings_open.set(true)
+                    title="設定"
                 >
-                    "⚙"
+                    <Icon icon=icon::HiCog6ToothOutlineLg width="18" height="18" />
                 </button>
             </header>
 

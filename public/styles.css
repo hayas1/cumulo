@@ -212,11 +212,14 @@ body {
 
 .settings-action-btn {
   align-self: flex-start;
+  align-items: center;
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text-primary);
   cursor: pointer;
+  display: inline-flex;
+  gap: 0.4rem;
   font-family: var(--font-sans);
   font-size: 0.82rem;
   padding: 0.4rem 1rem;

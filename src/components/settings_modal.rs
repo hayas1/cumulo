@@ -1,7 +1,9 @@
 use crate::io::{export_json, import_json, trigger_download};
 use crate::model::AppStore;
 use crate::storage::save_to_storage;
+use icondata as icon;
 use leptos::*;
+use leptos_icons::Icon;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
@@ -107,12 +109,14 @@ pub fn SettingsModal(
                                     <div class="settings-section">
                                         <h3 class="settings-section-title">"エクスポート"</h3>
                                         <button class="settings-action-btn" on:click=on_export>
+                                            <Icon icon=icon::HiArrowDownTrayOutlineLg width="15" height="15" />
                                             "エクスポート"
                                         </button>
                                     </div>
                                     <div class="settings-section">
                                         <h3 class="settings-section-title">"インポート"</h3>
                                         <button class="settings-action-btn" on:click=on_import_click>
+                                            <Icon icon=icon::HiArrowUpTrayOutlineLg width="15" height="15" />
                                             "インポート..."
                                         </button>
                                     </div>
