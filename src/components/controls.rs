@@ -1,6 +1,6 @@
 use crate::logic::facet::filter_resources;
 use crate::map_bridge;
-use crate::model::AppStore;
+use crate::model::{AppStore, Resource};
 use leptos::*;
 
 #[component]
@@ -9,6 +9,7 @@ pub fn Controls(
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_axes: RwSignal<Vec<String>>,
     zoom_level: ReadSignal<u32>,
+    editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let dimensions = create_memo(move |_| {
         store
@@ -126,6 +127,12 @@ pub fn Controls(
                 </div>
             </div>
             <div class="controls-right">
+                <button
+                    class="add-resource-btn"
+                    on:click=move |_| editing.set(Some(Resource::default()))
+                >
+                    "+ 追加"
+                </button>
                 <span class="level-badge">
                     "Lv." {move || zoom_level.get()}
                 </span>

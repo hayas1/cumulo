@@ -1,5 +1,5 @@
 use crate::logic::facet::filter_resources;
-use crate::model::AppStore;
+use crate::model::{AppStore, Resource};
 use leptos::*;
 use super::facet_sidebar::FacetSidebar;
 use web_sys::window;
@@ -14,6 +14,7 @@ fn open_url(url: &str) {
 pub fn FacetView(
     store: ReadSignal<AppStore>,
     selected_tags: RwSignal<Vec<(String, String)>>,
+    editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let filtered_parent_ids = create_memo(move |_| {
         let s = store.get();
@@ -53,7 +54,15 @@ pub fn FacetView(
                         }
 
                         view! {
-                            <div class="results-count">{parents.len()} " 件"</div>
+                            <div class="results-header-row">
+                                <span class="results-count">{parents.len()} " 件"</span>
+                                <button
+                                    class="add-resource-btn"
+                                    on:click=move |_| editing.set(Some(Resource::default()))
+                                >
+                                    "+ 追加"
+                                </button>
+                            </div>
                             <div class="results-list">
                                 {parents
                                     .into_iter()
@@ -78,16 +87,27 @@ pub fn FacetView(
                                             })
                                             .collect();
 
+                                        let r_for_edit = r.clone();
                                         view! {
                                             <div class="result-card">
                                                 <div class="result-card-header">
                                                     <span class="result-name">{r.name.clone()}</span>
-                                                    <button
-                                                        class="result-open-btn"
-                                                        on:click=move |_| open_url(&url)
-                                                    >
-                                                        "コンソールへ →"
-                                                    </button>
+                                                    <div class="result-card-actions">
+                                                        <button
+                                                            class="result-edit-btn"
+                                                            on:click=move |_| {
+                                                                editing.set(Some(r_for_edit.clone()))
+                                                            }
+                                                        >
+                                                            "編集"
+                                                        </button>
+                                                        <button
+                                                            class="result-open-btn"
+                                                            on:click=move |_| open_url(&url)
+                                                        >
+                                                            "コンソールへ →"
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <div class="result-attrs">
                                                     {chips

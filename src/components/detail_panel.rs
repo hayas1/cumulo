@@ -1,4 +1,4 @@
-use crate::model::AppStore;
+use crate::model::{AppStore, Resource};
 use leptos::*;
 use web_sys::window;
 
@@ -12,6 +12,7 @@ fn open_url(url: String) {
 pub fn DetailPanel(
     store: ReadSignal<AppStore>,
     selected_id: RwSignal<Option<String>>,
+    editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let resource = create_memo(move |_| {
         let id = selected_id.get()?;
@@ -51,16 +52,25 @@ pub fn DetailPanel(
                             let kids = children.get().unwrap_or_default();
                             let kids_check = kids.clone();
 
+                            let r_for_edit = r.clone();
                             view! {
                                 // ヘッダー
                                 <div class="detail-header">
                                     <div class="detail-name">{r.name.clone()}</div>
-                                    <button
-                                        class="detail-close"
-                                        on:click=move |_| selected_id.set(None)
-                                    >
-                                        "×"
-                                    </button>
+                                    <div class="detail-header-actions">
+                                        <button
+                                            class="detail-edit-btn"
+                                            on:click=move |_| editing.set(Some(r_for_edit.clone()))
+                                        >
+                                            "編集"
+                                        </button>
+                                        <button
+                                            class="detail-close"
+                                            on:click=move |_| selected_id.set(None)
+                                        >
+                                            "×"
+                                        </button>
+                                    </div>
                                 </div>
 
                                 // 属性一覧
