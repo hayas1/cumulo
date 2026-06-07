@@ -341,7 +341,7 @@ body {
   transition: border-color 0.1s;
 }
 .val-chip:hover  { border-color: var(--accent); }
-.val-chip.editing { border-color: var(--accent); background: rgba(88,166,255,0.08); }
+.val-chip.editing { box-shadow: 0 0 0 2px var(--accent); }
 
 .val-chip-delete {
   color: var(--text-muted);
@@ -352,13 +352,6 @@ body {
   transition: color 0.12s;
 }
 .val-chip-delete:hover { color: #f87171; }
-
-.val-swatch {
-  border-radius: 50%;
-  flex-shrink: 0;
-  height: 9px;
-  width: 9px;
-}
 
 .val-label { color: var(--text-secondary); }
 

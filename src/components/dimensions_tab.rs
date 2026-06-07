@@ -236,6 +236,20 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                         <button
                                             class="val-chip"
                                             class:editing=move || editing_chip.get() == Some((di, vi))
+                                            style=move || {
+                                                let color = if editing_chip.get() == Some((di, vi)) {
+                                                    preview_color.get()
+                                                        .or_else(|| val_color.clone())
+                                                        .unwrap_or_default()
+                                                } else {
+                                                    val_color.clone().unwrap_or_default()
+                                                };
+                                                if color.is_empty() {
+                                                    String::new()
+                                                } else {
+                                                    format!("border-color:{color};background:{color}1a")
+                                                }
+                                            }
                                             on:click=move |_| {
                                                 editing_dim.set(None);
                                                 let cur = editing_chip.get_untracked();
@@ -249,19 +263,6 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 }
                                             }
                                         >
-                                            <span
-                                                class="val-swatch"
-                                                style=move || {
-                                                    let color = if editing_chip.get() == Some((di, vi)) {
-                                                        preview_color.get().unwrap_or_else(|| {
-                                                            val_color.clone().unwrap_or_else(|| "#6e7681".into())
-                                                        })
-                                                    } else {
-                                                        val_color.clone().unwrap_or_else(|| "#6e7681".into())
-                                                    };
-                                                    format!("background:{color}")
-                                                }
-                                            />
                                             <span class="val-label">
                                                 {if val.value.is_empty() { "（空）".into() } else { val.value.clone() }}
                                             </span>
