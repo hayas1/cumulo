@@ -107,7 +107,8 @@ body {
 
 /* icondata_hi のアイコンは stroke/fill がハードコードされているため currentColor に上書き */
 .header-settings-btn svg *,
-.settings-action-btn svg * {
+.settings-action-btn svg *,
+.chip-editor-randomize svg * {
   stroke: currentColor;
   fill: none;
 }
@@ -396,20 +397,32 @@ body {
   width: 36px;
 }
 
-.chip-editor-delete, .chip-editor-done {
+.chip-editor-delete {
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: 5px;
+  color: #f87171;
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 0.75rem;
   padding: 0.22rem 0.55rem;
   white-space: nowrap;
 }
-.chip-editor-delete { color: #f87171; border-color: transparent; }
 .chip-editor-delete:hover { border-color: #f87171; }
-.chip-editor-done { color: var(--accent); border-color: transparent; }
-.chip-editor-done:hover { border-color: var(--accent); }
+
+.chip-editor-randomize {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  padding: 0.22rem 0.3rem;
+  transition: border-color 0.1s, color 0.1s;
+}
+.chip-editor-randomize:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Add dimension ───────────────────────────────────────── */
 
