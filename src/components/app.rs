@@ -55,27 +55,14 @@ pub fn App() -> impl IntoView {
                             let json = js_text.as_string().unwrap_or_default();
                             match import_json(&json) {
                                 Ok(imported) => {
-                                    let r_count = imported.resources.len();
                                     let msg = format!(
-                                        "インポート完了: リソース {}件",
-                                        r_count
+                                        "インポート完了: リソース {}件、ディメンション {}件",
+                                        imported.resources.len(),
+                                        imported.dimensions.len(),
                                     );
                                     store.set(imported);
                                     save_to_storage(&store.get_untracked());
                                     import_toast.set(Some(msg));
-
-                                    // Auto-dismiss after 4s using a JS Promise timeout
-                                    let dismiss = import_toast;
-                                    let promise = js_sys::Promise::new(&mut |resolve, _| {
-                                        web_sys::window()
-                                            .unwrap()
-                                            .set_timeout_with_callback_and_timeout_and_arguments_0(
-                                                &resolve, 4000,
-                                            )
-                                            .unwrap();
-                                    });
-                                    let _ = JsFuture::from(promise).await;
-                                    dismiss.set(None);
                                 }
                                 Err(e) => {
                                     web_sys::console::error_1(
@@ -165,7 +152,15 @@ pub fn App() -> impl IntoView {
 
             // インポート完了トースト
             {move || import_toast.get().map(|msg| view! {
-                <div class="import-toast">{msg}</div>
+                <div class="import-toast">
+                    <span class="import-toast-msg">{msg}</span>
+                    <button
+                        class="import-toast-close"
+                        on:click=move |_| import_toast.set(None)
+                    >
+                        "×"
+                    </button>
+                </div>
             })}
         </div>
     }
