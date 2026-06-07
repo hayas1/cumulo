@@ -1,6 +1,7 @@
 pub mod app;
 pub mod controls;
 pub mod detail_panel;
+pub mod dimensions_tab;
 pub mod facet_sidebar;
 pub mod facet_view;
 pub mod map_canvas;

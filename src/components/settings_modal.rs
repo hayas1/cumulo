@@ -6,6 +6,7 @@ use leptos::*;
 use leptos_icons::Icon;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
+use super::dimensions_tab::DimensionsTab;
 
 #[component]
 pub fn SettingsModal(
@@ -93,6 +94,13 @@ pub fn SettingsModal(
                         >
                             "データ"
                         </button>
+                        <button
+                            class="settings-tab"
+                            class:active=move || active_tab.get() == "dim"
+                            on:click=move |_| active_tab.set("dim".into())
+                        >
+                            "ディメンション"
+                        </button>
                     </nav>
                     <div class="settings-content">
                         <input
@@ -105,6 +113,9 @@ pub fn SettingsModal(
                         {move || {
                             let tab = active_tab.get();
                             match tab.as_str() {
+                                "dim" => view! {
+                                    <DimensionsTab store=store />
+                                }.into_view(),
                                 "data" => view! {
                                     <div class="settings-section">
                                         <h3 class="settings-section-title">"エクスポート"</h3>
