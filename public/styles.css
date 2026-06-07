@@ -210,12 +210,6 @@ body {
   color: var(--text-primary);
 }
 
-.settings-section-desc {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
 .settings-action-btn {
   align-self: flex-start;
   background: var(--bg-hover);
