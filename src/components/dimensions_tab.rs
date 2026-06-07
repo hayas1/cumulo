@@ -2,12 +2,7 @@ use crate::model::{AppStore, Dimension, DimensionValue};
 use crate::storage::save_to_storage;
 use leptos::html::Input;
 use leptos::*;
-
-fn confirm(msg: &str) -> bool {
-    web_sys::window()
-        .and_then(|w| w.confirm_with_message(msg).ok())
-        .unwrap_or(false)
-}
+use std::rc::Rc;
 
 fn new_dim_id() -> String {
     let n = (js_sys::Math::random() * 1e15) as u64;
@@ -28,20 +23,6 @@ fn commit_chip(
             if let Some(v) = dim.values.get_mut(vi) {
                 v.value = new_val;
                 v.color = if new_color.is_empty() { None } else { Some(new_color) };
-            }
-        }
-    });
-    save_to_storage(&store.get_untracked());
-    editing_chip.set(None);
-}
-
-fn remove_chip(editing_chip: RwSignal<Option<(usize, usize)>>, store: RwSignal<AppStore>) {
-    let Some((di, vi)) = editing_chip.get_untracked() else { return };
-    if !confirm("この値を削除しますか？") { return; }
-    store.update(|s| {
-        if let Some(dim) = s.dimensions.get_mut(di) {
-            if vi < dim.values.len() {
-                dim.values.remove(vi);
             }
         }
     });
@@ -70,6 +51,16 @@ fn commit_dim(
     editing_dim.set(None);
 }
 
+fn ask_confirm(
+    msg: &'static str,
+    action: impl Fn() + 'static,
+    confirm_msg: RwSignal<Option<&'static str>>,
+    confirm_action: RwSignal<Option<Rc<dyn Fn()>>>,
+) {
+    confirm_msg.set(Some(msg));
+    confirm_action.set(Some(Rc::new(action)));
+}
+
 #[component]
 pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
     let editing_chip = create_rw_signal(Option::<(usize, usize)>::None);
@@ -79,6 +70,14 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
     let color_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();
     let id_ref = create_node_ref::<Input>();
+
+    let confirm_msg = create_rw_signal(Option::<&'static str>::None);
+    let confirm_action: RwSignal<Option<Rc<dyn Fn()>>> = create_rw_signal(None);
+
+    let close_confirm = move || {
+        confirm_msg.set(None);
+        confirm_action.set(None);
+    };
 
     // Populate chip editor inputs when editing_chip changes
     create_effect(move |_| {
@@ -116,19 +115,9 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                     if editing_dim.get() == Some(di) {
                                         view! {
                                             <div class="dim-name-editor">
-                                                <input
-                                                    node_ref=label_ref
-                                                    class="dim-input"
-                                                    type="text"
-                                                    placeholder="ラベル"
-                                                />
+                                                <input node_ref=label_ref class="dim-input" type="text" placeholder="ラベル" />
                                                 <span class="dim-name-sep">"/"</span>
-                                                <input
-                                                    node_ref=id_ref
-                                                    class="dim-input dim-input-id"
-                                                    type="text"
-                                                    placeholder="id"
-                                                />
+                                                <input node_ref=id_ref class="dim-input dim-input-id" type="text" placeholder="id" />
                                                 <button
                                                     class="dim-commit-btn"
                                                     on:click=move |_| commit_dim(editing_dim, label_ref, id_ref, store)
@@ -157,11 +146,18 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                 <button
                                     class="dim-row-delete"
                                     on:click=move |_| {
-                                        if !confirm("このディメンションを削除しますか？") { return; }
-                                        editing_chip.set(None);
-                                        editing_dim.set(None);
-                                        store.update(|s| s.dimensions.retain(|d| d.id != dim_id_del));
-                                        save_to_storage(&store.get_untracked());
+                                        let dim_id = dim_id_del.clone();
+                                        ask_confirm(
+                                            "このディメンションを削除しますか？",
+                                            move || {
+                                                editing_chip.set(None);
+                                                editing_dim.set(None);
+                                                store.update(|s| s.dimensions.retain(|d| d.id != dim_id));
+                                                save_to_storage(&store.get_untracked());
+                                            },
+                                            confirm_msg,
+                                            confirm_action,
+                                        );
                                     }
                                 >
                                     "×"
@@ -180,7 +176,6 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 editing_dim.set(None);
                                                 let cur = editing_chip.get_untracked();
                                                 if cur == Some((di, vi)) {
-                                                    // toggle closed → save
                                                     commit_chip(editing_chip, val_ref, color_ref, store);
                                                 } else {
                                                     if cur.is_some() {
@@ -225,27 +220,34 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                 </button>
                             </div>
 
-                            // ── Chip editor (shown below chips) ───────────
+                            // ── Chip editor ───────────────────────────────
                             {move || {
                                 if editing_chip.get().map(|(d, _)| d) != Some(di) {
                                     return None;
                                 }
                                 Some(view! {
                                     <div class="chip-editor">
-                                        <input
-                                            node_ref=val_ref
-                                            class="chip-editor-val"
-                                            type="text"
-                                            placeholder="値"
-                                        />
-                                        <input
-                                            node_ref=color_ref
-                                            class="chip-editor-color"
-                                            type="color"
-                                        />
+                                        <input node_ref=val_ref class="chip-editor-val" type="text" placeholder="値" />
+                                        <input node_ref=color_ref class="chip-editor-color" type="color" />
                                         <button
                                             class="chip-editor-delete"
-                                            on:click=move |_| remove_chip(editing_chip, store)
+                                            on:click=move |_| {
+                                                ask_confirm(
+                                                    "この値を削除しますか？",
+                                                    move || {
+                                                        let Some((di, vi)) = editing_chip.get_untracked() else { return };
+                                                        store.update(|s| {
+                                                            if let Some(dim) = s.dimensions.get_mut(di) {
+                                                                if vi < dim.values.len() { dim.values.remove(vi); }
+                                                            }
+                                                        });
+                                                        save_to_storage(&store.get_untracked());
+                                                        editing_chip.set(None);
+                                                    },
+                                                    confirm_msg,
+                                                    confirm_action,
+                                                );
+                                            }
                                         >
                                             "削除"
                                         </button>
@@ -272,11 +274,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                         let mut di = 0;
                         store.update(|s| {
                             di = s.dimensions.len();
-                            s.dimensions.push(Dimension {
-                                id: new_dim_id(),
-                                label: String::new(),
-                                values: vec![],
-                            });
+                            s.dimensions.push(Dimension { id: new_dim_id(), label: String::new(), values: vec![] });
                         });
                         di
                     };
@@ -287,5 +285,30 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                 "+ ディメンションを追加"
             </button>
         </div>
+
+        // ── 確認ダイアログ ────────────────────────────────────
+        {move || confirm_msg.get().map(|msg| view! {
+            <div class="confirm-overlay" on:click=move |_| close_confirm()>
+                <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
+                    <p class="confirm-text">{msg}</p>
+                    <div class="confirm-btns">
+                        <button class="confirm-cancel" on:click=move |_| close_confirm()>
+                            "キャンセル"
+                        </button>
+                        <button
+                            class="confirm-ok"
+                            on:click=move |_| {
+                                if let Some(action) = confirm_action.get_untracked() {
+                                    action();
+                                }
+                                close_confirm();
+                            }
+                        >
+                            "削除"
+                        </button>
+                    </div>
+                </div>
+            </div>
+        })}
     }
 }
