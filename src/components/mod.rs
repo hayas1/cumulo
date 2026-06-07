@@ -6,3 +6,4 @@ pub mod facet_view;
 pub mod map_canvas;
 pub mod palette;
 pub mod resource_form;
+pub mod settings_modal;
