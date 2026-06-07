@@ -69,7 +69,7 @@ impl Default for MapConfig {
 }
 
 /// LocalStorageに保存するルートデータ構造
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AppStore {
     pub resources: Vec<Resource>,
     pub dimensions: Vec<Dimension>,

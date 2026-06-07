@@ -26,7 +26,7 @@ pub fn App() -> impl IntoView {
 
     let on_export = move |_| {
         let s = store.get_untracked();
-        let json = export_json(&s.resources, &s.dimensions);
+        let json = export_json(&s);
         let date = js_sys::Date::new_0()
             .to_iso_string()
             .as_string()
@@ -56,37 +56,12 @@ pub fn App() -> impl IntoView {
                             match import_json(&json) {
                                 Ok(imported) => {
                                     let r_count = imported.resources.len();
-                                    let d_count = imported.dimensions.len();
-                                    store.update(|s| {
-                                        for r in imported.resources {
-                                            if let Some(pos) =
-                                                s.resources.iter().position(|x| x.id == r.id)
-                                            {
-                                                s.resources[pos] = r;
-                                            } else {
-                                                s.resources.push(r);
-                                            }
-                                        }
-                                        for d in imported.dimensions {
-                                            if let Some(pos) =
-                                                s.dimensions.iter().position(|x| x.id == d.id)
-                                            {
-                                                s.dimensions[pos] = d;
-                                            } else {
-                                                s.dimensions.push(d);
-                                            }
-                                        }
-                                    });
+                                    let msg = format!(
+                                        "インポート完了: リソース {}件",
+                                        r_count
+                                    );
+                                    store.set(imported);
                                     save_to_storage(&store.get_untracked());
-
-                                    let msg = if d_count > 0 {
-                                        format!(
-                                            "インポート完了: リソース {}件、ディメンション {}件",
-                                            r_count, d_count
-                                        )
-                                    } else {
-                                        format!("インポート完了: リソース {}件", r_count)
-                                    };
                                     import_toast.set(Some(msg));
 
                                     // Auto-dismiss after 4s using a JS Promise timeout
