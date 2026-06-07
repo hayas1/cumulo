@@ -8,8 +8,8 @@ pub fn Palette(
     selected_tags: RwSignal<Vec<(String, String)>>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());
+    let focused_index = create_rw_signal(Option::<usize>::None);
 
-    // 候補タグ: 現在の絞り込み後リソースから取得し、入力テキストでさらに絞る
     let suggestions = create_memo(move |_| {
         let s = store.get();
         let tags = selected_tags.get();
@@ -28,10 +28,18 @@ pub fn Palette(
         avail
     });
 
+    let commit_tag = move |k: String, v: String| {
+        selected_tags.update(|t| {
+            t.retain(|(tk, _)| tk != &k);
+            t.push((k, v));
+        });
+        input_text.set(String::new());
+        focused_index.set(None);
+    };
+
     view! {
         <div class="palette-bar">
             <div class="palette-input-row">
-                // 選択済みタグをピルとして表示
                 {move || {
                     selected_tags
                         .get()
@@ -67,6 +75,47 @@ pub fn Palette(
                     prop:value=move || input_text.get()
                     on:input=move |ev| {
                         input_text.set(event_target_value(&ev));
+                        focused_index.set(None);
+                    }
+                    on:keydown=move |ev| {
+                        let count = suggestions.with(|s| s.len());
+                        if count == 0 {
+                            return;
+                        }
+                        match ev.key().as_str() {
+                            "ArrowDown" | "ArrowRight" => {
+                                ev.prevent_default();
+                                focused_index.update(|fi| {
+                                    *fi = Some(match *fi {
+                                        None => 0,
+                                        Some(i) => (i + 1) % count,
+                                    });
+                                });
+                            }
+                            "ArrowUp" | "ArrowLeft" => {
+                                ev.prevent_default();
+                                focused_index.update(|fi| {
+                                    *fi = Some(match *fi {
+                                        None | Some(0) => count - 1,
+                                        Some(i) => i - 1,
+                                    });
+                                });
+                            }
+                            "Enter" => {
+                                if let Some(idx) = focused_index.get_untracked() {
+                                    if let Some((k, v)) =
+                                        suggestions.with(|s| s.get(idx).cloned())
+                                    {
+                                        ev.prevent_default();
+                                        commit_tag(k, v);
+                                    }
+                                }
+                            }
+                            "Escape" => {
+                                focused_index.set(None);
+                            }
+                            _ => {}
+                        }
                     }
                 />
                 <Show when=move || !selected_tags.with(|t| t.is_empty())>
@@ -81,29 +130,28 @@ pub fn Palette(
                     </button>
                 </Show>
             </div>
-            // 候補表示
             <Show when=move || suggestions.with(|s| !s.is_empty())>
                 <div class="palette-suggestions">
                     <span class="suggestions-label">"候補:"</span>
                     {move || {
+                        let fi = focused_index.get();
                         suggestions
                             .get()
                             .into_iter()
-                            .map(|(k, v)| {
+                            .enumerate()
+                            .map(|(i, (k, v))| {
                                 let k2 = k.clone();
                                 let v2 = v.clone();
+                                let is_focused = fi == Some(i);
                                 view! {
                                     <button
-                                        class="suggestion-btn"
+                                        class=if is_focused {
+                                            "suggestion-btn focused"
+                                        } else {
+                                            "suggestion-btn"
+                                        }
                                         on:click=move |_| {
-                                            let k3 = k2.clone();
-                                            let v3 = v2.clone();
-                                            selected_tags
-                                                .update(|t| {
-                                                    t.retain(|(tk, _)| tk != &k3);
-                                                    t.push((k3, v3));
-                                                });
-                                            input_text.set(String::new());
+                                            commit_tag(k2.clone(), v2.clone());
                                         }
                                     >
                                         <span class="sug-key">{k}</span>
