@@ -1,0 +1,20 @@
+name: Pull Request
+
+on:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-cargo
+        with:
+          components: rustfmt, clippy
+      - run: cargo test --all
+      - run: cargo fmt --check
+      - run: cargo clippy --tests -- --deny warnings
