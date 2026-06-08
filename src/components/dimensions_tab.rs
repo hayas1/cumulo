@@ -145,7 +145,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                     let dim_id_del = dim.id.clone();
 
                     view! {
-                        <div class="dim-row">
+                        <div class="dim-row" class:active=move || editing_dim.get() == Some(di) || editing_chip.get().map(|(d,_)| d) == Some(di)>
 
                             // ── Dimension header ──────────────────────────────
                             <div class="dim-row-header">

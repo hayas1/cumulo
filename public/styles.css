@@ -195,7 +195,12 @@ body {
   transition: background 0.1s, color 0.1s;
 }
 .settings-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
-.settings-tab.active { background: rgba(88, 166, 255, 0.1); color: var(--accent); }
+.settings-tab.active {
+  background: rgba(88, 166, 255, 0.12);
+  box-shadow: inset 3px 0 0 var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
 
 .settings-content {
   flex: 1;
@@ -240,6 +245,85 @@ body {
 
 /* ── Dimensions tab ──────────────────────────────────────── */
 
+/* ── Resource tab ── */
+.resource-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.resource-add-btn {
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-family: var(--font-sans);
+  margin-bottom: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  transition: border-color 0.12s, color 0.12s;
+}
+.resource-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.resource-tab-empty {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0.5rem 0;
+}
+
+.resource-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 5px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+}
+.resource-row-child { margin-left: 1.2rem; }
+
+.resource-row-name {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-row-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.resource-row-edit {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-family: var(--font-sans);
+  padding: 0.15rem 0.4rem;
+  transition: border-color 0.1s, color 0.1s;
+}
+.resource-row-edit:hover { border-color: var(--accent); color: var(--accent); }
+
+.resource-row-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 0.2rem;
+  transition: color 0.1s;
+}
+.resource-row-delete:hover { color: #e05c5c; }
+
+/* ── Dimension tab ── */
 .dim-tab {
   display: flex;
   flex-direction: column;
@@ -254,6 +338,11 @@ body {
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.6rem 0.75rem;
+  transition: box-shadow 0.1s;
+}
+.dim-row.active {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: rgba(88, 166, 255, 0.04);
 }
 
 .dim-row-header {
@@ -1315,6 +1404,45 @@ body {
   transition: border-color 0.12s, color 0.12s;
 }
 .form-add-attr-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Dimension chip selectors inside resource form ── */
+.form-dim-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.25rem 0;
+}
+.form-dim-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  min-width: 5rem;
+  padding-top: 0.25rem;
+  flex-shrink: 0;
+}
+.form-dim-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.attr-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-family: var(--font-sans);
+  padding: 0.18rem 0.6rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  transition: box-shadow 0.1s, border-color 0.1s;
+  user-select: none;
+}
+.attr-chip:hover { border-color: var(--accent); }
+.attr-chip.selected {
+  box-shadow: 0 0 0 2px var(--accent);
+}
 
 .form-footer {
   display: flex;

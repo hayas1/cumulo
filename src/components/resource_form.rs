@@ -166,10 +166,68 @@ pub fn ResourceForm(
                         }}
                     </select>
 
+                    // ── Dimension chip selectors ─────────────────────
                     <label class="form-label">"属性"</label>
-                    // <For> diffs by stable ID – rows are never recreated on typing
+                    {move || {
+                        store.get().dimensions.into_iter().map(|dim| {
+                            let dim_id = dim.id.clone();
+                            let label = if dim.label.is_empty() { dim.id.clone() } else { dim.label.clone() };
+                            view! {
+                                <div class="form-dim-row">
+                                    <span class="form-dim-label">{label}</span>
+                                    <div class="form-dim-chips">
+                                        {dim.values.into_iter().map(|dv| {
+                                            let val   = dv.value.clone();
+                                            let color = dv.color.clone();
+                                            let k_sel = dim_id.clone();
+                                            let v_sel = val.clone();
+                                            let k_clk = dim_id.clone();
+                                            let v_clk = val.clone();
+                                            let style = color.as_deref()
+                                                .filter(|c| !c.is_empty())
+                                                .map(|c| format!("border-color:{c};background:{c}1a"))
+                                                .unwrap_or_default();
+                                            view! {
+                                                <span
+                                                    class="attr-chip"
+                                                    class:selected=move || form_attrs.get().iter()
+                                                        .any(|(_, k, v)| k == &k_sel && v == &v_sel)
+                                                    style=style
+                                                    on:click=move |_| {
+                                                        let already = form_attrs.get_untracked().iter()
+                                                            .any(|(_, k, v)| k == &k_clk && v == &v_clk);
+                                                        if already {
+                                                            form_attrs.update(|a| a.retain(|(_, k, _)| k != &k_clk));
+                                                        } else {
+                                                            let nid = next_id.get_untracked();
+                                                            next_id.set(nid + 1);
+                                                            form_attrs.update(|a| {
+                                                                a.retain(|(_, k, _)| k != &k_clk);
+                                                                a.push((nid, k_clk.clone(), v_clk.clone()));
+                                                            });
+                                                        }
+                                                    }
+                                                >
+                                                    {val}
+                                                </span>
+                                            }
+                                        }).collect::<Vec<_>>()}
+                                    </div>
+                                </div>
+                            }
+                        }).collect::<Vec<_>>()
+                    }}
+
+                    // ── Free-form attrs (keys not covered by any dimension) ───
                     <For
-                        each=move || form_attrs.get()
+                        each=move || {
+                            let dim_ids = store.with(|s| {
+                                s.dimensions.iter().map(|d| d.id.clone()).collect::<Vec<_>>()
+                            });
+                            form_attrs.get().into_iter()
+                                .filter(|(_, k, _)| !dim_ids.contains(k))
+                                .collect::<Vec<_>>()
+                        }
                         key=|(id, _, _)| *id
                         children=move |(row_id, k, v)| {
                             view! {

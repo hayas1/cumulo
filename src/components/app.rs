@@ -22,6 +22,15 @@ pub fn App() -> impl IntoView {
     let editing = create_rw_signal(Option::<Resource>::None);
     let settings_open = create_rw_signal(false);
     let import_toast = create_rw_signal(Option::<String>::None);
+    let return_to_settings = create_rw_signal(false);
+
+    // When the resource form closes and it was opened from settings, reopen settings.
+    create_effect(move |_| {
+        if editing.get().is_none() && return_to_settings.get_untracked() {
+            return_to_settings.set(false);
+            settings_open.set(true);
+        }
+    });
 
     view! {
         <div class="app">
@@ -57,7 +66,7 @@ pub fn App() -> impl IntoView {
             </div>
 
             <ResourceForm store=store editing=editing />
-            <SettingsModal store=store open=settings_open import_toast=import_toast />
+            <SettingsModal store=store open=settings_open import_toast=import_toast editing=editing return_to_settings=return_to_settings />
 
             {move || import_toast.get().map(|msg| view! {
                 <div class="import-toast">

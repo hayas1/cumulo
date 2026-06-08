@@ -1,5 +1,5 @@
 use crate::io::{export_json, import_json, trigger_download};
-use crate::model::AppStore;
+use crate::model::{AppStore, Resource};
 use crate::storage::save_to_storage;
 use icondata as icon;
 use leptos::*;
@@ -7,12 +7,15 @@ use leptos_icons::Icon;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 use super::dimensions_tab::DimensionsTab;
+use super::resources_tab::ResourcesTab;
 
 #[component]
 pub fn SettingsModal(
     store: RwSignal<AppStore>,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
+    editing: RwSignal<Option<Resource>>,
+    return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
     let active_tab = create_rw_signal("data".to_string());
     let file_input_ref = create_node_ref::<html::Input>();
@@ -96,6 +99,13 @@ pub fn SettingsModal(
                         </button>
                         <button
                             class="settings-tab"
+                            class:active=move || active_tab.get() == "resource"
+                            on:click=move |_| active_tab.set("resource".into())
+                        >
+                            "リソース"
+                        </button>
+                        <button
+                            class="settings-tab"
                             class:active=move || active_tab.get() == "dim"
                             on:click=move |_| active_tab.set("dim".into())
                         >
@@ -115,6 +125,9 @@ pub fn SettingsModal(
                             match tab.as_str() {
                                 "dim" => view! {
                                     <DimensionsTab store=store />
+                                }.into_view(),
+                                "resource" => view! {
+                                    <ResourcesTab store=store editing=editing settings_open=open return_to_settings=return_to_settings />
                                 }.into_view(),
                                 "data" => view! {
                                     <div class="settings-section">
