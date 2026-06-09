@@ -6,7 +6,7 @@ use leptos::*;
 pub fn MapCanvas(
     store: ReadSignal<AppStore>,
     selected_tags: RwSignal<Vec<(String, String)>>,
-    zoom_axes: RwSignal<Vec<String>>,
+    zoom_root: RwSignal<(String, String)>,
     selected_resource: RwSignal<Option<String>>,
     zoom_level: RwSignal<u32>,
 ) -> impl IntoView {
@@ -57,12 +57,11 @@ pub fn MapCanvas(
         }
     });
 
-    // ── Effect 5: ズーム軸更新 ────────────────────────────────────────────────
+    // ── Effect 5: ズーム軸（フォレストの根）更新 ──────────────────────────────
     create_effect(move |_| {
-        let axes = zoom_axes.get();
-        if let Ok(json) = serde_json::to_string(&axes) {
-            map_bridge::update_zoom_axes(&json);
-        }
+        let (dim, root) = zoom_root.get();
+        let payload = serde_json::json!({ "dim": dim, "root": root });
+        map_bridge::update_zoom_root(&payload.to_string());
     });
 
     view! {

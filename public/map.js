@@ -6,7 +6,10 @@ window.__cumuloCallbacks = {};
 // ── 状態 ──────────────────────────────────────────────────────────────────────
 let resources = [];
 let filteredIds = new Set();
-let zoomAxes = ['vendor', 'service', 'resource_type'];
+let dimensions = [];          // 完全なディメンション定義（親リンクを辿るのに使う）
+let zoomDim = '';             // ズーム軸のディメンションID（例: 'platform'）
+let zoomRoot = '';            // ズーム軸＝選択中のフォレストの根（例: 'Cloud'）
+let maxDepth = 1;             // 現在の根の下での最大ネスト深さ（LODに使用）
 let currentScale = 1;
 let initialized = false;
 
@@ -67,7 +70,12 @@ window.cumuloUpdateFilter = function (selectedJson) {
     } else {
       filteredIds = new Set(
         resources
-          .filter(r => selected.every(([k, v]) => r.attrs && r.attrs[k] === v))
+          .filter(r => selected.every(([k, v]) => {
+            const rv = r.attrs && r.attrs[k];
+            if (rv == null) return false;
+            // 階層dimは祖先一致も許容（GCP を選ぶと BigQuery もマッチ）
+            return ancestryIn(k, rv).includes(v);
+          }))
           .map(r => r.id)
       );
     }
@@ -75,16 +83,18 @@ window.cumuloUpdateFilter = function (selectedJson) {
   } catch (e) { console.error('cumuloUpdateFilter', e); }
 };
 
-window.cumuloUpdateZoomAxes = function (axesJson) {
+window.cumuloUpdateZoomRoot = function (json) {
   try {
-    zoomAxes = JSON.parse(axesJson);
+    const o = JSON.parse(json);
+    zoomDim = o.dim || '';
+    zoomRoot = o.root || '';
     if (initialized) { render(); zoomToFit(); }
-  } catch (e) { console.error('cumuloUpdateZoomAxes', e); }
+  } catch (e) { console.error('cumuloUpdateZoomRoot', e); }
 };
 
 window.cumuloUpdateDimensions = function (json) {
   try {
-    const dimensions = JSON.parse(json);
+    dimensions = JSON.parse(json);
     valueColors = {};
     dimensions.forEach(dim => {
       (dim.values || []).forEach(dv => {
@@ -94,6 +104,32 @@ window.cumuloUpdateDimensions = function (json) {
     if (initialized) render();
   } catch (e) { console.error('cumuloUpdateDimensions', e); }
 };
+
+// value から根までの祖先チェーン（自身を含む、近い順）を返す。
+function ancestryIn(dimId, value) {
+  const dim = dimensions.find(d => d.id === dimId);
+  if (!dim) return [value];
+  const byVal = {};
+  (dim.values || []).forEach(dv => { byVal[dv.value] = dv; });
+  const chain = [];
+  let cur = value;
+  while (cur != null && !chain.includes(cur)) {
+    chain.push(cur);
+    cur = byVal[cur] ? (byVal[cur].parent ?? null) : null;
+  }
+  return chain;
+}
+
+// 選択中の根の「子」から葉までのパス（上→下）を返す。根の配下でなければ null。
+function pathUnderRoot(r) {
+  if (!zoomDim || !zoomRoot) return null;
+  const leaf = r.attrs && r.attrs[zoomDim];
+  if (leaf == null) return null;
+  const anc = ancestryIn(zoomDim, leaf);   // [leaf, ..., root, ...]
+  const idx = anc.indexOf(zoomRoot);
+  if (idx < 0) return null;                // この根の配下ではない
+  return anc.slice(0, idx).reverse();      // 例: [GCP, BigQuery]（leaf===root なら []）
+}
 
 window.cumuloZoomToFit = function () { zoomToFit(); };
 
@@ -146,37 +182,42 @@ function zoomToFit() {
 //
 // x, y はすべて「ルート座標系の絶対値」で管理する。
 
-function buildTree(items, axes, depth) {
-  if (axes.length === 0) {
-    // 末端: root リソースのみ（children は resource ノード内に保持）
-    return items
-      .filter(r => !r.parent_id)
-      .map(r => ({
-        type: 'resource',
-        resource: r,
-        children: resources.filter(c => c.parent_id === r.id),
-        totalFreq: r.freq || 1,
-        x: 0, y: 0, r: 0,
-      }));
-  }
+// items: [{ r, path }]（path は「選択中の根の子」から葉までの配列）。
+// path[level] でグルーピングしながら葉までネストする。
+function buildLevel(items, level) {
+  // この階層で末端に達した（path をすべて消費した）リソース
+  const leaves = items
+    .filter(it => it.path.length <= level)
+    .map(it => it.r);
+  const deeper = items.filter(it => it.path.length > level);
 
-  const axis = axes[0];
-  const groups = d3.group(items, r => (r.attrs && r.attrs[axis]) || 'その他');
-
-  return Array.from(groups, ([key, groupItems]) => {
+  const groups = d3.group(deeper, it => it.path[level]);
+  const clusters = Array.from(groups, ([key, groupItems]) => {
     const totalFreq = groupItems
-      .filter(r => !r.parent_id)   // freq は root リソースだけ積算
-      .reduce((s, r) => s + (r.freq || 1), 0);
+      .filter(it => !it.r.parent_id)
+      .reduce((s, it) => s + (it.r.freq || 1), 0);
     return {
       type: 'cluster',
       key,
-      axis,
-      depth,
+      axis: zoomDim,
+      depth: level,
       totalFreq,
-      subNodes: buildTree(groupItems, axes.slice(1), depth + 1),
+      subNodes: buildLevel(groupItems, level + 1),
       x: 0, y: 0, r: 0,
     };
   });
+
+  const resourceNodes = leaves
+    .filter(r => !r.parent_id)
+    .map(r => ({
+      type: 'resource',
+      resource: r,
+      children: resources.filter(c => c.parent_id === r.id),
+      totalFreq: r.freq || 1,
+      x: 0, y: 0, r: 0,
+    }));
+
+  return [...clusters, ...resourceNodes];
 }
 
 // ── レイアウト計算（x,y,r を絶対座標で設定） ──────────────────────────────────
@@ -285,7 +326,7 @@ function clusterThreshold(depth) {
 }
 
 // mini-node は「最深クラスタの1段先」に相当するしきい値
-function lodNodes()      { return clusterThreshold(zoomAxes.length); }
+function lodNodes()      { return clusterThreshold(maxDepth); }
 function lodChildren()   { return lodNodes() * 1.7; }
 function lodNodeLabel()  { return lodNodes() * 1.3; }
 function lodChildLabel() { return lodNodes() * 2.2; }
@@ -305,7 +346,7 @@ function clusterLabelOpacity(depth, scale) {
 function updateLOD(scale) {
   if (!g) return;
 
-  for (let d = 0; d <= zoomAxes.length; d++) {
+  for (let d = 0; d <= maxDepth; d++) {
     const thr = clusterThreshold(d);
     const vis = scale >= thr;
     g.selectAll(`.cluster-d${d}`)
@@ -339,7 +380,17 @@ function render() {
   g.selectAll('*').remove();
   if (resources.length === 0) return;
 
-  const tree = buildTree(resources, zoomAxes, 0);
+  // 選択中の根の配下にあるルートリソースだけを、パス付きで集める
+  const items = resources
+    .filter(r => !r.parent_id)
+    .map(r => ({ r, path: pathUnderRoot(r) }))
+    .filter(it => it.path !== null);
+
+  if (items.length === 0) return;
+
+  maxDepth = Math.max(1, ...items.map(it => it.path.length));
+
+  const tree = buildLevel(items, 0);
   layoutTopLevel(tree);
   drawNodes(g, tree, null);
 
@@ -429,9 +480,8 @@ function drawResourceNode(parentG, node, rx, ry) {
   const baseR = node._baseR || node.r;
   const hasChildren = node.children.length > 0;
 
-  // 最終ズーム軸の値でノードカラーを決定
-  const lastAxis = zoomAxes[zoomAxes.length - 1];
-  const color = clusterColor(r.attrs && r.attrs[lastAxis]);
+  // ノードカラーは葉（zoomDim の値）で決定
+  const color = clusterColor(r.attrs && r.attrs[zoomDim]);
 
   // クリック時に選択するリソース ID をクロージャで直接キャプチャ
   const resourceId = r.id;

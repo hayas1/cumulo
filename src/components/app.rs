@@ -86,9 +86,10 @@ fn MapView(
 ) -> impl IntoView {
     let selected_resource_id = create_rw_signal(Option::<String>::None);
     let zoom_level = create_rw_signal(0u32);
-    let zoom_axes = create_rw_signal({
-        let cfg = store.get_untracked();
-        vec![cfg.map_config.zoom_axes[0].clone()]
+    // ズーム軸＝フォレストの根 (dim_id, value)。既定は最初の階層dimの最初の根。
+    let zoom_root = create_rw_signal({
+        let s = store.get_untracked();
+        first_zoom_root(&s).unwrap_or_default()
     });
 
     view! {
@@ -96,16 +97,15 @@ fn MapView(
             <Controls
                 store=store
                 selected_tags=selected_tags
-                zoom_axes=zoom_axes
                 zoom_level=zoom_level.read_only()
                 editing=editing
             />
             <div class="map-area">
-                <FacetSidebar store=store selected_tags=selected_tags />
+                <FacetSidebar store=store selected_tags=selected_tags zoom_root=zoom_root />
                 <MapCanvas
                     store=store
                     selected_tags=selected_tags
-                    zoom_axes=zoom_axes
+                    zoom_root=zoom_root
                     selected_resource=selected_resource_id
                     zoom_level=zoom_level
                 />
@@ -113,4 +113,19 @@ fn MapView(
             </div>
         </div>
     }
+}
+
+/// 最初の階層dimensionの、子を持つ最初の根 (dim_id, value) を返す。
+fn first_zoom_root(s: &AppStore) -> Option<(String, String)> {
+    for d in &s.dimensions {
+        if !d.is_hierarchical() {
+            continue;
+        }
+        for v in &d.values {
+            if v.parent.is_none() && !d.children_of(Some(&v.value)).is_empty() {
+                return Some((d.id.clone(), v.value.clone()));
+            }
+        }
+    }
+    None
 }

@@ -1,24 +1,37 @@
 use crate::logic::facet::{filter_resources, resolve_dimension};
 use crate::model::{AppStore, Dimension};
 use leptos::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-/// 階層dimensionを定義順でDFSし、(value, depth, count) を出力する。
-/// count==0 のノード（現在の絞り込みで該当なし）はスキップする。
+/// 折りたたみ状態のキー（dim_id と value を区切り文字で連結）
+fn collapse_key(dim_id: &str, value: &str) -> String {
+    format!("{dim_id}\u{0}{value}")
+}
+
+/// 階層dimensionを定義順でDFSし、(value, depth, count, has_children, collapsed) を出力する。
+/// count==0 のノードはスキップ。折りたたまれたノードの子孫は出力しない。
 fn dfs_collect(
     dim: &Dimension,
     parent: Option<&str>,
     depth: usize,
     counts: &HashMap<String, usize>,
-    out: &mut Vec<(String, usize, usize)>,
+    collapsed: &HashSet<String>,
+    out: &mut Vec<(String, usize, usize, bool, bool)>,
 ) {
     for child in dim.children_of(parent) {
         let cnt = counts.get(&child.value).copied().unwrap_or(0);
         if cnt == 0 {
             continue;
         }
-        out.push((child.value.clone(), depth, cnt));
-        dfs_collect(dim, Some(&child.value), depth + 1, counts, out);
+        let has_children = dim
+            .children_of(Some(&child.value))
+            .iter()
+            .any(|k| counts.get(&k.value).copied().unwrap_or(0) > 0);
+        let is_collapsed = collapsed.contains(&collapse_key(&dim.id, &child.value));
+        out.push((child.value.clone(), depth, cnt, has_children, is_collapsed));
+        if has_children && !is_collapsed {
+            dfs_collect(dim, Some(&child.value), depth + 1, counts, collapsed, out);
+        }
     }
 }
 
@@ -26,12 +39,19 @@ fn dfs_collect(
 pub fn FacetSidebar(
     store: ReadSignal<AppStore>,
     selected_tags: RwSignal<Vec<(String, String)>>,
+    /// マップビューでのみ渡す。渡されたときは各フォレスト根にズーム軸ラジオを表示する。
+    #[prop(optional)]
+    zoom_root: Option<RwSignal<(String, String)>>,
 ) -> impl IntoView {
+    // 折りたたみ済みノード（collapse_key の集合）。ビュー内で永続。
+    let collapsed = create_rw_signal(HashSet::<String>::new());
+
     view! {
         <aside class="facet-sidebar">
             {move || {
                 let s = store.get();
                 let tags = selected_tags.get();
+                let collapsed_set = collapsed.get();
 
                 s.dimensions
                     .clone()
@@ -66,10 +86,12 @@ pub fn FacetSidebar(
                             .find(|(k, _)| k == &dim.id)
                             .map(|(_, v)| v.clone());
 
-                        // 表示順を (value, depth, count) に正規化
-                        let ordered: Vec<(String, usize, usize)> = if dim.is_hierarchical() {
+                        let hierarchical = dim.is_hierarchical();
+
+                        // (value, depth, count, has_children, collapsed)
+                        let ordered: Vec<(String, usize, usize, bool, bool)> = if hierarchical {
                             let mut out = Vec::new();
-                            dfs_collect(&dim, None, 0, &counts, &mut out);
+                            dfs_collect(&dim, None, 0, &counts, &collapsed_set, &mut out);
                             out
                         } else {
                             let mut vals: Vec<(String, usize)> =
@@ -84,7 +106,7 @@ pub fn FacetSidebar(
                             } else {
                                 vals.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
                             }
-                            vals.into_iter().map(|(v, c)| (v, 0, c)).collect()
+                            vals.into_iter().map(|(v, c)| (v, 0, c, false, false)).collect()
                         };
 
                         let dim_id = dim.id.clone();
@@ -95,41 +117,102 @@ pub fn FacetSidebar(
                                 <div class="facet-panel-title">{dim_label}</div>
                                 {ordered
                                     .into_iter()
-                                    .map(|(val, depth, count)| {
+                                    .map(|(val, depth, count, has_children, is_collapsed)| {
                                         let is_sel =
                                             selected_val.as_deref() == Some(val.as_str());
+                                        let indent = format!(
+                                            "padding-left:{}rem",
+                                            0.25 + depth as f32 * 0.85
+                                        );
+
+                                        // ── 折りたたみキャレット ──
+                                        let caret = if has_children {
+                                            let did = dim_id.clone();
+                                            let vv = val.clone();
+                                            view! {
+                                                <button
+                                                    class="facet-caret"
+                                                    on:click=move |_| {
+                                                        let key = collapse_key(&did, &vv);
+                                                        collapsed.update(|c| {
+                                                            if !c.remove(&key) {
+                                                                c.insert(key.clone());
+                                                            }
+                                                        });
+                                                    }
+                                                >
+                                                    {if is_collapsed { "▶" } else { "▼" }}
+                                                </button>
+                                            }
+                                            .into_view()
+                                        } else {
+                                            view! { <span class="facet-caret-spacer" /> }
+                                                .into_view()
+                                        };
+
+                                        // ── ズーム軸ラジオ（マップビューかつ階層の根のみ）──
+                                        let radio = match zoom_root {
+                                            Some(zr) if hierarchical && depth == 0 && has_children => {
+                                                let did = dim_id.clone();
+                                                let vv = val.clone();
+                                                let key = (dim_id.clone(), val.clone());
+                                                let key2 = key.clone();
+                                                view! {
+                                                    <button
+                                                        class="facet-zoom-radio"
+                                                        class:active=move || zr.get() == key2
+                                                        title="ズーム軸にする"
+                                                        on:click=move |_| {
+                                                            zr.set((did.clone(), vv.clone()));
+                                                        }
+                                                    >
+                                                        {move || {
+                                                            if zr.get() == key { "◉" } else { "○" }
+                                                        }}
+                                                    </button>
+                                                }
+                                                .into_view()
+                                            }
+                                            Some(_) => {
+                                                view! { <span class="facet-zoom-spacer" /> }
+                                                    .into_view()
+                                            }
+                                            None => view! { <span /> }.into_view(),
+                                        };
+
                                         let did = dim_id.clone();
                                         let v_click = val.clone();
-                                        let indent =
-                                            format!("padding-left:{}rem", 0.5 + depth as f32 * 0.85);
                                         view! {
-                                            <button
-                                                class=if is_sel {
-                                                    "facet-value selected"
-                                                } else {
-                                                    "facet-value"
-                                                }
-                                                style=indent
-                                                on:click=move |_| {
-                                                    let d = did.clone();
-                                                    let vv = v_click.clone();
-                                                    selected_tags.update(|t| {
-                                                        let already = t
-                                                            .iter()
-                                                            .any(|(k, tv)| k == &d && tv == &vv);
-                                                        t.retain(|(k, _)| k != &d);
-                                                        if !already {
-                                                            t.push((d, vv));
-                                                        }
-                                                    });
-                                                }
-                                            >
-                                                <span class="fv-dot">
-                                                    {if is_sel { "●" } else { "○" }}
-                                                </span>
-                                                <span class="fv-label">{val}</span>
-                                                <span class="fv-count">{count}</span>
-                                            </button>
+                                            <div class="facet-row" style=indent>
+                                                {caret}
+                                                {radio}
+                                                <button
+                                                    class=if is_sel {
+                                                        "facet-value selected"
+                                                    } else {
+                                                        "facet-value"
+                                                    }
+                                                    on:click=move |_| {
+                                                        let d = did.clone();
+                                                        let vv = v_click.clone();
+                                                        selected_tags.update(|t| {
+                                                            let already = t
+                                                                .iter()
+                                                                .any(|(k, tv)| k == &d && tv == &vv);
+                                                            t.retain(|(k, _)| k != &d);
+                                                            if !already {
+                                                                t.push((d, vv));
+                                                            }
+                                                        });
+                                                    }
+                                                >
+                                                    <span class="fv-dot">
+                                                        {if is_sel { "●" } else { "○" }}
+                                                    </span>
+                                                    <span class="fv-label">{val}</span>
+                                                    <span class="fv-count">{count}</span>
+                                                </button>
+                                            </div>
                                         }
                                     })
                                     .collect::<Vec<_>>()}

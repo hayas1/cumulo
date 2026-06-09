@@ -26,7 +26,9 @@ pub fn SettingsModal(
         store.set(fresh);
         confirm_clear.set(false);
         open.set(false);
-        import_toast.set(Some("ローカルデータを消去し、初期データに戻しました".to_string()));
+        import_toast.set(Some(
+            "ローカルデータを消去し、初期データに戻しました".to_string(),
+        ));
     };
 
     let on_export = move |_| {

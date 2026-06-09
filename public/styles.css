@@ -773,6 +773,14 @@ body {
   white-space: nowrap;
 }
 
+.controls-hint {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .zoom-axes-row {
   display: flex;
   align-items: center;
@@ -1073,11 +1081,50 @@ body {
   padding: 0.4rem 0.5rem 0.25rem;
 }
 
+/* 1行 = キャレット + (ズーム軸ラジオ) + facet-value ボタン */
+.facet-row {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.facet-caret {
+  flex-shrink: 0;
+  width: 1rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.55rem;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.1s;
+}
+.facet-caret:hover { color: var(--text-primary); }
+.facet-caret-spacer { flex-shrink: 0; width: 1rem; }
+
+.facet-zoom-radio {
+  flex-shrink: 0;
+  width: 1.1rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.1s;
+}
+.facet-zoom-radio:hover { color: var(--text-primary); }
+.facet-zoom-radio.active { color: var(--accent); }
+.facet-zoom-spacer { flex-shrink: 0; width: 1.1rem; }
+
 .facet-value {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: none;
   border: none;
   border-radius: 5px;
