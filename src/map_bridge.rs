@@ -48,8 +48,8 @@ pub fn update_filter(json: &str) {
     call1("cumuloUpdateFilter", json);
 }
 
-pub fn update_zoom_root(json: &str) {
-    call1("cumuloUpdateZoomRoot", json);
+pub fn update_zoom_dim(json: &str) {
+    call1("cumuloUpdateZoomDim", json);
 }
 
 pub fn update_dimensions(json: &str) {

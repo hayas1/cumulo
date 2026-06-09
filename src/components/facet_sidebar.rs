@@ -39,9 +39,10 @@ fn dfs_collect(
 pub fn FacetSidebar(
     store: ReadSignal<AppStore>,
     selected_tags: RwSignal<Vec<(String, String)>>,
-    /// マップビューでのみ渡す。渡されたときは各フォレスト根にズーム軸ラジオを表示する。
+    /// マップビューでのみ渡す。渡されたときはディメンションのタイトルをクリックで
+    /// ズーム軸に設定できるようにする。
     #[prop(optional)]
-    zoom_root: Option<RwSignal<(String, String)>>,
+    zoom_dim: Option<RwSignal<String>>,
 ) -> impl IntoView {
     // 折りたたみ済みノード（collapse_key の集合）。ビュー内で永続。
     let collapsed = create_rw_signal(HashSet::<String>::new());
@@ -106,15 +107,40 @@ pub fn FacetSidebar(
                             } else {
                                 vals.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
                             }
-                            vals.into_iter().map(|(v, c)| (v, 0, c, false, false)).collect()
+                            vals.into_iter()
+                                .map(|(v, c)| (v, 0, c, false, false))
+                                .collect()
                         };
 
                         let dim_id = dim.id.clone();
                         let dim_label = dim.label.clone();
 
+                        // ── ディメンションタイトル（マップ時はズーム軸選択ボタン）──
+                        let title = match zoom_dim {
+                            Some(zd) => {
+                                let did = dim_id.clone();
+                                let did_eq = dim_id.clone();
+                                view! {
+                                    <button
+                                        class="facet-panel-title facet-panel-title-btn"
+                                        class:active=move || zd.get() == did_eq
+                                        title="ズーム軸にする"
+                                        on:click=move |_| zd.set(did.clone())
+                                    >
+                                        {dim_label}
+                                    </button>
+                                }
+                                .into_view()
+                            }
+                            None => {
+                                view! { <div class="facet-panel-title">{dim_label}</div> }
+                                    .into_view()
+                            }
+                        };
+
                         Some(view! {
                             <div class="facet-panel">
-                                <div class="facet-panel-title">{dim_label}</div>
+                                {title}
                                 {ordered
                                     .into_iter()
                                     .map(|(val, depth, count, has_children, is_collapsed)| {
@@ -150,42 +176,11 @@ pub fn FacetSidebar(
                                                 .into_view()
                                         };
 
-                                        // ── ズーム軸ラジオ（マップビューかつ階層の根のみ）──
-                                        let radio = match zoom_root {
-                                            Some(zr) if hierarchical && depth == 0 && has_children => {
-                                                let did = dim_id.clone();
-                                                let vv = val.clone();
-                                                let key = (dim_id.clone(), val.clone());
-                                                let key2 = key.clone();
-                                                view! {
-                                                    <button
-                                                        class="facet-zoom-radio"
-                                                        class:active=move || zr.get() == key2
-                                                        title="ズーム軸にする"
-                                                        on:click=move |_| {
-                                                            zr.set((did.clone(), vv.clone()));
-                                                        }
-                                                    >
-                                                        {move || {
-                                                            if zr.get() == key { "◉" } else { "○" }
-                                                        }}
-                                                    </button>
-                                                }
-                                                .into_view()
-                                            }
-                                            Some(_) => {
-                                                view! { <span class="facet-zoom-spacer" /> }
-                                                    .into_view()
-                                            }
-                                            None => view! { <span /> }.into_view(),
-                                        };
-
                                         let did = dim_id.clone();
                                         let v_click = val.clone();
                                         view! {
                                             <div class="facet-row" style=indent>
                                                 {caret}
-                                                {radio}
                                                 <button
                                                     class=if is_sel {
                                                         "facet-value selected"

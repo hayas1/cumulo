@@ -773,14 +773,6 @@ body {
   white-space: nowrap;
 }
 
-.controls-hint {
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .zoom-axes-row {
   display: flex;
   align-items: center;
@@ -1081,6 +1073,24 @@ body {
   padding: 0.4rem 0.5rem 0.25rem;
 }
 
+/* マップ時: タイトルをクリックでズーム軸に。選択中は文字色↔背景色を反転 */
+.facet-panel-title-btn {
+  display: inline-block;
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  margin: 0.15rem 0 0.1rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 4px;
+  transition: background 0.1s, color 0.1s;
+}
+.facet-panel-title-btn:hover { color: var(--text-primary); }
+.facet-panel-title-btn.active {
+  background: var(--accent);
+  color: var(--bg-base);
+}
+
 /* 1行 = キャレット + (ズーム軸ラジオ) + facet-value ボタン */
 .facet-row {
   display: flex;
@@ -1102,22 +1112,6 @@ body {
 }
 .facet-caret:hover { color: var(--text-primary); }
 .facet-caret-spacer { flex-shrink: 0; width: 1rem; }
-
-.facet-zoom-radio {
-  flex-shrink: 0;
-  width: 1.1rem;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 0.7rem;
-  padding: 0;
-  line-height: 1;
-  transition: color 0.1s;
-}
-.facet-zoom-radio:hover { color: var(--text-primary); }
-.facet-zoom-radio.active { color: var(--accent); }
-.facet-zoom-spacer { flex-shrink: 0; width: 1.1rem; }
 
 .facet-value {
   display: flex;

@@ -20,9 +20,7 @@ pub fn Controls(
 
     view! {
         <div class="controls-bar">
-            <div class="controls-left">
-                <span class="controls-hint">"左パネルの ◉ でズーム軸（フォレストの根）を選択"</span>
-            </div>
+            <div class="controls-left"></div>
             <div class="controls-right">
                 <button
                     class="add-resource-btn"

@@ -8,8 +8,7 @@ let resources = [];
 let filteredIds = new Set();
 let dimensions = [];          // 完全なディメンション定義（親リンクを辿るのに使う）
 let zoomDim = '';             // ズーム軸のディメンションID（例: 'platform'）
-let zoomRoot = '';            // ズーム軸＝選択中のフォレストの根（例: 'Cloud'）
-let maxDepth = 1;             // 現在の根の下での最大ネスト深さ（LODに使用）
+let maxDepth = 1;             // フォレストの最大ネスト深さ（LODに使用）
 let currentScale = 1;
 let initialized = false;
 
@@ -83,13 +82,12 @@ window.cumuloUpdateFilter = function (selectedJson) {
   } catch (e) { console.error('cumuloUpdateFilter', e); }
 };
 
-window.cumuloUpdateZoomRoot = function (json) {
+window.cumuloUpdateZoomDim = function (json) {
   try {
     const o = JSON.parse(json);
     zoomDim = o.dim || '';
-    zoomRoot = o.root || '';
     if (initialized) { render(); zoomToFit(); }
-  } catch (e) { console.error('cumuloUpdateZoomRoot', e); }
+  } catch (e) { console.error('cumuloUpdateZoomDim', e); }
 };
 
 window.cumuloUpdateDimensions = function (json) {
@@ -120,15 +118,13 @@ function ancestryIn(dimId, value) {
   return chain;
 }
 
-// 選択中の根の「子」から葉までのパス（上→下）を返す。根の配下でなければ null。
-function pathUnderRoot(r) {
-  if (!zoomDim || !zoomRoot) return null;
+// ズーム軸ディメンションでの、フォレスト根から葉までの完全パス（上→下）を返す。
+// 例: platform で BigQuery → [Cloud, GCP, BigQuery]。フラットdimなら [value]。
+function zoomPath(r) {
+  if (!zoomDim) return null;
   const leaf = r.attrs && r.attrs[zoomDim];
-  if (leaf == null) return null;
-  const anc = ancestryIn(zoomDim, leaf);   // [leaf, ..., root, ...]
-  const idx = anc.indexOf(zoomRoot);
-  if (idx < 0) return null;                // この根の配下ではない
-  return anc.slice(0, idx).reverse();      // 例: [GCP, BigQuery]（leaf===root なら []）
+  if (leaf == null) return ['その他'];
+  return ancestryIn(zoomDim, leaf).reverse();
 }
 
 window.cumuloZoomToFit = function () { zoomToFit(); };
@@ -380,10 +376,10 @@ function render() {
   g.selectAll('*').remove();
   if (resources.length === 0) return;
 
-  // 選択中の根の配下にあるルートリソースだけを、パス付きで集める
+  // ルートリソースを、ズーム軸ディメンションの完全パス付きで集める
   const items = resources
     .filter(r => !r.parent_id)
-    .map(r => ({ r, path: pathUnderRoot(r) }))
+    .map(r => ({ r, path: zoomPath(r) }))
     .filter(it => it.path !== null);
 
   if (items.length === 0) return;
