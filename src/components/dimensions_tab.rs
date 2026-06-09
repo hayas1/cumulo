@@ -115,6 +115,71 @@ fn reparent(store: RwSignal<AppStore>, di: usize, dragged: String, new_parent: O
     save_to_storage(&store.get_untracked());
 }
 
+// 根ドロップゾーンを表す番兵（実値と衝突しないよう制御文字を含める）。
+const ROOT_SENTINEL: &str = "\u{0}root";
+
+// dragged を target の兄弟として、前(after=false)/後(after=true)に挿入し、
+// 親を target の親に合わせる（並び替え）。循環は防止。
+fn move_relative(
+    store: RwSignal<AppStore>,
+    di: usize,
+    dragged: String,
+    target: String,
+    after: bool,
+) {
+    if dragged == target {
+        return;
+    }
+    store.update(|s| {
+        if let Some(dim) = s.dimensions.get_mut(di) {
+            let new_parent = dim
+                .values
+                .iter()
+                .find(|v| v.value == target)
+                .and_then(|v| v.parent.clone());
+            if let Some(np) = &new_parent {
+                if np == &dragged || ancestry_contains(&dim.values, np, &dragged) {
+                    return;
+                }
+            }
+            let Some(dpos) = dim.values.iter().position(|v| v.value == dragged) else {
+                return;
+            };
+            let mut node = dim.values.remove(dpos);
+            node.parent = new_parent;
+            let tpos = dim
+                .values
+                .iter()
+                .position(|v| v.value == target)
+                .unwrap_or(dim.values.len());
+            let insert_at = if after { tpos + 1 } else { tpos };
+            dim.values.insert(insert_at.min(dim.values.len()), node);
+        }
+    });
+    save_to_storage(&store.get_untracked());
+}
+
+// ドロップ位置を行内の縦位置で判定: 0=前, 1=中(子にする), 2=後。
+fn drag_zone(ev: &web_sys::DragEvent) -> u8 {
+    if let Some(el) = ev
+        .current_target()
+        .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+    {
+        let rect = el.get_bounding_client_rect();
+        let h = rect.height();
+        if h > 0.0 {
+            let rel = (ev.client_y() as f64 - rect.top()) / h;
+            if rel < 0.3 {
+                return 0;
+            }
+            if rel > 0.7 {
+                return 2;
+            }
+        }
+    }
+    1
+}
+
 // 子を親（削除ノードの親）に繰り上げてからノードを削除。
 fn delete_node_promote(store: RwSignal<AppStore>, di: usize, value: String) {
     store.update(|s| {
@@ -234,7 +299,8 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
 
     // ドラッグ中の (dim index, value) と、ドロップ先ハイライト用。
     let dragging = create_rw_signal(Option::<(usize, String)>::None);
-    let drag_over = create_rw_signal(Option::<(usize, String)>::None);
+    // (dim index, value or ROOT_SENTINEL, zone: 0=前 1=中 2=後)
+    let drag_over = create_rw_signal(Option::<(usize, String, u8)>::None);
 
     // ディメンション削除用の汎用確認ダイアログ。
     let confirm_msg = create_rw_signal(Option::<&'static str>::None);
@@ -342,6 +408,37 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                     }
                                 }}
 
+                                // ドラッグ中だけ、タイトル横に「根へ」ドロップ枠を出す
+                                {move || {
+                                    if matches!(dragging.get(), Some((d, _)) if d == di) {
+                                        view! {
+                                            <div
+                                                class="dim-root-drop"
+                                                class:over=move || {
+                                                    drag_over.get()
+                                                        == Some((di, ROOT_SENTINEL.to_string(), 1))
+                                                }
+                                                on:dragover=move |ev: web_sys::DragEvent| {
+                                                    ev.prevent_default();
+                                                    drag_over.set(Some((di, ROOT_SENTINEL.to_string(), 1)));
+                                                }
+                                                on:drop=move |ev: web_sys::DragEvent| {
+                                                    ev.prevent_default();
+                                                    if let Some((ddi, dval)) = dragging.get_untracked() {
+                                                        if ddi == di { reparent(store, di, dval, None); }
+                                                    }
+                                                    dragging.set(None);
+                                                    drag_over.set(None);
+                                                }
+                                            >
+                                                "⬚ 根へ"
+                                            </div>
+                                        }.into_view()
+                                    } else {
+                                        view! { <span /> }.into_view()
+                                    }
+                                }}
+
                                 {move || {
                                     if editing_dim.get() == Some(di) {
                                         view! {
@@ -379,27 +476,6 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                 }}
                             </div>
 
-                            // ── 根（トップレベル）ドロップゾーン ───────────────
-                            <div
-                                class="dim-root-drop"
-                                class:over=move || drag_over.get() == Some((di, String::new()))
-                                on:dragover=move |ev: web_sys::DragEvent| {
-                                    ev.prevent_default();
-                                    drag_over.set(Some((di, String::new())));
-                                }
-                                on:dragleave=move |_| drag_over.set(None)
-                                on:drop=move |ev: web_sys::DragEvent| {
-                                    ev.prevent_default();
-                                    if let Some((ddi, dval)) = dragging.get_untracked() {
-                                        if ddi == di { reparent(store, di, dval, None); }
-                                    }
-                                    dragging.set(None);
-                                    drag_over.set(None);
-                                }
-                            >
-                                "⬚ ここにドロップで根（トップレベル）へ"
-                            </div>
-
                             // ── ツリー本体 ─────────────────────────────────────
                             <div class="dim-tree">
                                 {order.into_iter().map(|(vi, depth, has_children)| {
@@ -428,8 +504,10 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                     let v_drag = value.clone();
                                     // ドロップ先の値（drop 用）
                                     let v_drop = value.clone();
-                                    let v_over = value.clone();
                                     let v_over2 = value.clone();
+                                    let v_in = value.clone();
+                                    let v_bf = value.clone();
+                                    let v_af = value.clone();
 
                                     let row_body = if editing_node.get() == Some((di, vi)) {
                                         view! {
@@ -534,17 +612,25 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                     view! {
                                         <div
                                             class="dim-node-row"
-                                            class:over=move || drag_over.get() == Some((di, v_over.clone()))
+                                            class:over-inside=move || drag_over.get() == Some((di, v_in.clone(), 1))
+                                            class:over-before=move || drag_over.get() == Some((di, v_bf.clone(), 0))
+                                            class:over-after=move || drag_over.get() == Some((di, v_af.clone(), 2))
                                             style=indent
                                             on:dragover=move |ev: web_sys::DragEvent| {
                                                 ev.prevent_default();
-                                                drag_over.set(Some((di, v_over2.clone())));
+                                                let zone = drag_zone(&ev);
+                                                drag_over.set(Some((di, v_over2.clone(), zone)));
                                             }
                                             on:drop=move |ev: web_sys::DragEvent| {
                                                 ev.prevent_default();
+                                                let zone = drag_zone(&ev);
                                                 if let Some((ddi, dval)) = dragging.get_untracked() {
                                                     if ddi == di {
-                                                        reparent(store, di, dval, Some(v_drop.clone()));
+                                                        match zone {
+                                                            0 => move_relative(store, di, dval, v_drop.clone(), false),
+                                                            2 => move_relative(store, di, dval, v_drop.clone(), true),
+                                                            _ => reparent(store, di, dval, Some(v_drop.clone())),
+                                                        }
                                                     }
                                                 }
                                                 dragging.set(None);

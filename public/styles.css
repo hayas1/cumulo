@@ -368,7 +368,6 @@ body {
   color: inherit;
   cursor: pointer;
   display: flex;
-  flex: 1;
   gap: 0.5rem;
   padding: 0.15rem 0;
   text-align: left;
@@ -480,11 +479,25 @@ body {
   gap: 0.3rem;
   border-radius: 6px;
   border: 1px solid transparent;
+  position: relative;
 }
-.dim-node-row.over {
+/* 要素に重ねた = 子にする */
+.dim-node-row.over-inside {
   border-color: var(--accent);
   background: rgba(88, 166, 255, 0.08);
 }
+/* 要素の間 = 並び替え（上端/下端にインジケータ線） */
+.dim-node-row.over-before::before,
+.dim-node-row.over-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+.dim-node-row.over-before::before { top: -1px; }
+.dim-node-row.over-after::after { bottom: -1px; }
 
 .dim-caret {
   flex-shrink: 0;
@@ -542,18 +555,19 @@ body {
 
 .dim-node-editor { flex: 1; }
 
+/* ドラッグ中のみタイトル横に出る「根へ」ドロップ枠 */
 .dim-root-drop {
-  border: 1px dashed var(--border);
-  border-radius: 6px;
-  color: var(--text-muted);
+  border: 1px dashed var(--accent);
+  border-radius: 20px;
+  color: var(--accent);
   font-size: 0.68rem;
-  padding: 0.25rem 0.5rem;
-  text-align: center;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+  margin-left: 0.5rem;
 }
 .dim-root-drop.over {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(88, 166, 255, 0.08);
+  background: var(--accent);
+  color: var(--bg-base);
 }
 
 .dim-add-root {
