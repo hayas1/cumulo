@@ -1131,16 +1131,7 @@ body {
   transition: background 0.1s, color 0.1s;
 }
 .facet-value:hover { background: var(--bg-hover); color: var(--text-primary); }
-.facet-value.selected { color: var(--accent); }
-.facet-value.selected .fv-dot { color: var(--accent); }
-
-.fv-dot {
-  font-size: 0.55rem;
-  color: var(--border);
-  flex-shrink: 0;
-  width: 0.7rem;
-  text-align: center;
-}
+.facet-value.selected { color: var(--accent); font-weight: 700; }
 
 .fv-label {
   flex: 1;

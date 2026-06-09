@@ -201,9 +201,6 @@ pub fn FacetSidebar(
                                                         });
                                                     }
                                                 >
-                                                    <span class="fv-dot">
-                                                        {if is_sel { "●" } else { "○" }}
-                                                    </span>
                                                     <span class="fv-label">{val}</span>
                                                     <span class="fv-count">{count}</span>
                                                 </button>
