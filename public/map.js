@@ -147,13 +147,18 @@ function onZoom(event) {
   applyTextScale(transform.k);
 }
 
-// テキストはズーム倍率の逆数で打ち消し、画面上のサイズを一定に保つ。
+// ラベルのオンスクリーンサイズを読める帯（LABEL_MIN〜LABEL_MAX px）に収める。
+// base*k が本来の画面サイズ。それをクランプしてから k で逆補正することで、
+// 浅い階層では大きくなりすぎず、深い階層でも小さくなりすぎないようにする。
+const LABEL_MIN = 9;
+const LABEL_MAX = 24;
 function applyTextScale(k) {
   if (!g) return;
   g.selectAll('text').each(function () {
     const t = d3.select(this);
     const base = +t.attr('data-fs') || 10;
-    t.attr('font-size', base / k);
+    const screen = Math.max(LABEL_MIN, Math.min(LABEL_MAX, base * k));
+    t.attr('font-size', screen / k);
   });
 }
 
