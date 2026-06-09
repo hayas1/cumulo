@@ -144,16 +144,27 @@ function onZoom(event) {
   g.attr('transform', transform);
   currentScale = transform.k;
   updateLOD(transform.k);
+  applyTextScale(transform.k);
+}
+
+// テキストはズーム倍率の逆数で打ち消し、画面上のサイズを一定に保つ。
+function applyTextScale(k) {
+  if (!g) return;
+  g.selectAll('text').each(function () {
+    const t = d3.select(this);
+    const base = +t.attr('data-fs') || 10;
+    t.attr('font-size', base / k);
+  });
 }
 
 // ── ズーム遷移 ────────────────────────────────────────────────────────────────
 
 // absX, absY はルート座標系での絶対位置
 function zoomToNode(absX, absY, r) {
-  // 自然なズームスケール（クラスタが画面の85%を占める）と
-  // mini-node が見えるための最低スケールのうち大きい方を使う
+  // クリックしたクラスタが画面の約85%を占める自然なスケール。
+  // 深追いせず「1段ぶん」掘り下げる（直下の子が見える程度に収める）。
   const naturalScale = (Math.min(W, H) * 0.85) / (r * 2);
-  const scale = Math.max(naturalScale, lodNodes() + 0.3);
+  const scale = Math.max(0.2, Math.min(20, naturalScale));
   const tx = W / 2 - scale * absX;
   const ty = H / 2 - scale * absY;
   svg.transition().duration(800).ease(d3.easeCubicInOut)
@@ -391,6 +402,7 @@ function render() {
   drawNodes(g, tree, null);
 
   updateLOD(currentScale);
+  applyTextScale(currentScale);
   updateFilterOpacity();
 }
 
@@ -444,20 +456,23 @@ function drawCluster(parentG, cluster, rx, ry) {
     .attr('text-anchor', 'middle')
     .attr('dy', '0.2em')
     .attr('fill', color)
-    .attr('font-size', fs)
+    .attr('data-fs', fs)
+    .attr('font-size', fs / currentScale)
     .attr('font-weight', depth === 0 ? 700 : 600)
     .attr('font-family', 'system-ui, sans-serif')
     .attr('pointer-events', 'none')
     .text(cluster.key);
 
   const leafCount = countLeaves(cluster);
+  const cfs = depth === 0 ? 11 : 9;
   clusterG.append('text')
     .attr('class', `cluster-count cluster-count-d${depth}`)
     .attr('text-anchor', 'middle')
     .attr('dy', fs / 2 + 14)
     .attr('fill', color)
     .attr('fill-opacity', 0.65)
-    .attr('font-size', depth === 0 ? 11 : 9)
+    .attr('data-fs', cfs)
+    .attr('font-size', cfs / currentScale)
     .attr('font-family', 'system-ui, sans-serif')
     .attr('pointer-events', 'none')
     .text(`${leafCount} リソース`);
@@ -506,7 +521,8 @@ function drawResourceNode(parentG, node, rx, ry) {
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'middle')
-    .attr('font-size', labelFs)
+    .attr('data-fs', labelFs)
+    .attr('font-size', labelFs / currentScale)
     .attr('font-family', 'monospace')
     .attr('fill', '#e6edf3')
     .attr('pointer-events', 'none')
@@ -543,11 +559,13 @@ function drawResourceNode(parentG, node, rx, ry) {
       .attr('stroke-opacity', 0.7);
 
     // 子ノードのラベルも内側中央に
+    const childFs = Math.max(4, childR * 0.9);
     childG.append('text')
       .attr('class', 'child-label')
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
-      .attr('font-size', Math.max(4, childR * 0.9))
+      .attr('data-fs', childFs)
+      .attr('font-size', childFs / currentScale)
       .attr('font-family', 'monospace')
       .attr('fill', '#e6edf3')
       .attr('pointer-events', 'none')

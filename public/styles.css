@@ -893,6 +893,13 @@ body {
   display: block;
 }
 
+/* ズームで枠線が太くならないよう、stroke は常に一定の画面幅に保つ */
+#main-svg .cluster-bg,
+#main-svg .mini-node-circle,
+#main-svg .child-node-circle {
+  vector-effect: non-scaling-stroke;
+}
+
 /* ── Detail panel ────────────────────────────────────────── */
 
 .detail-panel {
