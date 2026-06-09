@@ -43,9 +43,6 @@ pub fn SettingsModal(
         store.set(fresh);
         confirm_clear.set(false);
         open.set(false);
-        import_toast.set(Some(
-            "エクスポート後、ローカルデータを消去しました".to_string(),
-        ));
     };
 
     let on_import_click = move |_| {
@@ -160,7 +157,7 @@ pub fn SettingsModal(
                                         </button>
                                     </div>
                                     <div class="settings-section">
-                                        <h3 class="settings-section-title settings-danger-title">"消去"</h3>
+                                        <h3 class="settings-section-title settings-danger-title">"ローカルのデータを削除"</h3>
                                         <button
                                             class="settings-action-btn settings-danger-btn"
                                             on:click=move |_| confirm_clear.set(true)
