@@ -16,7 +16,7 @@ pub fn Palette(
         let tags = selected_tags.get();
         let input = input_text.get();
 
-        let mut avail = available_tags(&s.resources, &tags);
+        let mut avail = available_tags(&s.resources, &tags, &s.dimensions);
 
         if !input.is_empty() {
             let lower = input.to_lowercase();
@@ -40,7 +40,9 @@ pub fn Palette(
 
     // 入力中（フォーカスあり＋文字あり）かつ候補があるときだけポップアップを表示
     let show_popup = move || {
-        is_focused.get() && !input_text.with(|t| t.is_empty()) && suggestions.with(|s| !s.is_empty())
+        is_focused.get()
+            && !input_text.with(|t| t.is_empty())
+            && suggestions.with(|s| !s.is_empty())
     };
 
     view! {

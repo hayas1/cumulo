@@ -1,111 +1,35 @@
 [
   {
-    "id": "vendor",
-    "label": "ベンダー",
+    "id": "platform",
+    "label": "プラットフォーム",
     "values": [
-      {
-        "value": "AWS",
-        "color": "#378ADD"
-      },
-      {
-        "value": "GCP",
-        "color": "#1D9E75"
-      },
-      {
-        "value": "Azure",
-        "color": "#7F77DD"
-      },
-      {
-        "value": "Datadog",
-        "color": "#E24B4A"
-      },
-      {
-        "value": "Sentry",
-        "color": "#9B6DD6"
-      }
+      { "value": "Cloud", "color": "#5B8DEF" },
+      { "value": "GCP", "parent": "Cloud", "color": "#1D9E75" },
+      { "value": "AWS", "parent": "Cloud", "color": "#F2920C" },
+      { "value": "BigQuery", "parent": "GCP", "color": "#1D9E75" },
+      { "value": "Bigtable", "parent": "GCP", "color": "#3A9E86" },
+      { "value": "Cloud Logging", "parent": "GCP", "color": "#5BBF9F" },
+      { "value": "Cloud Monitoring", "parent": "GCP", "color": "#7FCFB6" },
+      { "value": "S3", "parent": "AWS", "color": "#F2920C" },
+      { "value": "MSK", "parent": "AWS", "color": "#E4781A" },
+      { "value": "RDS", "parent": "AWS", "color": "#D98324" },
+      { "value": "Secrets Manager", "parent": "AWS", "color": "#C26B12" },
+      { "value": "Observe", "color": "#E24B4A" },
+      { "value": "Datadog", "parent": "Observe", "color": "#7C3AED" },
+      { "value": "Dashboard", "parent": "Datadog", "color": "#9B6DD6" },
+      { "value": "APM", "parent": "Datadog", "color": "#B388E8" },
+      { "value": "Self-hosted", "color": "#64748B" },
+      { "value": "Kafka UI", "parent": "Self-hosted", "color": "#94A3B8" }
     ]
   },
   {
     "id": "env",
     "label": "環境",
     "values": [
-      {
-        "value": "prod",
-        "color": "#E24B4A"
-      },
-      {
-        "value": "staging",
-        "color": "#BA7517"
-      },
-      {
-        "value": "dev",
-        "color": "#378ADD"
-      }
+      { "value": "prod", "color": "#E24B4A" },
+      { "value": "stg", "color": "#BA7517" },
+      { "value": "dev", "color": "#378ADD" },
+      { "value": "shared", "color": "#64748B" }
     ]
-  },
-  {
-    "id": "service",
-    "label": "プロダクト",
-    "values": [
-      {
-        "value": "auth",
-        "color": "#E24B4A"
-      },
-      {
-        "value": "payment",
-        "color": "#378ADD"
-      },
-      {
-        "value": "infra",
-        "color": "#1D9E75"
-      },
-      {
-        "value": "analytics",
-        "color": "#7F77DD"
-      }
-    ]
-  },
-  {
-    "id": "resource_type",
-    "label": "リソース",
-    "values": [
-      {
-        "value": "BigQuery",
-        "color": "#1D9E75"
-      },
-      {
-        "value": "Aurora",
-        "color": "#378ADD"
-      },
-      {
-        "value": "RDS",
-        "color": "#5090D0"
-      },
-      {
-        "value": "GCS",
-        "color": "#0F6E56"
-      },
-      {
-        "value": "APM",
-        "color": "#E24B4A"
-      },
-      {
-        "value": "CosmosDB",
-        "color": "#7F77DD"
-      },
-      {
-        "value": "EC2",
-        "color": "#BA7517"
-      },
-      {
-        "value": "ErrorTrack",
-        "color": "#9B6DD6"
-      }
-    ]
-  },
-  {
-    "id": "team",
-    "label": "チーム",
-    "values": []
   }
 ]

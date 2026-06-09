@@ -1,7 +1,7 @@
 use crate::model::{AppStore, Resource};
 use crate::storage::save_to_storage;
-use leptos::*;
 use leptos::html::Input;
+use leptos::*;
 
 fn gen_id() -> String {
     let n = (js_sys::Math::random() * 1e15) as u64;
@@ -38,9 +38,15 @@ pub fn ResourceForm(
         form_parent.set(r.parent_id.clone());
 
         // Set DOM values imperatively so no prop:value re-render is needed
-        if let Some(el) = name_ref.get() { el.set_value(&r.name); }
-        if let Some(el) = url_ref.get()  { el.set_value(&r.console_url); }
-        if let Some(el) = freq_ref.get() { el.set_value(&r.freq.max(1).to_string()); }
+        if let Some(el) = name_ref.get() {
+            el.set_value(&r.name);
+        }
+        if let Some(el) = url_ref.get() {
+            el.set_value(&r.console_url);
+        }
+        if let Some(el) = freq_ref.get() {
+            el.set_value(&r.freq.max(1).to_string());
+        }
 
         let mut attrs: Vec<_> = r.attrs.into_iter().collect();
         attrs.sort_by_key(|(k, _)| k.clone());
@@ -49,19 +55,23 @@ pub fn ResourceForm(
         let mut id = 0u32;
         let rows: Vec<(u32, String, String)> = attrs
             .into_iter()
-            .map(|(k, v)| { let cur = id; id += 1; (cur, k, v) })
+            .map(|(k, v)| {
+                let cur = id;
+                id += 1;
+                (cur, k, v)
+            })
             .collect();
         next_id.set(id);
         form_attrs.set(rows);
     });
 
-    let is_new = move || {
-        editing.with(|e| e.as_ref().map(|r| r.id.is_empty()).unwrap_or(false))
-    };
+    let is_new = move || editing.with(|e| e.as_ref().map(|r| r.id.is_empty()).unwrap_or(false));
 
     let save = move || {
         let name = form_name.get_untracked();
-        if name.trim().is_empty() { return; }
+        if name.trim().is_empty() {
+            return;
+        }
 
         let id = editing
             .with_untracked(|e| {
@@ -280,8 +290,12 @@ fn AttrRow(
     let ik = initial_key.clone();
     let iv = initial_val.clone();
     create_effect(move |_| {
-        if let Some(el) = key_ref.get() { el.set_value(&ik); }
-        if let Some(el) = val_ref.get() { el.set_value(&iv); }
+        if let Some(el) = key_ref.get() {
+            el.set_value(&ik);
+        }
+        if let Some(el) = val_ref.get() {
+            el.set_value(&iv);
+        }
     });
 
     view! {

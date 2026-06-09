@@ -7,7 +7,10 @@ pub fn cluster_resources<'a>(
     zoom_axes: &[String],
     level: usize,
 ) -> HashMap<String, Vec<&'a Resource>> {
-    let dim_key = zoom_axes.get(level.min(2)).map(|s| s.as_str()).unwrap_or("vendor");
+    let dim_key = zoom_axes
+        .get(level.min(2))
+        .map(|s| s.as_str())
+        .unwrap_or("vendor");
     let mut groups: HashMap<String, Vec<&Resource>> = HashMap::new();
     for r in resources {
         let key = r

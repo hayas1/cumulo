@@ -23,7 +23,7 @@ pub fn Controls(
     let resource_count = create_memo(move |_| {
         let s = store.get();
         let tags = selected_tags.get();
-        filter_resources(&s.resources, &tags).len()
+        filter_resources(&s.resources, &tags, &s.dimensions).len()
     });
 
     let total_count = create_memo(move |_| store.get().resources.len());

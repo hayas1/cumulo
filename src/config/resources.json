@@ -1,183 +1,146 @@
 [
   {
-    "id": "r1",
-    "name": "auth-bigquery-prod",
+    "id": "bq-prod",
+    "name": "BigQuery (prod-project)",
     "freq": 12,
     "parent_id": null,
-    "attrs": {
-      "vendor": "GCP",
-      "project": "gamma-proj",
-      "env": "prod",
-      "service": "auth",
-      "resource_type": "BigQuery",
-      "region": "asia-northeast1",
-      "team": "platform"
-    },
-    "console_url": "https://console.cloud.google.com/bigquery?project=gamma-proj",
+    "attrs": { "platform": "BigQuery", "env": "prod" },
+    "console_url": "https://console.cloud.google.com/bigquery?project=prod-proj",
     "created_at": "2026-01-01T00:00:00Z"
   },
   {
-    "id": "r1c1",
-    "name": "dataset_events",
+    "id": "bq-prod-events",
+    "name": "dataset: events",
     "freq": 8,
-    "parent_id": "r1",
+    "parent_id": "bq-prod",
     "attrs": {},
-    "console_url": "https://console.cloud.google.com/bigquery?project=gamma-proj&d=events",
+    "console_url": "https://console.cloud.google.com/bigquery?project=prod-proj&d=events",
     "created_at": null
   },
   {
-    "id": "r1c2",
-    "name": "dataset_users",
-    "freq": 4,
-    "parent_id": "r1",
-    "attrs": {},
-    "console_url": "https://console.cloud.google.com/bigquery?project=gamma-proj&d=users",
-    "created_at": null
-  },
-  {
-    "id": "r2",
-    "name": "auth-bigquery-staging",
+    "id": "bq-prod-users",
+    "name": "dataset: users",
     "freq": 5,
-    "parent_id": null,
-    "attrs": {
-      "vendor": "GCP",
-      "project": "gamma-staging",
-      "env": "staging",
-      "service": "auth",
-      "resource_type": "BigQuery",
-      "region": "asia-northeast1",
-      "team": "platform"
-    },
-    "console_url": "https://console.cloud.google.com/bigquery?project=gamma-staging",
-    "created_at": "2026-01-01T00:00:00Z"
-  },
-  {
-    "id": "r3",
-    "name": "payment-rds-prod",
-    "freq": 8,
-    "parent_id": null,
-    "attrs": {
-      "vendor": "AWS",
-      "account": "acct-123",
-      "env": "prod",
-      "service": "payment",
-      "resource_type": "RDS",
-      "region": "ap-northeast-1",
-      "team": "backend"
-    },
-    "console_url": "https://console.aws.amazon.com/rds",
-    "created_at": "2026-01-01T00:00:00Z"
-  },
-  {
-    "id": "r4",
-    "name": "auth-aurora-prod",
-    "freq": 15,
-    "parent_id": null,
-    "attrs": {
-      "vendor": "AWS",
-      "account": "acct-456",
-      "env": "prod",
-      "service": "auth",
-      "resource_type": "Aurora",
-      "region": "ap-northeast-1",
-      "team": "platform"
-    },
-    "console_url": "https://console.aws.amazon.com/rds",
-    "created_at": "2026-01-01T00:00:00Z"
-  },
-  {
-    "id": "r4c1",
-    "name": "db_auth_main",
-    "freq": 12,
-    "parent_id": "r4",
+    "parent_id": "bq-prod",
     "attrs": {},
-    "console_url": "https://console.aws.amazon.com/rds/home#database:id=auth-main",
+    "console_url": "https://console.cloud.google.com/bigquery?project=prod-proj&d=users",
     "created_at": null
   },
   {
-    "id": "r4c2",
-    "name": "db_auth_read",
-    "freq": 3,
-    "parent_id": "r4",
-    "attrs": {},
-    "console_url": "https://console.aws.amazon.com/rds/home#database:id=auth-read",
-    "created_at": null
-  },
-  {
-    "id": "r5",
-    "name": "infra-cosmos-prod",
-    "freq": 3,
+    "id": "bq-stg",
+    "name": "BigQuery (stg-project)",
+    "freq": 4,
     "parent_id": null,
-    "attrs": {
-      "vendor": "Azure",
-      "subscription": "sub-789",
-      "env": "prod",
-      "service": "infra",
-      "resource_type": "CosmosDB",
-      "region": "japaneast",
-      "team": "infra"
-    },
-    "console_url": "https://portal.azure.com/",
+    "attrs": { "platform": "BigQuery", "env": "stg" },
+    "console_url": "https://console.cloud.google.com/bigquery?project=stg-proj",
     "created_at": "2026-01-01T00:00:00Z"
   },
   {
-    "id": "r6",
-    "name": "auth-datadog-apm",
-    "freq": 20,
+    "id": "bt-prod",
+    "name": "Bigtable (prod-project)",
+    "freq": 6,
     "parent_id": null,
-    "attrs": {
-      "vendor": "Datadog",
-      "project": "dd-main",
-      "env": "prod",
-      "service": "auth",
-      "resource_type": "APM",
-      "region": "global",
-      "team": "platform"
-    },
-    "console_url": "https://app.datadoghq.com/apm/services/auth",
+    "attrs": { "platform": "Bigtable", "env": "prod" },
+    "console_url": "https://console.cloud.google.com/bigtable?project=prod-proj",
     "created_at": "2026-01-01T00:00:00Z"
   },
   {
-    "id": "r7",
-    "name": "payment-sentry",
+    "id": "logging-prod",
+    "name": "Cloud Logging (prod-project)",
+    "freq": 9,
+    "parent_id": null,
+    "attrs": { "platform": "Cloud Logging", "env": "prod" },
+    "console_url": "https://console.cloud.google.com/logs?project=prod-proj",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "monitoring-prod",
+    "name": "Cloud Monitoring (prod-project)",
     "freq": 7,
     "parent_id": null,
-    "attrs": {
-      "vendor": "Sentry",
-      "project": "sentry-pay",
-      "env": "prod",
-      "service": "payment",
-      "resource_type": "ErrorTrack",
-      "region": "global",
-      "team": "backend"
-    },
-    "console_url": "https://sentry.io/",
+    "attrs": { "platform": "Cloud Monitoring", "env": "prod" },
+    "console_url": "https://console.cloud.google.com/monitoring?project=prod-proj",
     "created_at": "2026-01-01T00:00:00Z"
   },
   {
-    "id": "r11",
-    "name": "analytics-bigquery",
+    "id": "s3-prod",
+    "name": "S3 (prod-account)",
+    "freq": 10,
+    "parent_id": null,
+    "attrs": { "platform": "S3", "env": "prod" },
+    "console_url": "https://s3.console.aws.amazon.com/s3/home",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "msk-stg",
+    "name": "MSK (stg-account)",
+    "freq": 5,
+    "parent_id": null,
+    "attrs": { "platform": "MSK", "env": "stg" },
+    "console_url": "https://console.aws.amazon.com/msk/home",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "rds-prod",
+    "name": "RDS (prod-account)",
     "freq": 11,
     "parent_id": null,
-    "attrs": {
-      "vendor": "GCP",
-      "project": "analytics-proj",
-      "env": "prod",
-      "service": "analytics",
-      "resource_type": "BigQuery",
-      "region": "us-central1",
-      "team": "data"
-    },
-    "console_url": "https://console.cloud.google.com/bigquery?project=analytics-proj",
+    "attrs": { "platform": "RDS", "env": "prod" },
+    "console_url": "https://console.aws.amazon.com/rds/home",
     "created_at": "2026-01-01T00:00:00Z"
   },
   {
-    "id": "r11c1",
-    "name": "dataset_metrics",
+    "id": "secrets-dev",
+    "name": "Secrets Manager (dev-account)",
+    "freq": 3,
+    "parent_id": null,
+    "attrs": { "platform": "Secrets Manager", "env": "dev" },
+    "console_url": "https://console.aws.amazon.com/secretsmanager/home",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "dd-dashboard-prod",
+    "name": "Datadog Dashboard (prod)",
+    "freq": 10,
+    "parent_id": null,
+    "attrs": { "platform": "Dashboard", "env": "prod" },
+    "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Aprod",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "dd-dashboard-dev",
+    "name": "Datadog Dashboard (dev)",
+    "freq": 4,
+    "parent_id": null,
+    "attrs": { "platform": "Dashboard", "env": "dev" },
+    "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Adev",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "dd-apm-tracing",
+    "name": "Datadog APM — Tracing",
     "freq": 9,
-    "parent_id": "r11",
-    "attrs": {},
-    "console_url": "https://console.cloud.google.com/bigquery?project=analytics-proj&d=metrics",
-    "created_at": null
+    "parent_id": null,
+    "attrs": { "platform": "APM", "env": "shared" },
+    "console_url": "https://app.datadoghq.com/apm/traces",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "dd-apm-services",
+    "name": "Datadog APM — Service Page",
+    "freq": 8,
+    "parent_id": null,
+    "attrs": { "platform": "APM", "env": "shared" },
+    "console_url": "https://app.datadoghq.com/apm/services",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": "kafka-ui-dev",
+    "name": "Kafka UI (dev)",
+    "freq": 5,
+    "parent_id": null,
+    "attrs": { "platform": "Kafka UI", "env": "dev" },
+    "console_url": "https://kafka-ui.dev.internal.example.com",
+    "created_at": "2026-01-01T00:00:00Z"
   }
 ]

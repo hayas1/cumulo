@@ -1,3 +1,5 @@
+use super::dimensions_tab::DimensionsTab;
+use super::resources_tab::ResourcesTab;
 use crate::io::{export_json, import_json, trigger_download};
 use crate::model::{AppStore, Resource};
 use crate::storage::save_to_storage;
@@ -6,8 +8,6 @@ use leptos::*;
 use leptos_icons::Icon;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-use super::dimensions_tab::DimensionsTab;
-use super::resources_tab::ResourcesTab;
 
 #[component]
 pub fn SettingsModal(

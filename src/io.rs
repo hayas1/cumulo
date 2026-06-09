@@ -92,8 +92,16 @@ mod tests {
                 id: "env".into(),
                 label: "環境".into(),
                 values: vec![
-                    DimensionValue { value: "prod".into(), color: Some("#4caf50".into()) },
-                    DimensionValue { value: "stg".into(), color: None },
+                    DimensionValue {
+                        value: "prod".into(),
+                        color: Some("#4caf50".into()),
+                        parent: None,
+                    },
+                    DimensionValue {
+                        value: "stg".into(),
+                        color: None,
+                        parent: None,
+                    },
                 ],
             }],
             map_config: MapConfig::default(),

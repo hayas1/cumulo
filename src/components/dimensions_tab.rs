@@ -14,10 +14,8 @@ fn new_dim_id() -> String {
 
 fn random_nice_color() -> String {
     const PALETTE: &[&str] = &[
-        "#ef4444", "#f97316", "#f59e0b", "#eab308",
-        "#84cc16", "#22c55e", "#10b981", "#14b8a6",
-        "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6",
-        "#a855f7", "#d946ef", "#ec4899", "#f43f5e",
+        "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6",
+        "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e",
     ];
     let idx = (js_sys::Math::random() * PALETTE.len() as f64) as usize;
     PALETTE[idx.min(PALETTE.len() - 1)].to_string()
@@ -47,14 +45,26 @@ fn commit_chip(
     color_ref: NodeRef<Input>,
     store: RwSignal<AppStore>,
 ) {
-    let Some((di, vi)) = editing_chip.get_untracked() else { return };
-    let new_val = val_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
-    let new_color = color_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
+    let Some((di, vi)) = editing_chip.get_untracked() else {
+        return;
+    };
+    let new_val = val_ref
+        .get_untracked()
+        .map(|el| el.value())
+        .unwrap_or_default();
+    let new_color = color_ref
+        .get_untracked()
+        .map(|el| el.value())
+        .unwrap_or_default();
     store.update(|s| {
         if let Some(dim) = s.dimensions.get_mut(di) {
             if let Some(v) = dim.values.get_mut(vi) {
                 v.value = new_val;
-                v.color = if new_color.is_empty() { None } else { Some(new_color) };
+                v.color = if new_color.is_empty() {
+                    None
+                } else {
+                    Some(new_color)
+                };
             }
         }
     });
@@ -68,9 +78,17 @@ fn commit_dim(
     id_ref: NodeRef<Input>,
     store: RwSignal<AppStore>,
 ) {
-    let Some(di) = editing_dim.get_untracked() else { return };
-    let new_label = label_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
-    let new_id = id_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
+    let Some(di) = editing_dim.get_untracked() else {
+        return;
+    };
+    let new_label = label_ref
+        .get_untracked()
+        .map(|el| el.value())
+        .unwrap_or_default();
+    let new_id = id_ref
+        .get_untracked()
+        .map(|el| el.value())
+        .unwrap_or_default();
     if !new_id.trim().is_empty() {
         store.update(|s| {
             if let Some(dim) = s.dimensions.get_mut(di) {
@@ -119,10 +137,16 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             return;
         };
         let s = store.get_untracked();
-        let Some(dim) = s.dimensions.get(di) else { return };
-        let Some(val) = dim.values.get(vi) else { return };
+        let Some(dim) = s.dimensions.get(di) else {
+            return;
+        };
+        let Some(val) = dim.values.get(vi) else {
+            return;
+        };
         preview_color.set(val.color.clone());
-        if let Some(el) = val_ref.get() { el.set_value(&val.value); }
+        if let Some(el) = val_ref.get() {
+            el.set_value(&val.value);
+        }
         if let Some(el) = color_ref.get() {
             el.set_value(val.color.as_deref().unwrap_or("#888888"));
         }
@@ -131,9 +155,15 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
     create_effect(move |_| {
         let Some(di) = editing_dim.get() else { return };
         let s = store.get_untracked();
-        let Some(dim) = s.dimensions.get(di) else { return };
-        if let Some(el) = label_ref.get() { el.set_value(&dim.label); }
-        if let Some(el) = id_ref.get() { el.set_value(&dim.id); }
+        let Some(dim) = s.dimensions.get(di) else {
+            return;
+        };
+        if let Some(el) = label_ref.get() {
+            el.set_value(&dim.label);
+        }
+        if let Some(el) = id_ref.get() {
+            el.set_value(&dim.id);
+        }
     });
 
     view! {
@@ -308,6 +338,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                     d.values.push(DimensionValue {
                                                         value: String::new(),
                                                         color: None,
+                                                        parent: None,
                                                     });
                                                 }
                                             });

@@ -1,4 +1,4 @@
 {
-  "zoom_axes": ["vendor", "service", "resource_type"],
-  "color_axis": "resource_type"
+  "zoom_axes": ["platform", "env", "env"],
+  "color_axis": "platform"
 }

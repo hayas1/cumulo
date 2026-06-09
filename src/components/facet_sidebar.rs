@@ -1,6 +1,26 @@
 use crate::logic::facet::{filter_resources, resolve_dimension};
-use crate::model::AppStore;
+use crate::model::{AppStore, Dimension};
 use leptos::*;
+use std::collections::HashMap;
+
+/// 階層dimensionを定義順でDFSし、(value, depth, count) を出力する。
+/// count==0 のノード（現在の絞り込みで該当なし）はスキップする。
+fn dfs_collect(
+    dim: &Dimension,
+    parent: Option<&str>,
+    depth: usize,
+    counts: &HashMap<String, usize>,
+    out: &mut Vec<(String, usize, usize)>,
+) {
+    for child in dim.children_of(parent) {
+        let cnt = counts.get(&child.value).copied().unwrap_or(0);
+        if cnt == 0 {
+            continue;
+        }
+        out.push((child.value.clone(), depth, cnt));
+        dfs_collect(dim, Some(&child.value), depth + 1, counts, out);
+    }
+}
 
 #[component]
 pub fn FacetSidebar(
@@ -22,16 +42,18 @@ pub fn FacetSidebar(
                             .filter(|(k, _)| k != &dim.id)
                             .cloned()
                             .collect();
-                        let base = filter_resources(&s.resources, &tags_minus);
+                        let base = filter_resources(&s.resources, &tags_minus, &s.dimensions);
 
-                        let mut counts: std::collections::HashMap<String, usize> =
-                            std::collections::HashMap::new();
+                        // 祖先まで展開してロールアップ集計（中間ノードにも件数が乗る）
+                        let mut counts: HashMap<String, usize> = HashMap::new();
                         for r in &base {
                             if r.parent_id.is_some() {
                                 continue;
                             }
-                            if let Some(val) = resolve_dimension(r, &dim) {
-                                *counts.entry(val).or_default() += 1;
+                            if let Some(leaf) = resolve_dimension(r, &dim) {
+                                for anc in dim.ancestry(&leaf) {
+                                    *counts.entry(anc).or_default() += 1;
+                                }
                             }
                         }
 
@@ -44,17 +66,26 @@ pub fn FacetSidebar(
                             .find(|(k, _)| k == &dim.id)
                             .map(|(_, v)| v.clone());
 
-                        let mut vals: Vec<(String, usize)> = counts.into_iter().collect();
-                        if !dim.values.is_empty() {
-                            vals.sort_by_key(|(v, _)| {
-                                dim.values
-                                    .iter()
-                                    .position(|dv| &dv.value == v)
-                                    .unwrap_or(usize::MAX)
-                            });
+                        // 表示順を (value, depth, count) に正規化
+                        let ordered: Vec<(String, usize, usize)> = if dim.is_hierarchical() {
+                            let mut out = Vec::new();
+                            dfs_collect(&dim, None, 0, &counts, &mut out);
+                            out
                         } else {
-                            vals.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-                        }
+                            let mut vals: Vec<(String, usize)> =
+                                counts.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                            if !dim.values.is_empty() {
+                                vals.sort_by_key(|(v, _)| {
+                                    dim.values
+                                        .iter()
+                                        .position(|dv| &dv.value == v)
+                                        .unwrap_or(usize::MAX)
+                                });
+                            } else {
+                                vals.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+                            }
+                            vals.into_iter().map(|(v, c)| (v, 0, c)).collect()
+                        };
 
                         let dim_id = dim.id.clone();
                         let dim_label = dim.label.clone();
@@ -62,13 +93,15 @@ pub fn FacetSidebar(
                         Some(view! {
                             <div class="facet-panel">
                                 <div class="facet-panel-title">{dim_label}</div>
-                                {vals
+                                {ordered
                                     .into_iter()
-                                    .map(|(val, count)| {
+                                    .map(|(val, depth, count)| {
                                         let is_sel =
                                             selected_val.as_deref() == Some(val.as_str());
                                         let did = dim_id.clone();
                                         let v_click = val.clone();
+                                        let indent =
+                                            format!("padding-left:{}rem", 0.5 + depth as f32 * 0.85);
                                         view! {
                                             <button
                                                 class=if is_sel {
@@ -76,6 +109,7 @@ pub fn FacetSidebar(
                                                 } else {
                                                     "facet-value"
                                                 }
+                                                style=indent
                                                 on:click=move |_| {
                                                     let d = did.clone();
                                                     let vv = v_click.clone();

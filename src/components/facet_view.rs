@@ -1,7 +1,7 @@
+use super::facet_sidebar::FacetSidebar;
 use crate::logic::facet::filter_resources;
 use crate::model::{AppStore, Resource};
 use leptos::*;
-use super::facet_sidebar::FacetSidebar;
 use web_sys::window;
 
 fn open_url(url: &str) {
@@ -19,7 +19,7 @@ pub fn FacetView(
     let filtered_parent_ids = create_memo(move |_| {
         let s = store.get();
         let tags = selected_tags.get();
-        filter_resources(&s.resources, &tags)
+        filter_resources(&s.resources, &tags, &s.dimensions)
             .into_iter()
             .filter(|r| r.parent_id.is_none())
             .map(|r| r.id.clone())
@@ -78,8 +78,7 @@ pub fn FacetView(
                                             .collect();
 
                                         let eff = r.effective_attrs(&s.resources);
-                                        let key_attrs =
-                                            ["vendor", "env", "service", "resource_type"];
+                                        let key_attrs = ["platform", "env"];
                                         // (key, value, color) — color from matching dimension value
                                         let chips: Vec<(String, String, Option<String>)> = key_attrs
                                             .iter()

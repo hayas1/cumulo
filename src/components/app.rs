@@ -1,19 +1,14 @@
+use super::{
+    controls::Controls, detail_panel::DetailPanel, facet_sidebar::FacetSidebar,
+    facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, resource_form::ResourceForm,
+    settings_modal::SettingsModal,
+};
 use crate::model::{AppStore, Resource};
 use crate::storage::load_from_storage;
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
 use leptos_router::*;
-use super::{
-    controls::Controls,
-    detail_panel::DetailPanel,
-    facet_sidebar::FacetSidebar,
-    facet_view::FacetView,
-    map_canvas::MapCanvas,
-    palette::Palette,
-    resource_form::ResourceForm,
-    settings_modal::SettingsModal,
-};
 
 #[component]
 pub fn App() -> impl IntoView {
