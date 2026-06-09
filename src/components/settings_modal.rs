@@ -21,17 +21,7 @@ pub fn SettingsModal(
     let file_input_ref = create_node_ref::<html::Input>();
     let confirm_clear = create_rw_signal(false);
 
-    let on_clear = move |_| {
-        let fresh = clear_storage();
-        store.set(fresh);
-        confirm_clear.set(false);
-        open.set(false);
-        import_toast.set(Some(
-            "ローカルデータを消去し、初期データに戻しました".to_string(),
-        ));
-    };
-
-    let on_export = move |_| {
+    let do_export = move || {
         let s = store.get_untracked();
         let json = export_json(&s);
         let date = js_sys::Date::new_0()
@@ -42,6 +32,20 @@ pub fn SettingsModal(
             .take(10)
             .collect::<String>();
         trigger_download(&format!("cumulo-{date}.json"), &json);
+    };
+
+    let on_export = move |_| do_export();
+
+    let on_clear = move |_| {
+        // 消去前に必ずエクスポート（強制バックアップ）
+        do_export();
+        let fresh = clear_storage();
+        store.set(fresh);
+        confirm_clear.set(false);
+        open.set(false);
+        import_toast.set(Some(
+            "エクスポート後、ローカルデータを消去しました".to_string(),
+        ));
     };
 
     let on_import_click = move |_| {
@@ -156,16 +160,13 @@ pub fn SettingsModal(
                                         </button>
                                     </div>
                                     <div class="settings-section">
-                                        <h3 class="settings-section-title settings-danger-title">"危険な操作"</h3>
-                                        <p class="settings-danger-note">
-                                            "ブラウザに保存されたデータをすべて消去し、初期データに戻します。先にエクスポートしておくことを推奨します。"
-                                        </p>
+                                        <h3 class="settings-section-title settings-danger-title">"消去"</h3>
                                         <button
                                             class="settings-action-btn settings-danger-btn"
                                             on:click=move |_| confirm_clear.set(true)
                                         >
                                             <Icon icon=icon::HiTrashOutlineLg width="15" height="15" />
-                                            "ローカルデータを消去"
+                                            "エクスポートして消去"
                                         </button>
                                     </div>
                                 }.into_view(),
@@ -181,16 +182,14 @@ pub fn SettingsModal(
                 <div class="confirm-overlay" on:click=move |_| confirm_clear.set(false)>
                     <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
                         <p class="confirm-text">
-                            "ローカルに保存されたデータをすべて消去します。"
-                            <br/>
-                            "この操作は取り消せません。エクスポートはお済みですか？"
+                            "エクスポートしてから消去します。"
                         </p>
                         <div class="confirm-btns">
                             <button class="confirm-cancel" on:click=move |_| confirm_clear.set(false)>
                                 "キャンセル"
                             </button>
                             <button class="confirm-ok" on:click=on_clear>
-                                "消去する"
+                                "エクスポートして消去"
                             </button>
                         </div>
                     </div>

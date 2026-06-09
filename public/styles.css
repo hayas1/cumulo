@@ -244,12 +244,6 @@ body {
 }
 
 .settings-danger-title { color: #e05c5c; }
-.settings-danger-note {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.5;
-}
 .settings-danger-btn {
   border-color: rgba(224, 92, 92, 0.5);
   color: #e05c5c;
