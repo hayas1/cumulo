@@ -25,6 +25,12 @@ pub fn save_to_storage(store: &AppStore) {
     }
 }
 
+/// LocalStorageの保存データを消し、組み込みの初期データを返す。
+pub fn clear_storage() -> AppStore {
+    LocalStorage::delete(STORAGE_KEY);
+    default_app_store()
+}
+
 pub fn default_app_store() -> AppStore {
     AppStore {
         resources: serde_json::from_str(RESOURCES_JSON).expect("resources.json is invalid"),

@@ -243,6 +243,22 @@ body {
   background: rgba(88, 166, 255, 0.06);
 }
 
+.settings-danger-title { color: #e05c5c; }
+.settings-danger-note {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.settings-danger-btn {
+  border-color: rgba(224, 92, 92, 0.5);
+  color: #e05c5c;
+}
+.settings-danger-btn:hover {
+  border-color: #e05c5c;
+  background: rgba(224, 92, 92, 0.08);
+}
+
 /* ── Dimensions tab ──────────────────────────────────────── */
 
 /* ── Resource tab ── */

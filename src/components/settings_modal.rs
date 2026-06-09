@@ -2,7 +2,7 @@ use super::dimensions_tab::DimensionsTab;
 use super::resources_tab::ResourcesTab;
 use crate::io::{export_json, import_json, trigger_download};
 use crate::model::{AppStore, Resource};
-use crate::storage::save_to_storage;
+use crate::storage::{clear_storage, save_to_storage};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -19,6 +19,15 @@ pub fn SettingsModal(
 ) -> impl IntoView {
     let active_tab = create_rw_signal("data".to_string());
     let file_input_ref = create_node_ref::<html::Input>();
+    let confirm_clear = create_rw_signal(false);
+
+    let on_clear = move |_| {
+        let fresh = clear_storage();
+        store.set(fresh);
+        confirm_clear.set(false);
+        open.set(false);
+        import_toast.set(Some("ローカルデータを消去し、初期データに戻しました".to_string()));
+    };
 
     let on_export = move |_| {
         let s = store.get_untracked();
@@ -144,6 +153,19 @@ pub fn SettingsModal(
                                             "インポート..."
                                         </button>
                                     </div>
+                                    <div class="settings-section">
+                                        <h3 class="settings-section-title settings-danger-title">"危険な操作"</h3>
+                                        <p class="settings-danger-note">
+                                            "ブラウザに保存されたデータをすべて消去し、初期データに戻します。先にエクスポートしておくことを推奨します。"
+                                        </p>
+                                        <button
+                                            class="settings-action-btn settings-danger-btn"
+                                            on:click=move |_| confirm_clear.set(true)
+                                        >
+                                            <Icon icon=icon::HiTrashOutlineLg width="15" height="15" />
+                                            "ローカルデータを消去"
+                                        </button>
+                                    </div>
                                 }.into_view(),
                                 _ => view! { <div /> }.into_view(),
                             }
@@ -151,6 +173,27 @@ pub fn SettingsModal(
                     </div>
                 </div>
             </div>
+
+            // ── 消去の確認ダイアログ ──────────────────────────────
+            {move || confirm_clear.get().then(|| view! {
+                <div class="confirm-overlay" on:click=move |_| confirm_clear.set(false)>
+                    <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
+                        <p class="confirm-text">
+                            "ローカルに保存されたデータをすべて消去します。"
+                            <br/>
+                            "この操作は取り消せません。エクスポートはお済みですか？"
+                        </p>
+                        <div class="confirm-btns">
+                            <button class="confirm-cancel" on:click=move |_| confirm_clear.set(false)>
+                                "キャンセル"
+                            </button>
+                            <button class="confirm-ok" on:click=on_clear>
+                                "消去する"
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            })}
         </Show>
     }
 }
