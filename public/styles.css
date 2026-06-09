@@ -467,6 +467,110 @@ body {
 }
 .val-add-chip:hover { border-color: var(--accent); color: var(--accent); }
 
+/* ── Dimension value tree ────────────────────────────────── */
+.dim-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.dim-node-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+.dim-node-row.over {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.08);
+}
+
+.dim-caret {
+  flex-shrink: 0;
+  width: 1rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.55rem;
+  padding: 0;
+  line-height: 1;
+}
+.dim-caret:hover { color: var(--text-primary); }
+.dim-caret-spacer { flex-shrink: 0; width: 1rem; }
+
+.dim-drag-handle {
+  flex-shrink: 0;
+  cursor: grab;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  user-select: none;
+}
+.dim-drag-handle:hover { color: var(--text-primary); }
+.dim-drag-handle:active { cursor: grabbing; }
+
+.dim-node-label {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  padding: 0.18rem 0.6rem;
+  transition: border-color 0.1s;
+}
+.dim-node-label:hover { border-color: var(--accent); }
+
+.dim-node-add-child, .dim-node-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 0.2rem;
+  color: var(--text-muted);
+  transition: color 0.12s;
+}
+.dim-node-add-child { font-size: 0.85rem; }
+.dim-node-add-child:hover { color: var(--accent); }
+.dim-node-delete { font-size: 0.8rem; }
+.dim-node-delete:hover { color: #f87171; }
+
+.dim-node-editor { flex: 1; }
+
+.dim-root-drop {
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  padding: 0.25rem 0.5rem;
+  text-align: center;
+}
+.dim-root-drop.over {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.08);
+}
+
+.dim-add-root {
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-family: var(--font-sans);
+  margin-top: 0.15rem;
+  padding: 0.2rem 0.55rem;
+  transition: border-color 0.12s, color 0.12s;
+}
+.dim-add-root:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ── Chip editor ─────────────────────────────────────────── */
 
 .chip-editor {
@@ -1584,6 +1688,13 @@ body {
   color: #f87171;
 }
 .confirm-ok:hover { background: rgba(248, 113, 113, 0.12); }
+
+.confirm-danger {
+  background: #f87171;
+  border-color: #f87171;
+  color: var(--bg-base);
+}
+.confirm-danger:hover { background: #e05c5c; }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
 

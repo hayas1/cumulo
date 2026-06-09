@@ -4,6 +4,7 @@ use icondata as icon;
 use leptos::html::Input;
 use leptos::*;
 use leptos_icons::Icon;
+use std::collections::HashSet;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
@@ -23,11 +24,11 @@ fn random_nice_color() -> String {
 
 // Returns true when focus moved outside `selector` (or to null).
 fn focus_left(ev: &web_sys::FocusEvent, selector: &str) -> bool {
-    !ev.related_target()
+    ev.related_target()
         .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
         .and_then(|el| el.closest(selector).ok())
         .flatten()
-        .is_some()
+        .is_none()
 }
 
 // Returns true when focus moved to an element matching `target_sel`.
@@ -39,13 +40,120 @@ fn focus_going_to(ev: &web_sys::FocusEvent, target_sel: &str) -> bool {
         .is_some()
 }
 
-fn commit_chip(
-    editing_chip: RwSignal<Option<(usize, usize)>>,
+fn collapse_key(di: usize, value: &str) -> String {
+    format!("{di}\u{0}{value}")
+}
+
+// 森を定義順にDFSして (index, depth, has_children) を返す。折りたたみは子孫をスキップ。
+fn dfs_indices(
+    values: &[DimensionValue],
+    di: usize,
+    parent: Option<&str>,
+    depth: usize,
+    collapsed: &HashSet<String>,
+    out: &mut Vec<(usize, usize, bool)>,
+) {
+    for (i, v) in values.iter().enumerate() {
+        if v.parent.as_deref() == parent {
+            let has_children = values
+                .iter()
+                .any(|c| c.parent.as_deref() == Some(v.value.as_str()));
+            out.push((i, depth, has_children));
+            if has_children && !collapsed.contains(&collapse_key(di, &v.value)) {
+                dfs_indices(values, di, Some(&v.value), depth + 1, collapsed, out);
+            }
+        }
+    }
+}
+
+// start の祖先チェーン（自身含む）に target が含まれるか。
+fn ancestry_contains(values: &[DimensionValue], start: &str, target: &str) -> bool {
+    let mut cur = Some(start.to_string());
+    let mut seen = HashSet::new();
+    while let Some(c) = cur {
+        if c == target {
+            return true;
+        }
+        if !seen.insert(c.clone()) {
+            break;
+        }
+        cur = values
+            .iter()
+            .find(|v| v.value == c)
+            .and_then(|v| v.parent.clone());
+    }
+    false
+}
+
+// root とその全子孫の value を out に集める（root 自身を含む）。
+fn collect_descendants(values: &[DimensionValue], root: &str, out: &mut HashSet<String>) {
+    if !out.insert(root.to_string()) {
+        return;
+    }
+    for v in values {
+        if v.parent.as_deref() == Some(root) {
+            collect_descendants(values, &v.value, out);
+        }
+    }
+}
+
+// ドラッグした値の親を付け替える（循環は防止）。
+fn reparent(store: RwSignal<AppStore>, di: usize, dragged: String, new_parent: Option<String>) {
+    store.update(|s| {
+        if let Some(dim) = s.dimensions.get_mut(di) {
+            if let Some(np) = &new_parent {
+                // 自分自身・自分の子孫の下には付け替えできない
+                if np == &dragged || ancestry_contains(&dim.values, np, &dragged) {
+                    return;
+                }
+            }
+            if let Some(v) = dim.values.iter_mut().find(|v| v.value == dragged) {
+                v.parent = new_parent;
+            }
+        }
+    });
+    save_to_storage(&store.get_untracked());
+}
+
+// 子を親（削除ノードの親）に繰り上げてからノードを削除。
+fn delete_node_promote(store: RwSignal<AppStore>, di: usize, value: String) {
+    store.update(|s| {
+        if let Some(dim) = s.dimensions.get_mut(di) {
+            let parent = dim
+                .values
+                .iter()
+                .find(|v| v.value == value)
+                .and_then(|v| v.parent.clone());
+            for c in dim.values.iter_mut() {
+                if c.parent.as_deref() == Some(value.as_str()) {
+                    c.parent = parent.clone();
+                }
+            }
+            dim.values.retain(|v| v.value != value);
+        }
+    });
+    save_to_storage(&store.get_untracked());
+}
+
+// サブツリー（ノード＋全子孫）を削除。
+fn delete_node_subtree(store: RwSignal<AppStore>, di: usize, value: String) {
+    store.update(|s| {
+        if let Some(dim) = s.dimensions.get_mut(di) {
+            let mut doomed = HashSet::new();
+            collect_descendants(&dim.values, &value, &mut doomed);
+            dim.values.retain(|v| !doomed.contains(&v.value));
+        }
+    });
+    save_to_storage(&store.get_untracked());
+}
+
+fn commit_node(
+    editing_node: RwSignal<Option<(usize, usize)>>,
     val_ref: NodeRef<Input>,
     color_ref: NodeRef<Input>,
     store: RwSignal<AppStore>,
 ) {
-    let Some((di, vi)) = editing_chip.get_untracked() else {
+    let Some((di, vi)) = editing_node.get_untracked() else {
         return;
     };
     let new_val = val_ref
@@ -69,7 +177,7 @@ fn commit_chip(
         }
     });
     save_to_storage(&store.get_untracked());
-    editing_chip.set(None);
+    editing_node.set(None);
 }
 
 fn commit_dim(
@@ -113,7 +221,7 @@ fn ask_confirm(
 
 #[component]
 pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
-    let editing_chip = create_rw_signal(Option::<(usize, usize)>::None);
+    let editing_node = create_rw_signal(Option::<(usize, usize)>::None);
     let editing_dim = create_rw_signal(Option::<usize>::None);
 
     let val_ref = create_node_ref::<Input>();
@@ -122,17 +230,25 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
     let id_ref = create_node_ref::<Input>();
 
     let preview_color = create_rw_signal(Option::<String>::None);
+    let collapsed = create_rw_signal(HashSet::<String>::new());
 
+    // ドラッグ中の (dim index, value) と、ドロップ先ハイライト用。
+    let dragging = create_rw_signal(Option::<(usize, String)>::None);
+    let drag_over = create_rw_signal(Option::<(usize, String)>::None);
+
+    // ディメンション削除用の汎用確認ダイアログ。
     let confirm_msg = create_rw_signal(Option::<&'static str>::None);
     let confirm_action: RwSignal<Option<Rc<dyn Fn()>>> = create_rw_signal(None);
-
     let close_confirm = move || {
         confirm_msg.set(None);
         confirm_action.set(None);
     };
 
+    // ノード削除ダイアログ: (dim index, value, has_children)
+    let delete_target = create_rw_signal(Option::<(usize, String, bool)>::None);
+
     create_effect(move |_| {
-        let Some((di, vi)) = editing_chip.get() else {
+        let Some((di, vi)) = editing_node.get() else {
             preview_color.set(None);
             return;
         };
@@ -171,21 +287,27 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             {move || {
                 let s = store.get();
                 s.dimensions.clone().into_iter().enumerate().map(|(di, dim)| {
-                    // dim_id_del is captured by the delete-button reactive closure below.
                     let dim_id_del = dim.id.clone();
+                    let collapsed_set = collapsed.get();
+
+                    let mut order = Vec::new();
+                    dfs_indices(&dim.values, di, None, 0, &collapsed_set, &mut order);
 
                     view! {
-                        <div class="dim-row" class:active=move || editing_dim.get() == Some(di) || editing_chip.get().map(|(d,_)| d) == Some(di)>
-
+                        <div
+                            class="dim-row"
+                            class:active=move || {
+                                editing_dim.get() == Some(di)
+                                    || editing_node.get().map(|(d, _)| d) == Some(di)
+                            }
+                        >
                             // ── Dimension header ──────────────────────────────
                             <div class="dim-row-header">
-                                // Name button / editor
                                 {move || {
                                     if editing_dim.get() == Some(di) {
                                         view! {
                                             <div class="dim-name-editor"
                                                 on:focusout=move |ev: web_sys::FocusEvent| {
-                                                    // Don't commit when focus moves to the cancel button.
                                                     if !focus_going_to(&ev, ".dim-row-cancel")
                                                         && focus_left(&ev, ".dim-name-editor")
                                                     {
@@ -203,7 +325,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             <button
                                                 class="dim-name-btn"
                                                 on:click=move |_| {
-                                                    commit_chip(editing_chip, val_ref, color_ref, store);
+                                                    commit_node(editing_node, val_ref, color_ref, store);
                                                     editing_dim.set(Some(di));
                                                 }
                                             >
@@ -220,7 +342,6 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                     }
                                 }}
 
-                                // × delete  ↔  キャンセル (while editing name)
                                 {move || {
                                     if editing_dim.get() == Some(di) {
                                         view! {
@@ -241,7 +362,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                     ask_confirm(
                                                         "このディメンションを削除しますか？",
                                                         move || {
-                                                            editing_chip.set(None);
+                                                            editing_node.set(None);
                                                             editing_dim.set(None);
                                                             store.update(|s| s.dimensions.retain(|d| d.id != id));
                                                             save_to_storage(&store.get_untracked());
@@ -258,77 +379,207 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                 }}
                             </div>
 
-                            // ── Value chips ───────────────────────────────────
-                            <div class="dim-chips">
-                                {dim.values.iter().enumerate().map(|(vi, val)| {
+                            // ── 根（トップレベル）ドロップゾーン ───────────────
+                            <div
+                                class="dim-root-drop"
+                                class:over=move || drag_over.get() == Some((di, String::new()))
+                                on:dragover=move |ev: web_sys::DragEvent| {
+                                    ev.prevent_default();
+                                    drag_over.set(Some((di, String::new())));
+                                }
+                                on:dragleave=move |_| drag_over.set(None)
+                                on:drop=move |ev: web_sys::DragEvent| {
+                                    ev.prevent_default();
+                                    if let Some((ddi, dval)) = dragging.get_untracked() {
+                                        if ddi == di { reparent(store, di, dval, None); }
+                                    }
+                                    dragging.set(None);
+                                    drag_over.set(None);
+                                }
+                            >
+                                "⬚ ここにドロップで根（トップレベル）へ"
+                            </div>
+
+                            // ── ツリー本体 ─────────────────────────────────────
+                            <div class="dim-tree">
+                                {order.into_iter().map(|(vi, depth, has_children)| {
+                                    let val = dim.values[vi].clone();
+                                    let value = val.value.clone();
                                     let val_color = val.color.clone();
-                                    view! {
-                                        <button
-                                            class="val-chip"
-                                            class:editing=move || editing_chip.get() == Some((di, vi))
-                                            style=move || {
-                                                let color = if editing_chip.get() == Some((di, vi)) {
-                                                    preview_color.get()
-                                                        .or_else(|| val_color.clone())
-                                                        .unwrap_or_default()
-                                                } else {
-                                                    val_color.clone().unwrap_or_default()
-                                                };
-                                                if color.is_empty() {
-                                                    String::new()
-                                                } else {
-                                                    format!("border-color:{color};background:{color}1a")
+                                    let indent = format!("padding-left:{}rem", 0.1 + depth as f32 * 1.0);
+
+                                    // caret
+                                    let caret = if has_children {
+                                        let v = value.clone();
+                                        let is_collapsed = collapsed_set.contains(&collapse_key(di, &value));
+                                        view! {
+                                            <button class="dim-caret"
+                                                on:click=move |_| {
+                                                    let key = collapse_key(di, &v);
+                                                    collapsed.update(|c| { if !c.remove(&key) { c.insert(key.clone()); } });
                                                 }
-                                            }
-                                            on:click=move |_| {
-                                                editing_dim.set(None);
-                                                let cur = editing_chip.get_untracked();
-                                                if cur == Some((di, vi)) {
-                                                    commit_chip(editing_chip, val_ref, color_ref, store);
-                                                } else {
-                                                    if cur.is_some() {
-                                                        commit_chip(editing_chip, val_ref, color_ref, store);
+                                            >{if is_collapsed { "▶" } else { "▼" }}</button>
+                                        }.into_view()
+                                    } else {
+                                        view! { <span class="dim-caret-spacer" /> }.into_view()
+                                    };
+
+                                    // ドラッグ元の値（dragstart 用）
+                                    let v_drag = value.clone();
+                                    // ドロップ先の値（drop 用）
+                                    let v_drop = value.clone();
+                                    let v_over = value.clone();
+                                    let v_over2 = value.clone();
+
+                                    let row_body = if editing_node.get() == Some((di, vi)) {
+                                        view! {
+                                            <div class="chip-editor dim-node-editor"
+                                                on:focusout=move |ev: web_sys::FocusEvent| {
+                                                    if focus_left(&ev, ".chip-editor") {
+                                                        commit_node(editing_node, val_ref, color_ref, store);
                                                     }
-                                                    editing_chip.set(Some((di, vi)));
                                                 }
-                                            }
-                                        >
-                                            <span class="val-label">
-                                                {if val.value.is_empty() { "（空）".into() } else { val.value.clone() }}
-                                            </span>
-                                            // × inside the chip — stop_propagation prevents opening editor
-                                            <span
-                                                class="val-chip-delete"
-                                                on:click=move |ev: web_sys::MouseEvent| {
-                                                    ev.stop_propagation();
-                                                    ask_confirm(
-                                                        "この値を削除しますか？",
-                                                        move || {
-                                                            store.update(|s| {
-                                                                if let Some(dim) = s.dimensions.get_mut(di) {
-                                                                    if vi < dim.values.len() { dim.values.remove(vi); }
-                                                                }
-                                                            });
-                                                            save_to_storage(&store.get_untracked());
-                                                            editing_chip.set(None);
-                                                        },
-                                                        confirm_msg,
-                                                        confirm_action,
-                                                    );
+                                            >
+                                                <input node_ref=val_ref class="chip-editor-val" type="text" placeholder="値" />
+                                                <input node_ref=color_ref class="chip-editor-color" type="color"
+                                                    on:input=move |ev: web_sys::Event| {
+                                                        let el: web_sys::HtmlInputElement = ev.target().unwrap().dyn_into().unwrap();
+                                                        preview_color.set(Some(el.value()));
+                                                    }
+                                                />
+                                                <button class="chip-editor-randomize"
+                                                    on:click=move |_| {
+                                                        let color = random_nice_color();
+                                                        if let Some(el) = color_ref.get_untracked() { el.set_value(&color); }
+                                                        preview_color.set(Some(color));
+                                                    }
+                                                >
+                                                    <Icon icon=icon::HiArrowPathOutlineLg width="14" height="14" />
+                                                </button>
+                                                <button class="chip-editor-cancel" on:click=move |_| editing_node.set(None)>
+                                                    "キャンセル"
+                                                </button>
+                                            </div>
+                                        }.into_view()
+                                    } else {
+                                        let parent_value = value.clone();
+                                        let del_value = value.clone();
+                                        view! {
+                                            <button
+                                                class="dim-node-label"
+                                                style=move || {
+                                                    let color = if editing_node.get() == Some((di, vi)) {
+                                                        preview_color.get().or_else(|| val_color.clone())
+                                                    } else {
+                                                        val_color.clone()
+                                                    };
+                                                    match color {
+                                                        Some(c) if !c.is_empty() =>
+                                                            format!("border-color:{c};background:{c}1a"),
+                                                        _ => String::new(),
+                                                    }
+                                                }
+                                                on:click=move |_| {
+                                                    editing_dim.set(None);
+                                                    let cur = editing_node.get_untracked();
+                                                    if cur != Some((di, vi)) && cur.is_some() {
+                                                        commit_node(editing_node, val_ref, color_ref, store);
+                                                    }
+                                                    editing_node.set(Some((di, vi)));
+                                                }
+                                            >
+                                                {if value.is_empty() { "（空）".to_string() } else { value.clone() }}
+                                            </button>
+                                            <button
+                                                class="dim-node-add-child"
+                                                title="子を追加"
+                                                on:click=move |_| {
+                                                    if editing_node.get_untracked().is_some() {
+                                                        commit_node(editing_node, val_ref, color_ref, store);
+                                                    }
+                                                    let parent = parent_value.clone();
+                                                    let new_vi = {
+                                                        let mut vi = 0;
+                                                        store.update(|s| {
+                                                            if let Some(d) = s.dimensions.get_mut(di) {
+                                                                vi = d.values.len();
+                                                                d.values.push(DimensionValue {
+                                                                    value: String::new(),
+                                                                    color: None,
+                                                                    parent: Some(parent.clone()),
+                                                                });
+                                                            }
+                                                        });
+                                                        vi
+                                                    };
+                                                    // 親が折りたたまれていたら開く
+                                                    collapsed.update(|c| { c.remove(&collapse_key(di, &parent_value)); });
+                                                    editing_node.set(Some((di, new_vi)));
+                                                }
+                                            >
+                                                "＋"
+                                            </button>
+                                            <button
+                                                class="dim-node-delete"
+                                                title="削除"
+                                                on:click=move |_| {
+                                                    delete_target.set(Some((di, del_value.clone(), has_children)));
                                                 }
                                             >
                                                 "×"
+                                            </button>
+                                        }.into_view()
+                                    };
+
+                                    view! {
+                                        <div
+                                            class="dim-node-row"
+                                            class:over=move || drag_over.get() == Some((di, v_over.clone()))
+                                            style=indent
+                                            on:dragover=move |ev: web_sys::DragEvent| {
+                                                ev.prevent_default();
+                                                drag_over.set(Some((di, v_over2.clone())));
+                                            }
+                                            on:drop=move |ev: web_sys::DragEvent| {
+                                                ev.prevent_default();
+                                                if let Some((ddi, dval)) = dragging.get_untracked() {
+                                                    if ddi == di {
+                                                        reparent(store, di, dval, Some(v_drop.clone()));
+                                                    }
+                                                }
+                                                dragging.set(None);
+                                                drag_over.set(None);
+                                            }
+                                        >
+                                            {caret}
+                                            <span
+                                                class="dim-drag-handle"
+                                                draggable="true"
+                                                title="ドラッグで親を付け替え"
+                                                on:dragstart=move |ev: web_sys::DragEvent| {
+                                                    dragging.set(Some((di, v_drag.clone())));
+                                                    if let Some(dt) = ev.data_transfer() {
+                                                        let _ = dt.set_data("text/plain", &v_drag);
+                                                        dt.set_effect_allowed("move");
+                                                    }
+                                                }
+                                                on:dragend=move |_| {
+                                                    dragging.set(None);
+                                                    drag_over.set(None);
+                                                }
+                                            >
+                                                "⠿"
                                             </span>
-                                        </button>
+                                            {row_body}
+                                        </div>
                                     }
                                 }).collect::<Vec<_>>()}
 
                                 <button
-                                    class="val-add-chip"
+                                    class="dim-add-root"
                                     on:click=move |_| {
-                                        editing_dim.set(None);
-                                        if editing_chip.get_untracked().is_some() {
-                                            commit_chip(editing_chip, val_ref, color_ref, store);
+                                        if editing_node.get_untracked().is_some() {
+                                            commit_node(editing_node, val_ref, color_ref, store);
                                         }
                                         let new_vi = {
                                             let mut vi = 0;
@@ -344,65 +595,12 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             });
                                             vi
                                         };
-                                        editing_chip.set(Some((di, new_vi)));
+                                        editing_node.set(Some((di, new_vi)));
                                     }
                                 >
-                                    "+"
+                                    "+ 根を追加"
                                 </button>
                             </div>
-
-                            // ── Chip editor ───────────────────────────────────
-                            {move || {
-                                if editing_chip.get().map(|(d, _)| d) != Some(di) {
-                                    return None;
-                                }
-                                Some(view! {
-                                    <div
-                                        class="chip-editor"
-                                        on:focusout=move |ev: web_sys::FocusEvent| {
-                                            if focus_left(&ev, ".chip-editor") {
-                                                commit_chip(editing_chip, val_ref, color_ref, store);
-                                            }
-                                        }
-                                    >
-                                        <input
-                                            node_ref=val_ref
-                                            class="chip-editor-val"
-                                            type="text"
-                                            placeholder="値"
-                                        />
-                                        <input
-                                            node_ref=color_ref
-                                            class="chip-editor-color"
-                                            type="color"
-                                            on:input=move |ev: web_sys::Event| {
-                                                let el: web_sys::HtmlInputElement =
-                                                    ev.target().unwrap().dyn_into().unwrap();
-                                                preview_color.set(Some(el.value()));
-                                            }
-                                        />
-                                        <button
-                                            class="chip-editor-randomize"
-                                            on:click=move |_| {
-                                                let color = random_nice_color();
-                                                if let Some(el) = color_ref.get_untracked() {
-                                                    el.set_value(&color);
-                                                }
-                                                preview_color.set(Some(color));
-                                            }
-                                        >
-                                            <Icon icon=icon::HiArrowPathOutlineLg width="14" height="14" />
-                                        </button>
-                                        // Cancel is inside .chip-editor so focusout won't commit.
-                                        <button
-                                            class="chip-editor-cancel"
-                                            on:click=move |_| editing_chip.set(None)
-                                        >
-                                            "キャンセル"
-                                        </button>
-                                    </div>
-                                })
-                            }}
                         </div>
                     }
                 }).collect::<Vec<_>>()
@@ -411,7 +609,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             <button
                 class="dim-add-btn"
                 on:click=move |_| {
-                    editing_chip.set(None);
+                    editing_node.set(None);
                     commit_dim(editing_dim, label_ref, id_ref, store);
                     let new_di = {
                         let mut di = 0;
@@ -433,7 +631,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             </button>
         </div>
 
-        // ── 確認ダイアログ ────────────────────────────────────────
+        // ── ディメンション削除の確認ダイアログ ────────────────────
         {move || confirm_msg.get().map(|msg| view! {
             <div class="confirm-overlay" on:click=move |_| close_confirm()>
                 <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
@@ -445,9 +643,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                         <button
                             class="confirm-ok"
                             on:click=move |_| {
-                                if let Some(action) = confirm_action.get_untracked() {
-                                    action();
-                                }
+                                if let Some(action) = confirm_action.get_untracked() { action(); }
                                 close_confirm();
                             }
                         >
@@ -456,6 +652,63 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                     </div>
                 </div>
             </div>
+        })}
+
+        // ── ノード削除ダイアログ（子があれば選択式）────────────────
+        {move || delete_target.get().map(|(di, value, has_children)| {
+            let label = if value.is_empty() { "（空）".to_string() } else { value.clone() };
+            let v_promote = value.clone();
+            let v_subtree = value.clone();
+            let v_simple = value.clone();
+            view! {
+                <div class="confirm-overlay" on:click=move |_| delete_target.set(None)>
+                    <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
+                        <p class="confirm-text">{format!("「{label}」を削除します")}</p>
+                        <div class="confirm-btns">
+                            <button class="confirm-cancel" on:click=move |_| delete_target.set(None)>
+                                "キャンセル"
+                            </button>
+                            {if has_children {
+                                view! {
+                                    <button
+                                        class="confirm-ok"
+                                        on:click=move |_| {
+                                            editing_node.set(None);
+                                            delete_node_promote(store, di, v_promote.clone());
+                                            delete_target.set(None);
+                                        }
+                                    >
+                                        "子を繰り上げ"
+                                    </button>
+                                    <button
+                                        class="confirm-ok confirm-danger"
+                                        on:click=move |_| {
+                                            editing_node.set(None);
+                                            delete_node_subtree(store, di, v_subtree.clone());
+                                            delete_target.set(None);
+                                        }
+                                    >
+                                        "サブツリーごと"
+                                    </button>
+                                }.into_view()
+                            } else {
+                                view! {
+                                    <button
+                                        class="confirm-ok"
+                                        on:click=move |_| {
+                                            editing_node.set(None);
+                                            delete_node_subtree(store, di, v_simple.clone());
+                                            delete_target.set(None);
+                                        }
+                                    >
+                                        "削除"
+                                    </button>
+                                }.into_view()
+                            }}
+                        </div>
+                    </div>
+                </div>
+            }
         })}
     }
 }
