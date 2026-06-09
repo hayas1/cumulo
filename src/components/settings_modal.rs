@@ -43,6 +43,7 @@ pub fn SettingsModal(
         store.set(fresh);
         confirm_clear.set(false);
         open.set(false);
+        import_toast.set(Some("ローカルのデータを削除しました".to_string()));
     };
 
     let on_import_click = move |_| {
