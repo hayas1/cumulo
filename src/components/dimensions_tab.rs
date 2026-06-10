@@ -420,6 +420,9 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 }
                                                 on:dragover=move |ev: web_sys::DragEvent| {
                                                     ev.prevent_default();
+                                                    if let Some(dt) = ev.data_transfer() {
+                                                        dt.set_drop_effect("move");
+                                                    }
                                                     drag_over.set(Some((di, ROOT_SENTINEL.to_string(), 1)));
                                                 }
                                                 on:drop=move |ev: web_sys::DragEvent| {
@@ -618,6 +621,9 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             style=indent
                                             on:dragover=move |ev: web_sys::DragEvent| {
                                                 ev.prevent_default();
+                                                if let Some(dt) = ev.data_transfer() {
+                                                    dt.set_drop_effect("move");
+                                                }
                                                 let zone = drag_zone(&ev);
                                                 drag_over.set(Some((di, v_over2.clone(), zone)));
                                             }

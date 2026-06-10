@@ -470,7 +470,8 @@ body {
 .dim-tree {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  /* 行間にすき間を作らない（すき間はドロップ不可ゾーンになり並び替えできないため）*/
+  gap: 0;
 }
 
 .dim-node-row {
@@ -480,6 +481,7 @@ body {
   border-radius: 6px;
   border: 1px solid transparent;
   position: relative;
+  padding: 0.12rem 0;
 }
 /* 要素に重ねた = 子にする */
 .dim-node-row.over-inside {
