@@ -133,7 +133,7 @@ pub fn root_of(nodes: &[DimensionNode], id: &str) -> Option<String> {
                     if nodes
                         .iter()
                         .find(|n| &n.id == p)
-                        .map_or(false, |n| n.parent.is_none())
+                        .is_some_and(|n| n.parent.is_none())
                     {
                         return Some(p.clone());
                     }
