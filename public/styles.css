@@ -488,18 +488,29 @@ body {
   border-color: var(--accent);
   background: rgba(88, 166, 255, 0.08);
 }
-/* 要素の間 = 並び替え（上端/下端にインジケータ線） */
+/* 要素の間 = 並び替え（上端/下端に強調インジケータ線） */
 .dim-node-row.over-before::before,
 .dim-node-row.over-after::after {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  height: 2px;
+  height: 3px;
   background: var(--accent);
+  border-radius: 2px;
+  box-shadow: 0 0 6px var(--accent);
+  z-index: 2;
 }
-.dim-node-row.over-before::before { top: -1px; }
-.dim-node-row.over-after::after { bottom: -1px; }
+/* 線の先頭に丸ポチを付けて挿入位置をさらに強調 */
+.dim-node-row.over-before::before { top: -2px; }
+.dim-node-row.over-after::after { bottom: -2px; }
+.dim-node-row.over-before,
+.dim-node-row.over-after {
+  background: linear-gradient(rgba(88, 166, 255, 0.10), rgba(88, 166, 255, 0));
+}
+.dim-node-row.over-after {
+  background: linear-gradient(rgba(88, 166, 255, 0), rgba(88, 166, 255, 0.10));
+}
 
 .dim-caret {
   flex-shrink: 0;

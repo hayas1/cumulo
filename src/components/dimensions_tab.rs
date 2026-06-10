@@ -1,7 +1,7 @@
 use crate::model::{AppStore, Dimension, DimensionValue};
 use crate::storage::save_to_storage;
 use icondata as icon;
-use leptos::html::Input;
+use leptos::html::{Div, Input};
 use leptos::*;
 use leptos_icons::Icon;
 use std::collections::HashSet;
@@ -159,25 +159,29 @@ fn move_relative(
     save_to_storage(&store.get_untracked());
 }
 
-// ドロップ位置を行内の縦位置で判定: 0=前, 1=中(子にする), 2=後。
-fn drag_zone(ev: &web_sys::DragEvent) -> u8 {
-    if let Some(el) = ev
-        .current_target()
-        .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
-    {
-        let rect = el.get_bounding_client_rect();
-        let h = rect.height();
-        if h > 0.0 {
-            let rel = (ev.client_y() as f64 - rect.top()) / h;
-            if rel < 0.3 {
-                return 0;
-            }
-            if rel > 0.7 {
-                return 2;
-            }
+// 行の上端・高さ・ポインタY からドロップ位置を判定: 0=前, 1=中(子にする), 2=後。
+fn zone_from(top: f64, height: f64, client_y: i32) -> u8 {
+    if height > 0.0 {
+        let rel = (client_y as f64 - top) / height;
+        if rel < 0.3 {
+            return 0;
+        }
+        if rel > 0.7 {
+            return 2;
         }
     }
     1
+}
+
+// 行要素（NodeRef）とイベントからゾーンを求める。
+fn zone_of(row_ref: NodeRef<Div>, ev: &web_sys::DragEvent) -> u8 {
+    row_ref
+        .get_untracked()
+        .map(|el| {
+            let r = el.get_bounding_client_rect();
+            zone_from(r.top(), r.height(), ev.client_y())
+        })
+        .unwrap_or(1)
 }
 
 // 子を親（削除ノードの親）に繰り上げてからノードを削除。
@@ -482,6 +486,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                             // ── ツリー本体 ─────────────────────────────────────
                             <div class="dim-tree">
                                 {order.into_iter().map(|(vi, depth, has_children)| {
+                                    let row_ref = create_node_ref::<Div>();
                                     let val = dim.values[vi].clone();
                                     let value = val.value.clone();
                                     let val_color = val.color.clone();
@@ -614,6 +619,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
 
                                     view! {
                                         <div
+                                            node_ref=row_ref
                                             class="dim-node-row"
                                             class:over-inside=move || drag_over.get() == Some((di, v_in.clone(), 1))
                                             class:over-before=move || drag_over.get() == Some((di, v_bf.clone(), 0))
@@ -624,12 +630,12 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 if let Some(dt) = ev.data_transfer() {
                                                     dt.set_drop_effect("move");
                                                 }
-                                                let zone = drag_zone(&ev);
+                                                let zone = zone_of(row_ref, &ev);
                                                 drag_over.set(Some((di, v_over2.clone(), zone)));
                                             }
                                             on:drop=move |ev: web_sys::DragEvent| {
                                                 ev.prevent_default();
-                                                let zone = drag_zone(&ev);
+                                                let zone = zone_of(row_ref, &ev);
                                                 if let Some((ddi, dval)) = dragging.get_untracked() {
                                                     if ddi == di {
                                                         match zone {
