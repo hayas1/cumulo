@@ -5,187 +5,147 @@
     "resources": [
       {
         "id": "bq-prod",
-        "name": "BigQuery (prod-project)",
+        "name": "auth / BigQuery (prod)",
         "freq": 12,
-        "parent_id": null,
-        "attrs": { "platform": "BigQuery", "env": "prod" },
-        "console_url": "https://console.cloud.google.com/bigquery?project=prod-proj",
+        "attrs": { "platform": "bigquery", "product": "auth", "env": "prod" },
+        "console_url": "https://console.cloud.google.com/bigquery?project=auth-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
-        "id": "bq-prod-events",
-        "name": "dataset: events",
-        "freq": 8,
-        "parent_id": "bq-prod",
-        "attrs": {},
-        "console_url": "https://console.cloud.google.com/bigquery?project=prod-proj&d=events",
-        "created_at": null
-      },
-      {
-        "id": "bq-prod-users",
-        "name": "dataset: users",
-        "freq": 5,
-        "parent_id": "bq-prod",
-        "attrs": {},
-        "console_url": "https://console.cloud.google.com/bigquery?project=prod-proj&d=users",
-        "created_at": null
-      },
-      {
         "id": "bq-stg",
-        "name": "BigQuery (stg-project)",
+        "name": "auth / BigQuery (stg)",
         "freq": 4,
-        "parent_id": null,
-        "attrs": { "platform": "BigQuery", "env": "stg" },
-        "console_url": "https://console.cloud.google.com/bigquery?project=stg-proj",
+        "attrs": { "platform": "bigquery", "product": "auth", "env": "stg" },
+        "console_url": "https://console.cloud.google.com/bigquery?project=auth-stg",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "bt-prod",
-        "name": "Bigtable (prod-project)",
+        "name": "payment / Bigtable (prod)",
         "freq": 6,
-        "parent_id": null,
-        "attrs": { "platform": "Bigtable", "env": "prod" },
-        "console_url": "https://console.cloud.google.com/bigtable?project=prod-proj",
+        "attrs": { "platform": "bigtable", "product": "payment", "env": "prod" },
+        "console_url": "https://console.cloud.google.com/bigtable?project=payment-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "logging-prod",
-        "name": "Cloud Logging (prod-project)",
+        "name": "infra / Cloud Logging (prod)",
         "freq": 9,
-        "parent_id": null,
-        "attrs": { "platform": "Cloud Logging", "env": "prod" },
-        "console_url": "https://console.cloud.google.com/logs?project=prod-proj",
+        "attrs": { "platform": "cloud-logging", "product": "infra", "env": "prod" },
+        "console_url": "https://console.cloud.google.com/logs?project=infra-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "monitoring-prod",
-        "name": "Cloud Monitoring (prod-project)",
+        "name": "infra / Cloud Monitoring (prod)",
         "freq": 7,
-        "parent_id": null,
-        "attrs": { "platform": "Cloud Monitoring", "env": "prod" },
-        "console_url": "https://console.cloud.google.com/monitoring?project=prod-proj",
+        "attrs": { "platform": "cloud-monitoring", "product": "infra", "env": "prod" },
+        "console_url": "https://console.cloud.google.com/monitoring?project=infra-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "s3-prod",
-        "name": "S3 (prod-account)",
+        "name": "payment / S3 (prod)",
         "freq": 10,
-        "parent_id": null,
-        "attrs": { "platform": "S3", "env": "prod" },
+        "attrs": { "platform": "s3", "product": "payment", "env": "prod" },
         "console_url": "https://s3.console.aws.amazon.com/s3/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "msk-stg",
-        "name": "MSK (stg-account)",
+        "name": "payment / MSK (stg)",
         "freq": 5,
-        "parent_id": null,
-        "attrs": { "platform": "MSK", "env": "stg" },
+        "attrs": { "platform": "msk", "product": "payment", "env": "stg" },
         "console_url": "https://console.aws.amazon.com/msk/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "rds-prod",
-        "name": "RDS (prod-account)",
+        "name": "auth / RDS (prod)",
         "freq": 11,
-        "parent_id": null,
-        "attrs": { "platform": "RDS", "env": "prod" },
+        "attrs": { "platform": "rds", "product": "auth", "env": "prod" },
         "console_url": "https://console.aws.amazon.com/rds/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "secrets-dev",
-        "name": "Secrets Manager (dev-account)",
+        "name": "auth / Secrets Manager (dev)",
         "freq": 3,
-        "parent_id": null,
-        "attrs": { "platform": "Secrets Manager", "env": "dev" },
+        "attrs": { "platform": "secrets-manager", "product": "auth", "env": "dev" },
         "console_url": "https://console.aws.amazon.com/secretsmanager/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "dd-dashboard-prod",
-        "name": "Datadog Dashboard (prod)",
+        "name": "infra / Datadog Dashboard (prod)",
         "freq": 10,
-        "parent_id": null,
-        "attrs": { "platform": "Dashboard", "env": "prod" },
+        "attrs": { "platform": "dashboard", "product": "infra", "env": "prod" },
         "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Aprod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "dd-dashboard-dev",
-        "name": "Datadog Dashboard (dev)",
+        "name": "infra / Datadog Dashboard (dev)",
         "freq": 4,
-        "parent_id": null,
-        "attrs": { "platform": "Dashboard", "env": "dev" },
+        "attrs": { "platform": "dashboard", "product": "infra", "env": "dev" },
         "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Adev",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "dd-apm-tracing",
-        "name": "Datadog APM — Tracing",
+        "name": "auth / Datadog APM — Tracing",
         "freq": 9,
-        "parent_id": null,
-        "attrs": { "platform": "APM", "env": "shared" },
+        "attrs": { "platform": "apm", "product": "auth", "env": "shared" },
         "console_url": "https://app.datadoghq.com/apm/traces",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "dd-apm-services",
-        "name": "Datadog APM — Service Page",
+        "name": "payment / Datadog APM — Service Page",
         "freq": 8,
-        "parent_id": null,
-        "attrs": { "platform": "APM", "env": "shared" },
+        "attrs": { "platform": "apm", "product": "payment", "env": "shared" },
         "console_url": "https://app.datadoghq.com/apm/services",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "kafka-ui-dev",
-        "name": "Kafka UI (dev)",
+        "name": "payment / Kafka UI (dev)",
         "freq": 5,
-        "parent_id": null,
-        "attrs": { "platform": "Kafka UI", "env": "dev" },
+        "attrs": { "platform": "kafka-ui", "product": "payment", "env": "dev" },
         "console_url": "https://kafka-ui.dev.internal.example.com",
         "created_at": "2026-01-01T00:00:00Z"
       }
     ],
     "dimensions": [
-      {
-        "id": "platform",
-        "label": "プラットフォーム",
-        "values": [
-          { "value": "Cloud", "color": "#5B8DEF" },
-          { "value": "GCP", "parent": "Cloud", "color": "#1D9E75" },
-          { "value": "AWS", "parent": "Cloud", "color": "#F2920C" },
-          { "value": "BigQuery", "parent": "GCP", "color": "#1D9E75" },
-          { "value": "Bigtable", "parent": "GCP", "color": "#3A9E86" },
-          { "value": "Cloud Logging", "parent": "GCP", "color": "#5BBF9F" },
-          { "value": "Cloud Monitoring", "parent": "GCP", "color": "#7FCFB6" },
-          { "value": "S3", "parent": "AWS", "color": "#F2920C" },
-          { "value": "MSK", "parent": "AWS", "color": "#E4781A" },
-          { "value": "RDS", "parent": "AWS", "color": "#D98324" },
-          { "value": "Secrets Manager", "parent": "AWS", "color": "#C26B12" },
-          { "value": "Observe", "color": "#E24B4A" },
-          { "value": "Datadog", "parent": "Observe", "color": "#7C3AED" },
-          { "value": "Dashboard", "parent": "Datadog", "color": "#9B6DD6" },
-          { "value": "APM", "parent": "Datadog", "color": "#B388E8" },
-          { "value": "Self-hosted", "color": "#64748B" },
-          { "value": "Kafka UI", "parent": "Self-hosted", "color": "#94A3B8" }
-        ]
-      },
-      {
-        "id": "env",
-        "label": "環境",
-        "values": [
-          { "value": "prod", "color": "#E24B4A" },
-          { "value": "stg", "color": "#BA7517" },
-          { "value": "dev", "color": "#378ADD" },
-          { "value": "shared", "color": "#64748B" }
-        ]
-      }
-    ],
-    "map_config": {
-      "zoom_axes": ["platform", "env", "env"],
-      "color_axis": "platform"
-    }
+      { "id": "platform",         "label": "プラットフォーム",   "color": "#8899AA" },
+      { "id": "cloud",            "label": "Cloud",            "color": "#5B8DEF", "parent": "platform" },
+      { "id": "gcp",              "label": "GCP",              "color": "#1D9E75", "parent": "cloud" },
+      { "id": "aws",              "label": "AWS",              "color": "#F2920C", "parent": "cloud" },
+      { "id": "bigquery",         "label": "BigQuery",         "color": "#1D9E75", "parent": "gcp" },
+      { "id": "bigtable",         "label": "Bigtable",         "color": "#3A9E86", "parent": "gcp" },
+      { "id": "cloud-logging",    "label": "Cloud Logging",    "color": "#5BBF9F", "parent": "gcp" },
+      { "id": "cloud-monitoring", "label": "Cloud Monitoring", "color": "#7FCFB6", "parent": "gcp" },
+      { "id": "s3",               "label": "S3",               "color": "#F2920C", "parent": "aws" },
+      { "id": "msk",              "label": "MSK",              "color": "#E4781A", "parent": "aws" },
+      { "id": "rds",              "label": "RDS",              "color": "#D98324", "parent": "aws" },
+      { "id": "secrets-manager",  "label": "Secrets Manager",  "color": "#C26B12", "parent": "aws" },
+      { "id": "observe",          "label": "Observe",          "color": "#E24B4A", "parent": "platform" },
+      { "id": "datadog",          "label": "Datadog",          "color": "#7C3AED", "parent": "observe" },
+      { "id": "dashboard",        "label": "Dashboard",        "color": "#9B6DD6", "parent": "datadog" },
+      { "id": "apm",              "label": "APM",              "color": "#B388E8", "parent": "datadog" },
+      { "id": "self-hosted",      "label": "Self-hosted",      "color": "#64748B", "parent": "platform" },
+      { "id": "kafka-ui",         "label": "Kafka UI",         "color": "#94A3B8", "parent": "self-hosted" },
+
+      { "id": "product",          "label": "プロダクト",         "color": "#8899AA" },
+      { "id": "auth",             "label": "Auth",             "color": "#E07A5F", "parent": "product" },
+      { "id": "payment",          "label": "Payment",          "color": "#3D8AC9", "parent": "product" },
+      { "id": "infra",            "label": "Infra",            "color": "#6A994E", "parent": "product" },
+
+      { "id": "env",              "label": "環境",              "color": "#8899AA" },
+      { "id": "prod",             "label": "prod",             "color": "#E24B4A", "parent": "env" },
+      { "id": "stg",              "label": "stg",              "color": "#BA7517", "parent": "env" },
+      { "id": "dev",              "label": "dev",              "color": "#378ADD", "parent": "env" },
+      { "id": "shared",           "label": "shared",           "color": "#64748B", "parent": "env" }
+    ]
   }
 }
