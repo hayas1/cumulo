@@ -1223,16 +1223,15 @@ body {
   color: var(--bg-base);
 }
 
-/* 1行 = キャレット + (ズーム軸ラジオ) + facet-value ボタン */
-.facet-row {
+/* パネルヘッダー: 折りたたみ chevron + タイトル */
+.facet-panel-header {
   display: flex;
   align-items: center;
-  gap: 0.1rem;
 }
 
-.facet-caret {
+.facet-panel-chevron {
   flex-shrink: 0;
-  width: 1rem;
+  width: 1.1rem;
   background: none;
   border: none;
   color: var(--text-muted);
@@ -1242,8 +1241,12 @@ body {
   line-height: 1;
   transition: color 0.1s;
 }
-.facet-caret:hover { color: var(--text-primary); }
-.facet-caret-spacer { flex-shrink: 0; width: 1rem; }
+.facet-panel-chevron:hover { color: var(--text-primary); }
+
+.facet-row {
+  display: flex;
+  align-items: center;
+}
 
 .facet-value {
   display: flex;

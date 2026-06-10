@@ -3,41 +3,22 @@ use crate::model::{ancestry, children_of, roots, AppStore, DimensionNode};
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
-/// 折りたたみキー（ノードidをそのまま使う）
-fn collapse_key(node_id: &str) -> String {
-    node_id.to_string()
-}
-
-/// 軸の根の直下から DFS し、(node_id, node_label, depth, count, has_children, is_collapsed) を出力。
-/// count == 0 のノードはスキップ。折りたたまれたノードの子孫は出力しない。
+/// 軸の根の直下から DFS し、(node_id, node_label, depth, count) を出力。
+/// count == 0 のノードはスキップ。ノード単位の折りたたみは行わず常に全子孫を出力する。
 fn dfs_collect(
     all_nodes: &[DimensionNode],
     parent_id: &str,
     depth: usize,
     counts: &HashMap<String, usize>,
-    collapsed: &HashSet<String>,
-    out: &mut Vec<(String, String, usize, usize, bool, bool)>,
+    out: &mut Vec<(String, String, usize, usize)>,
 ) {
     for child in children_of(all_nodes, parent_id) {
         let cnt = counts.get(&child.id).copied().unwrap_or(0);
         if cnt == 0 {
             continue;
         }
-        let has_children = children_of(all_nodes, &child.id)
-            .iter()
-            .any(|k| counts.get(&k.id).copied().unwrap_or(0) > 0);
-        let is_collapsed = collapsed.contains(&collapse_key(&child.id));
-        out.push((
-            child.id.clone(),
-            child.label.clone(),
-            depth,
-            cnt,
-            has_children,
-            is_collapsed,
-        ));
-        if has_children && !is_collapsed {
-            dfs_collect(all_nodes, &child.id, depth + 1, counts, collapsed, out);
-        }
+        out.push((child.id.clone(), child.label.clone(), depth, cnt));
+        dfs_collect(all_nodes, &child.id, depth + 1, counts, out);
     }
 }
 
@@ -50,6 +31,7 @@ pub fn FacetSidebar(
     #[prop(optional)]
     zoom_dim: Option<RwSignal<String>>,
 ) -> impl IntoView {
+    // 折りたたまれているパネルの根id を管理（ノード単位ではなくパネル単位）
     let collapsed = create_rw_signal(HashSet::<String>::new());
 
     view! {
@@ -57,12 +39,10 @@ pub fn FacetSidebar(
             {move || {
                 let s = store.get();
                 let tags = selected_tags.get();
-                let collapsed_set = collapsed.get();
 
                 roots(&s.dimensions)
                     .into_iter()
                     .filter_map(|root| {
-                        // この軸を除いた絞り込みでベースを計算
                         let tags_minus: Vec<_> = tags
                             .iter()
                             .filter(|(k, _)| k != &root.id)
@@ -70,13 +50,10 @@ pub fn FacetSidebar(
                             .collect();
                         let base = filter_resources(&s.resources, &tags_minus, &s.dimensions);
 
-                        // 根の直下ノードから集計（祖先ロールアップ）
                         let mut counts: HashMap<String, usize> = HashMap::new();
                         for r in &base {
                             if let Some(leaf_id) = resolve_dimension(r, &root.id) {
-                                // leaf 自身をカウント
                                 *counts.entry(leaf_id.clone()).or_default() += 1;
-                                // 祖先ノードもカウント（根を除く）
                                 for anc in ancestry(&s.dimensions, &leaf_id) {
                                     if anc != leaf_id {
                                         *counts.entry(anc).or_default() += 1;
@@ -94,16 +71,8 @@ pub fn FacetSidebar(
                             .find(|(k, _)| k == &root.id)
                             .map(|(_, v)| v.clone());
 
-                        let mut ordered: Vec<(String, String, usize, usize, bool, bool)> =
-                            Vec::new();
-                        dfs_collect(
-                            &s.dimensions,
-                            &root.id,
-                            0,
-                            &counts,
-                            &collapsed_set,
-                            &mut ordered,
-                        );
+                        let mut ordered: Vec<(String, String, usize, usize)> = Vec::new();
+                        dfs_collect(&s.dimensions, &root.id, 0, &counts, &mut ordered);
 
                         if ordered.is_empty() {
                             return None;
@@ -111,6 +80,25 @@ pub fn FacetSidebar(
 
                         let root_id = root.id.clone();
                         let root_label = root.label.clone();
+
+                        // ── パネル折りたたみボタン ────────────────────────────
+                        let rid_toggle = root_id.clone();
+                        let rid_icon = root_id.clone();
+                        let chevron = view! {
+                            <button
+                                class="facet-panel-chevron"
+                                title="折りたたむ"
+                                on:click=move |_| {
+                                    collapsed.update(|c| {
+                                        if !c.remove(&rid_toggle) {
+                                            c.insert(rid_toggle.clone());
+                                        }
+                                    });
+                                }
+                            >
+                                {move || if collapsed.with(|c| c.contains(&rid_icon)) { "▶" } else { "▼" }}
+                            </button>
+                        };
 
                         // ── ディメンション軸タイトル ──────────────────────────
                         let title = match zoom_dim {
@@ -135,72 +123,59 @@ pub fn FacetSidebar(
                             .into_view(),
                         };
 
+                        let rid_vis = root_id.clone();
+
                         Some(view! {
                             <div class="facet-panel">
-                                {title}
-                                {ordered
-                                    .into_iter()
-                                    .map(|(node_id, node_label, depth, count, has_children, is_collapsed)| {
-                                        let is_sel =
-                                            selected_val.as_deref() == Some(node_id.as_str());
-                                        let indent = format!(
-                                            "padding-left:{}rem",
-                                            0.25 + depth as f32 * 0.85
-                                        );
-
-                                        let caret = if has_children {
-                                            let nid = node_id.clone();
-                                            view! {
-                                                <button
-                                                    class="facet-caret"
-                                                    on:click=move |_| {
-                                                        let key = collapse_key(&nid);
-                                                        collapsed.update(|c| {
-                                                            if !c.remove(&key) {
-                                                                c.insert(key.clone());
+                                <div class="facet-panel-header">
+                                    {chevron}
+                                    {title}
+                                </div>
+                                {move || {
+                                    if collapsed.with(|c| c.contains(&rid_vis)) {
+                                        return None;
+                                    }
+                                    Some(
+                                        ordered
+                                            .iter()
+                                            .map(|(node_id, node_label, depth, count)| {
+                                                let is_sel = selected_val.as_deref()
+                                                    == Some(node_id.as_str());
+                                                let indent = format!(
+                                                    "padding-left:{}rem",
+                                                    0.5 + *depth as f32 * 0.85
+                                                );
+                                                let rid = root_id.clone();
+                                                let nid = node_id.clone();
+                                                view! {
+                                                    <div class="facet-row" style=indent>
+                                                        <button
+                                                            class=if is_sel {
+                                                                "facet-value selected"
+                                                            } else {
+                                                                "facet-value"
                                                             }
-                                                        });
-                                                    }
-                                                >
-                                                    {if is_collapsed { "▶" } else { "▼" }}
-                                                </button>
-                                            }
-                                            .into_view()
-                                        } else {
-                                            view! { <span class="facet-caret-spacer" /> }
-                                                .into_view()
-                                        };
-
-                                        let rid = root_id.clone();
-                                        let nid_click = node_id.clone();
-                                        view! {
-                                            <div class="facet-row" style=indent>
-                                                {caret}
-                                                <button
-                                                    class=if is_sel {
-                                                        "facet-value selected"
-                                                    } else {
-                                                        "facet-value"
-                                                    }
-                                                    on:click=move |_| {
-                                                        let k = rid.clone();
-                                                        let v = nid_click.clone();
-                                                        selected_tags.update(|t| {
-                                                            let already = t.iter().any(|(tk, tv)| tk == &k && tv == &v);
-                                                            t.retain(|(tk, _)| tk != &k);
-                                                            if !already {
-                                                                t.push((k, v));
+                                                            on:click=move |_| {
+                                                                let k = rid.clone();
+                                                                let v = nid.clone();
+                                                                selected_tags.update(|t| {
+                                                                    let already = t.iter().any(|(tk, tv)| tk == &k && tv == &v);
+                                                                    t.retain(|(tk, _)| tk != &k);
+                                                                    if !already {
+                                                                        t.push((k, v));
+                                                                    }
+                                                                });
                                                             }
-                                                        });
-                                                    }
-                                                >
-                                                    <span class="fv-label">{node_label}</span>
-                                                    <span class="fv-count">{count}</span>
-                                                </button>
-                                            </div>
-                                        }
-                                    })
-                                    .collect::<Vec<_>>()}
+                                                        >
+                                                            <span class="fv-label">{node_label.clone()}</span>
+                                                            <span class="fv-count">{*count}</span>
+                                                        </button>
+                                                    </div>
+                                                }
+                                            })
+                                            .collect::<Vec<_>>(),
+                                    )
+                                }}
                             </div>
                         })
                     })
