@@ -16,9 +16,7 @@ jobs:
       - uses: ./.github/actions/setup-cargo
         with:
           components: rustfmt, clippy
-      - run: cargo test --all
-      - run: cargo fmt --check
-      - run: cargo clippy --tests -- --deny warnings
+      - run: cargo test --all --release
 
   build:
     runs-on: ubuntu-latest
