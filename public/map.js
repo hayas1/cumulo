@@ -39,7 +39,7 @@ window.cumuloInitMap = function (svgId) {
     .attr('height', H);
 
   svg.on('click', function (event) {
-    if (event.target === svg.node()) zoomToFit();
+    if (event.target === svg.node()) zoomToFit(true);
   });
 
   zoom = d3.zoom()
@@ -86,7 +86,8 @@ window.cumuloUpdateZoomDim = function (json) {
   try {
     const o = JSON.parse(json);
     zoomDim = o.dim || '';
-    if (initialized) { render(); zoomToFit(); }
+    // ズーム軸の切替では絞り込みは触らない（resetFilter=false）
+    if (initialized) { render(); zoomToFit(false); }
   } catch (e) { console.error('cumuloUpdateZoomDim', e); }
 };
 
@@ -127,7 +128,7 @@ function zoomPath(r) {
   return ancestryIn(zoomDim, leaf).reverse();
 }
 
-window.cumuloZoomToFit = function () { zoomToFit(); };
+window.cumuloZoomToFit = function () { zoomToFit(true); };
 
 window.cumuloZoomIn = function () {
   if (svg) svg.transition().duration(300).call(zoom.scaleBy, 1.5);
@@ -178,12 +179,18 @@ function zoomToNode(absX, absY, r) {
   if (cb) cb(1);
 }
 
-function zoomToFit() {
+// resetFilter=true のとき、ズームアウト（全体表示）に合わせて
+// 現在のズーム軸の絞り込みを解除する。ズーム軸切替では false で呼ぶ。
+function zoomToFit(resetFilter) {
   if (!svg) return;
   svg.transition().duration(600).ease(d3.easeCubicInOut)
     .call(zoom.transform, d3.zoomIdentity);
   const cb = window.__cumuloCallbacks.onZoomLevelChange;
   if (cb) cb(0);
+  if (resetFilter) {
+    const rc = window.__cumuloCallbacks.onZoomReset;
+    if (rc) rc();
+  }
 }
 
 // ── 階層ツリー構築 ────────────────────────────────────────────────────────────
@@ -448,6 +455,12 @@ function drawCluster(parentG, cluster, rx, ry) {
     .datum(cluster)
     .on('click', (event, d) => {
       event.stopPropagation();
+      // ズームインに合わせて、このクラスタの値を絞り込み軸へ反映（ドリルダウン）。
+      // 値なしの「その他」は絞り込み対象にしない。
+      if (d.axis && d.key !== 'その他') {
+        const cb = window.__cumuloCallbacks.onClusterDrill;
+        if (cb) cb(d.axis, d.key);
+      }
       zoomToNode(d.x, d.y, d.r);
     });
 

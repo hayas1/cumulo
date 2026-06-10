@@ -96,3 +96,22 @@ pub fn on_zoom_level_change(callback: impl Fn(u32) + 'static) {
     }
     closure.forget();
 }
+
+/// クラスタをクリックしてズームインしたときに呼ばれる（axis, value）。
+/// マップのドリルダウンを絞り込み軸へ反映するのに使う。
+pub fn on_cluster_drill(callback: impl Fn(String, String) + 'static) {
+    let closure = Closure::wrap(Box::new(callback) as Box<dyn Fn(String, String)>);
+    if let Some(obj) = callbacks_obj() {
+        let _ = Reflect::set(&obj, &JsValue::from_str("onClusterDrill"), closure.as_ref());
+    }
+    closure.forget();
+}
+
+/// 全体表示（ズームアウト）したときに呼ばれる。ズーム軸の絞り込み解除に使う。
+pub fn on_zoom_reset(callback: impl Fn() + 'static) {
+    let closure = Closure::wrap(Box::new(callback) as Box<dyn Fn()>);
+    if let Some(obj) = callbacks_obj() {
+        let _ = Reflect::set(&obj, &JsValue::from_str("onZoomReset"), closure.as_ref());
+    }
+    closure.forget();
+}

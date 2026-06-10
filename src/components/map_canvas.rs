@@ -21,6 +21,20 @@ pub fn MapCanvas(
         map_bridge::on_zoom_level_change(move |level| {
             zoom_level.set(level);
         });
+
+        // クラスタへのズームイン → そのディメンション値を絞り込み軸へ反映（置換）
+        map_bridge::on_cluster_drill(move |axis, value| {
+            selected_tags.update(|t| {
+                t.retain(|(k, _)| k != &axis);
+                t.push((axis, value));
+            });
+        });
+
+        // 全体表示へのズームアウト → 現在のズーム軸の絞り込みだけ解除
+        map_bridge::on_zoom_reset(move || {
+            let zd = zoom_dim.get_untracked();
+            selected_tags.update(|t| t.retain(|(k, _)| k != &zd));
+        });
     });
 
     // ── Effect 2: リソースデータ更新 ─────────────────────────────────────────
