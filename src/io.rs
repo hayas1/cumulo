@@ -60,51 +60,48 @@ pub fn trigger_download(filename: &str, content: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Dimension, DimensionValue, MapConfig, Resource};
+    use crate::model::{DimensionNode, Resource};
     use std::collections::HashMap;
 
     fn make_store() -> AppStore {
         AppStore {
-            resources: vec![
-                Resource {
-                    id: "r1".into(),
-                    name: "auth-bigquery-prod".into(),
-                    attrs: HashMap::from([
-                        ("env".into(), "prod".into()),
-                        ("vendor".into(), "gcp".into()),
-                    ]),
-                    console_url: "https://console.cloud.google.com/bigquery".into(),
-                    freq: 5,
-                    parent_id: None,
-                    created_at: None,
+            resources: vec![Resource {
+                id: "r1".into(),
+                name: "auth / BigQuery (prod)".into(),
+                attrs: HashMap::from([
+                    ("platform".into(), "bigquery".into()),
+                    ("env".into(), "prod".into()),
+                ]),
+                console_url: "https://console.cloud.google.com/bigquery".into(),
+                freq: 5,
+                created_at: None,
+            }],
+            dimensions: vec![
+                DimensionNode {
+                    id: "platform".into(),
+                    label: "プラットフォーム".into(),
+                    color: "#8899AA".into(),
+                    parent: None,
                 },
-                Resource {
-                    id: "r2".into(),
-                    name: "auth-service".into(),
-                    attrs: HashMap::from([("env".into(), "stg".into())]),
-                    console_url: "https://console.cloud.google.com".into(),
-                    freq: 2,
-                    parent_id: Some("r1".into()),
-                    created_at: None,
+                DimensionNode {
+                    id: "bigquery".into(),
+                    label: "BigQuery".into(),
+                    color: "#1D9E75".into(),
+                    parent: Some("platform".into()),
+                },
+                DimensionNode {
+                    id: "env".into(),
+                    label: "環境".into(),
+                    color: "#8899AA".into(),
+                    parent: None,
+                },
+                DimensionNode {
+                    id: "prod".into(),
+                    label: "prod".into(),
+                    color: "#E24B4A".into(),
+                    parent: Some("env".into()),
                 },
             ],
-            dimensions: vec![Dimension {
-                id: "env".into(),
-                label: "環境".into(),
-                values: vec![
-                    DimensionValue {
-                        value: "prod".into(),
-                        color: Some("#4caf50".into()),
-                        parent: None,
-                    },
-                    DimensionValue {
-                        value: "stg".into(),
-                        color: None,
-                        parent: None,
-                    },
-                ],
-            }],
-            map_config: MapConfig::default(),
         }
     }
 
@@ -113,7 +110,7 @@ mod tests {
         let store = make_store();
         let json = serde_json::to_string(&ExportData {
             cumulo_version: 1,
-            exported_at: "2026-06-07T00:00:00.000Z".into(),
+            exported_at: "2026-06-10T00:00:00.000Z".into(),
             store: store.clone(),
         })
         .unwrap();
@@ -124,8 +121,8 @@ mod tests {
     fn unknown_version_fails() {
         let json = serde_json::json!({
             "cumulo_version": 99,
-            "exported_at": "2026-06-07T00:00:00.000Z",
-            "store": { "resources": [], "dimensions": [], "map_config": { "zoom_axes": ["vendor","service","resource_type"], "color_axis": "resource_type" } }
+            "exported_at": "2026-06-10T00:00:00.000Z",
+            "store": { "resources": [], "dimensions": [] }
         })
         .to_string();
         assert!(import_json(&json).is_err());

@@ -3,12 +3,12 @@ use std::collections::HashSet;
 
 /// 選択中のタグにマッチするリソースを返す。
 ///
-/// 階層dimensionでは、祖先ノード（例: `GCP`）を選ぶと
-/// その子孫（`BigQuery` 等）を持つリソースもマッチする。
+/// 祖先一致: `(platform, gcp)` を選ぶと `attrs["platform"] == "bigquery"` の
+/// リソースもマッチ（bigquery の祖先に gcp が含まれるため）。
 pub fn filter_resources<'a>(
     resources: &'a [Resource],
     selected_tags: &[(String, String)],
-    dimensions: &[Dimension],
+    dimensions: &[DimensionNode],
 ) -> Vec<&'a Resource> {
     resources
         .iter()
@@ -20,63 +20,57 @@ pub fn filter_resources<'a>(
         .collect()
 }
 
-/// リソースがタグ (k, v) にマッチするか。階層dimensionなら祖先一致も許容。
-fn tag_matches(r: &Resource, k: &str, v: &str, dimensions: &[Dimension]) -> bool {
+/// リソースがタグ (k, v) にマッチするか。
+/// k は軸の根id、v はノードid。リソースの attrs[k] の祖先チェーンに v が含まれればマッチ。
+fn tag_matches(r: &Resource, k: &str, v: &str, dimensions: &[DimensionNode]) -> bool {
     let Some(rv) = r.attrs.get(k) else {
         return false;
     };
-    match dimensions.iter().find(|d| d.id == k) {
-        Some(dim) if dim.is_hierarchical() => dim.ancestry(rv).iter().any(|a| a == v),
-        _ => rv == v,
+    // rv == v なら直接一致
+    if rv == v {
+        return true;
     }
+    // rv の祖先チェーンに v が含まれるか（ancestry は根を含まない）
+    ancestry(dimensions, rv).iter().any(|a| a == v)
 }
 
-/// 現在の絞り込み状態で次に選択可能な属性と値の候補を返す（Dimension ベース）
+/// 根ノード（軸）ごとに、現在の絞り込みで取り得るノードid の候補を返す。
+#[allow(dead_code)]
 pub fn available_facets(
     resources: &[Resource],
     selected_tags: &[(String, String)],
-    dimensions: &[Dimension],
-) -> Vec<(Dimension, Vec<String>)> {
+    dimensions: &[DimensionNode],
+) -> Vec<(DimensionNode, Vec<String>)> {
     let filtered = filter_resources(resources, selected_tags, dimensions);
     let used_keys: HashSet<&str> = selected_tags.iter().map(|(k, _)| k.as_str()).collect();
 
-    dimensions
-        .iter()
-        .filter(|d| !used_keys.contains(d.id.as_str()))
-        .map(|dim| {
+    roots(dimensions)
+        .into_iter()
+        .filter(|root| !used_keys.contains(root.id.as_str()))
+        .map(|root| {
             let mut vals: Vec<String> = filtered
                 .iter()
-                .filter_map(|r| resolve_dimension(r, dim))
+                .filter_map(|r| r.attrs.get(&root.id).cloned())
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect();
-            if !dim.values.is_empty() {
-                vals.sort_by_key(|v| {
-                    dim.values
-                        .iter()
-                        .position(|dv| &dv.value == v)
-                        .unwrap_or(usize::MAX)
-                });
-            } else {
-                vals.sort();
-            }
-            (dim.clone(), vals)
+            vals.sort();
+            (root.clone(), vals)
         })
         .filter(|(_, vals)| !vals.is_empty())
         .collect()
 }
 
-/// Dimensionのsource_keyからこのリソースのDimension値を解決する
-pub fn resolve_dimension(resource: &Resource, dim: &Dimension) -> Option<String> {
-    resource.attrs.get(&dim.id).cloned()
+/// リソースの属性値（軸の根id をキーとして直接引く）を返す。
+pub fn resolve_dimension(resource: &Resource, root_id: &str) -> Option<String> {
+    resource.attrs.get(root_id).cloned()
 }
 
-/// パレット用: 現在の絞り込み後リソースから選択可能な (attr_key, value) ペアを返す。
-/// 既に選択済みのペアは除外する。
+/// 現在の絞り込み後リソースから選択可能な (軸id, ノードid) ペアを返す（祖先展開あり）。
 pub fn available_tags(
     resources: &[Resource],
     selected: &[(String, String)],
-    dimensions: &[Dimension],
+    dimensions: &[DimensionNode],
 ) -> Vec<(String, String)> {
     let filtered = filter_resources(resources, selected, dimensions);
     let selected_set: HashSet<(&str, &str)> = selected
@@ -87,14 +81,14 @@ pub fn available_tags(
     let mut tags: HashSet<(String, String)> = HashSet::new();
     for r in &filtered {
         for (k, v) in &r.attrs {
-            // 階層dimensionは祖先ノードも候補として展開（GCP, Cloud …）
-            let candidates = match dimensions.iter().find(|d| &d.id == k) {
-                Some(dim) if dim.is_hierarchical() => dim.ancestry(v),
-                _ => vec![v.clone()],
-            };
-            for cand in candidates {
-                if !selected_set.contains(&(k.as_str(), cand.as_str())) {
-                    tags.insert((k.clone(), cand));
+            // v 自身
+            if !selected_set.contains(&(k.as_str(), v.as_str())) {
+                tags.insert((k.clone(), v.clone()));
+            }
+            // 祖先ノードも候補として展開
+            for anc in ancestry(dimensions, v) {
+                if !selected_set.contains(&(k.as_str(), anc.as_str())) {
+                    tags.insert((k.clone(), anc));
                 }
             }
         }
@@ -110,44 +104,18 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    fn dim() -> Dimension {
-        // Cloud ⊃ GCP ⊃ BigQuery / Bigtable, Cloud ⊃ AWS ⊃ S3
-        Dimension {
-            id: "platform".into(),
-            label: "プラットフォーム".into(),
-            values: vec![
-                DimensionValue {
-                    value: "Cloud".into(),
-                    color: None,
-                    parent: None,
-                },
-                DimensionValue {
-                    value: "GCP".into(),
-                    color: None,
-                    parent: Some("Cloud".into()),
-                },
-                DimensionValue {
-                    value: "AWS".into(),
-                    color: None,
-                    parent: Some("Cloud".into()),
-                },
-                DimensionValue {
-                    value: "BigQuery".into(),
-                    color: None,
-                    parent: Some("GCP".into()),
-                },
-                DimensionValue {
-                    value: "Bigtable".into(),
-                    color: None,
-                    parent: Some("GCP".into()),
-                },
-                DimensionValue {
-                    value: "S3".into(),
-                    color: None,
-                    parent: Some("AWS".into()),
-                },
-            ],
-        }
+    fn dims() -> Vec<DimensionNode> {
+        // platform > cloud > gcp > bigquery / bigtable
+        //                  > aws > s3
+        vec![
+            DimensionNode { id: "platform".into(), label: "Platform".into(), color: "#aaa".into(), parent: None },
+            DimensionNode { id: "cloud".into(),    label: "Cloud".into(),    color: "#5B8DEF".into(), parent: Some("platform".into()) },
+            DimensionNode { id: "gcp".into(),      label: "GCP".into(),      color: "#1D9E75".into(), parent: Some("cloud".into()) },
+            DimensionNode { id: "aws".into(),      label: "AWS".into(),      color: "#F2920C".into(), parent: Some("cloud".into()) },
+            DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), color: "#1D9E75".into(), parent: Some("gcp".into()) },
+            DimensionNode { id: "bigtable".into(), label: "Bigtable".into(), color: "#3A9E86".into(), parent: Some("gcp".into()) },
+            DimensionNode { id: "s3".into(),       label: "S3".into(),       color: "#F2920C".into(), parent: Some("aws".into()) },
+        ]
     }
 
     fn res(id: &str, platform: &str) -> Resource {
@@ -158,34 +126,54 @@ mod tests {
             console_url: String::new(),
             created_at: None,
             freq: 1,
-            parent_id: None,
         }
     }
 
     #[test]
-    fn ancestry_walks_to_root() {
-        assert_eq!(dim().ancestry("BigQuery"), vec!["BigQuery", "GCP", "Cloud"]);
-        assert_eq!(dim().ancestry("Cloud"), vec!["Cloud"]);
-        // 未定義の値は自身のみ
-        assert_eq!(dim().ancestry("Unknown"), vec!["Unknown"]);
+    fn ancestry_walks_to_root_exclusive() {
+        let d = dims();
+        // bigquery の祖先: bigquery 自身 + gcp + cloud（platform は根なので含まない）
+        assert_eq!(ancestry(&d, "bigquery"), vec!["bigquery", "gcp", "cloud"]);
+        // cloud の祖先: cloud のみ（platform は根）
+        assert_eq!(ancestry(&d, "cloud"), vec!["cloud"]);
+        // 未定義の値は空（親なし、自身も根として扱われる）
+        assert_eq!(ancestry(&d, "unknown"), Vec::<String>::new());
     }
 
     #[test]
     fn selecting_ancestor_matches_descendants() {
-        let dims = vec![dim()];
-        let resources = vec![res("a", "BigQuery"), res("b", "S3"), res("c", "Bigtable")];
+        let dimensions = dims();
+        let resources = vec![
+            res("a", "bigquery"),
+            res("b", "s3"),
+            res("c", "bigtable"),
+        ];
 
-        // GCP を選ぶと BigQuery / Bigtable がマッチ、S3 は外れる
-        let got = filter_resources(&resources, &[("platform".into(), "GCP".into())], &dims);
+        // gcp を選ぶと bigquery / bigtable がマッチ、s3 は外れる
+        let got = filter_resources(
+            &resources,
+            &[("platform".into(), "gcp".into())],
+            &dimensions,
+        );
         let ids: Vec<&str> = got.iter().map(|r| r.id.as_str()).collect();
-        assert_eq!(ids, vec!["a", "c"]);
+        assert!(ids.contains(&"a"));
+        assert!(ids.contains(&"c"));
+        assert!(!ids.contains(&"b"));
 
-        // Cloud を選ぶと全部マッチ
-        let got = filter_resources(&resources, &[("platform".into(), "Cloud".into())], &dims);
+        // cloud を選ぶと全部マッチ
+        let got = filter_resources(
+            &resources,
+            &[("platform".into(), "cloud".into())],
+            &dimensions,
+        );
         assert_eq!(got.len(), 3);
 
         // 葉を直接選べば1件
-        let got = filter_resources(&resources, &[("platform".into(), "S3".into())], &dims);
+        let got = filter_resources(
+            &resources,
+            &[("platform".into(), "s3".into())],
+            &dimensions,
+        );
         assert_eq!(got.len(), 1);
     }
 }

@@ -95,28 +95,32 @@ window.cumuloUpdateDimensions = function (json) {
   try {
     dimensions = JSON.parse(json);
     valueColors = {};
-    dimensions.forEach(dim => {
-      (dim.values || []).forEach(dv => {
-        if (dv.color) valueColors[dv.value] = dv.color;
-      });
+    dimensions.forEach(n => {
+      if (n.color) valueColors[n.id] = n.color;
     });
     if (initialized) render();
   } catch (e) { console.error('cumuloUpdateDimensions', e); }
 };
 
-// value から根までの祖先チェーン（自身を含む、近い順）を返す。
-function ancestryIn(dimId, value) {
-  const dim = dimensions.find(d => d.id === dimId);
-  if (!dim) return [value];
-  const byVal = {};
-  (dim.values || []).forEach(dv => { byVal[dv.value] = dv; });
+// nodeId から根軸ノード（dimId）の手前までの祖先チェーン（自身含む、近い順）を返す。
+// 根ノード自身 (dimId) は含まない。
+function ancestryIn(dimId, nodeId) {
+  const byId = {};
+  dimensions.forEach(n => { byId[n.id] = n; });
   const chain = [];
-  let cur = value;
-  while (cur != null && !chain.includes(cur)) {
+  let cur = nodeId;
+  while (cur != null && cur !== dimId && !chain.includes(cur)) {
     chain.push(cur);
-    cur = byVal[cur] ? (byVal[cur].parent ?? null) : null;
+    const n = byId[cur];
+    cur = n ? (n.parent ?? null) : null;
   }
   return chain;
+}
+
+// ノードIDからラベルを返す。見つからなければIDそのまま。
+function nodeLabel(id) {
+  const n = dimensions.find(d => d.id === id);
+  return (n && n.label) ? n.label : id;
 }
 
 // ズーム軸ディメンションでの、フォレスト根から葉までの完全パス（上→下）を返す。
@@ -213,7 +217,6 @@ function buildLevel(items, level) {
   const groups = d3.group(deeper, it => it.path[level]);
   const clusters = Array.from(groups, ([key, groupItems]) => {
     const totalFreq = groupItems
-      .filter(it => !it.r.parent_id)
       .reduce((s, it) => s + (it.r.freq || 1), 0);
     return {
       type: 'cluster',
@@ -227,11 +230,10 @@ function buildLevel(items, level) {
   });
 
   const resourceNodes = leaves
-    .filter(r => !r.parent_id)
     .map(r => ({
       type: 'resource',
       resource: r,
-      children: resources.filter(c => c.parent_id === r.id),
+      children: [],
       totalFreq: r.freq || 1,
       x: 0, y: 0, r: 0,
     }));
@@ -399,9 +401,8 @@ function render() {
   g.selectAll('*').remove();
   if (resources.length === 0) return;
 
-  // ルートリソースを、ズーム軸ディメンションの完全パス付きで集める
+  // リソースを、ズーム軸ディメンションの完全パス付きで集める
   const items = resources
-    .filter(r => !r.parent_id)
     .map(r => ({ r, path: zoomPath(r) }))
     .filter(it => it.path !== null);
 
@@ -479,7 +480,7 @@ function drawCluster(parentG, cluster, rx, ry) {
     .attr('font-weight', depth === 0 ? 700 : 600)
     .attr('font-family', 'system-ui, sans-serif')
     .attr('pointer-events', 'none')
-    .text(cluster.key);
+    .text(nodeLabel(cluster.key));
 
   const leafCount = countLeaves(cluster);
   const cfs = depth === 0 ? 11 : 9;

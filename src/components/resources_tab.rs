@@ -44,102 +44,86 @@ pub fn ResourcesTab(
             {move || {
                 let s = store.get();
 
-                struct Row { resource: Resource, is_child: bool }
-                let mut rows: Vec<Row> = Vec::new();
-                for parent in s.resources.iter().filter(|r| r.parent_id.is_none()) {
-                    rows.push(Row { resource: parent.clone(), is_child: false });
-                    for child in s.resources.iter()
-                        .filter(|r| r.parent_id.as_deref() == Some(parent.id.as_str()))
-                    {
-                        rows.push(Row { resource: child.clone(), is_child: true });
-                    }
-                }
-                // orphaned children (parent was deleted)
-                for r in s.resources.iter() {
-                    if r.parent_id.as_ref()
-                        .map_or(false, |pid| !s.resources.iter().any(|x| &x.id == pid))
-                    {
-                        rows.push(Row { resource: r.clone(), is_child: true });
-                    }
-                }
-
-                if rows.is_empty() {
+                if s.resources.is_empty() {
                     return view! {
                         <p class="resource-tab-empty">"リソースがありません"</p>
-                    }.into_view();
+                    }
+                    .into_view();
                 }
 
-                rows.into_iter().map(|row| {
-                    let r = row.resource;
-                    let r_id = r.id.clone();
-                    let r_edit = r.clone();
-                    let is_child = row.is_child;
-                    view! {
-                        <div class="resource-row" class:resource-row-child=is_child>
-                            <span class="resource-row-name">
-                                {if is_child {
-                                    format!("↳ {}", r.name)
-                                } else {
-                                    r.name.clone()
-                                }}
-                            </span>
-                            <div class="resource-row-actions">
-                                <button
-                                    class="resource-row-edit"
-                                    on:click=move |_| {
-                                        return_to_settings.set(true);
-                                        editing.set(Some(r_edit.clone()));
-                                        settings_open.set(false);
-                                    }
-                                >
-                                    "編集"
-                                </button>
-                                <button
-                                    class="resource-row-delete"
-                                    on:click=move |_| {
-                                        let id = r_id.clone();
-                                        ask_confirm(
-                                            "このリソースを削除しますか？",
-                                            move || {
-                                                store.update(|s| s.resources.retain(|r| r.id != id));
-                                                save_to_storage(&store.get_untracked());
-                                            },
-                                            confirm_msg,
-                                            confirm_action,
-                                        );
-                                    }
-                                >
-                                    "×"
-                                </button>
+                s.resources
+                    .iter()
+                    .map(|r| {
+                        let r_id = r.id.clone();
+                        let r_edit = r.clone();
+                        view! {
+                            <div class="resource-row">
+                                <span class="resource-row-name">{r.name.clone()}</span>
+                                <div class="resource-row-actions">
+                                    <button
+                                        class="resource-row-edit"
+                                        on:click=move |_| {
+                                            return_to_settings.set(true);
+                                            editing.set(Some(r_edit.clone()));
+                                            settings_open.set(false);
+                                        }
+                                    >
+                                        "編集"
+                                    </button>
+                                    <button
+                                        class="resource-row-delete"
+                                        on:click=move |_| {
+                                            let id = r_id.clone();
+                                            ask_confirm(
+                                                "このリソースを削除しますか？",
+                                                move || {
+                                                    store.update(|s| {
+                                                        s.resources.retain(|r| r.id != id)
+                                                    });
+                                                    save_to_storage(&store.get_untracked());
+                                                },
+                                                confirm_msg,
+                                                confirm_action,
+                                            );
+                                        }
+                                    >
+                                        "×"
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    }
-                }).collect::<Vec<_>>().into_view()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .into_view()
             }}
         </div>
 
-        {move || confirm_msg.get().map(|msg| view! {
-            <div class="confirm-overlay" on:click=move |_| close_confirm()>
-                <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                    <p class="confirm-text">{msg}</p>
-                    <div class="confirm-btns">
-                        <button class="confirm-cancel" on:click=move |_| close_confirm()>
-                            "キャンセル"
-                        </button>
-                        <button
-                            class="confirm-ok"
-                            on:click=move |_| {
-                                if let Some(action) = confirm_action.get_untracked() {
-                                    action();
-                                }
-                                close_confirm();
-                            }
-                        >
-                            "削除"
-                        </button>
+        {move || {
+            confirm_msg.get().map(|msg| {
+                view! {
+                    <div class="confirm-overlay" on:click=move |_| close_confirm()>
+                        <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
+                            <p class="confirm-text">{msg}</p>
+                            <div class="confirm-btns">
+                                <button class="confirm-cancel" on:click=move |_| close_confirm()>
+                                    "キャンセル"
+                                </button>
+                                <button
+                                    class="confirm-ok"
+                                    on:click=move |_| {
+                                        if let Some(action) = confirm_action.get_untracked() {
+                                            action();
+                                        }
+                                        close_confirm();
+                                    }
+                                >
+                                    "削除"
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        })}
+                }
+            })
+        }}
     }
 }

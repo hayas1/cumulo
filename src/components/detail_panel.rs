@@ -20,18 +20,6 @@ pub fn DetailPanel(
         s.resources.iter().find(|r| r.id == id).cloned()
     });
 
-    let children = create_memo(move |_| {
-        let id = selected_id.get()?;
-        let s = store.get();
-        let kids: Vec<_> = s
-            .resources
-            .iter()
-            .filter(|r| r.parent_id.as_deref() == Some(id.as_str()))
-            .cloned()
-            .collect();
-        Some(kids)
-    });
-
     view! {
         <Show when=move || resource.get().is_some()>
             <div class="detail-panel">
@@ -41,20 +29,12 @@ pub fn DetailPanel(
                         .map(|r| {
                             let url = r.console_url.clone();
                             let freq = r.freq;
-
-                            let s = store.get();
-                            let mut attrs_sorted: Vec<_> = r
-                                .effective_attrs(&s.resources)
-                                .into_iter()
-                                .collect();
-                            attrs_sorted.sort_by_key(|(k, _)| k.clone());
-
-                            let kids = children.get().unwrap_or_default();
-                            let kids_check = kids.clone();
-
                             let r_for_edit = r.clone();
+
+                            let mut attrs_sorted: Vec<_> =
+                                r.attrs.into_iter().collect();
+                            attrs_sorted.sort_by_key(|(k, _)| k.clone());
                             view! {
-                                // ヘッダー
                                 <div class="detail-header">
                                     <div class="detail-name">{r.name.clone()}</div>
                                     <div class="detail-header-actions">
@@ -73,7 +53,6 @@ pub fn DetailPanel(
                                     </div>
                                 </div>
 
-                                // 属性一覧
                                 <div class="detail-body">
                                     <div class="detail-section-title">"属性"</div>
                                     <div class="detail-attrs">
@@ -89,50 +68,8 @@ pub fn DetailPanel(
                                             })
                                             .collect::<Vec<_>>()}
                                     </div>
-
-                                    // 子リソース
-                                    <Show when=move || !kids_check.is_empty()>
-                                        <div class="detail-section-title">"子リソース"</div>
-                                        <div class="detail-children">
-                                            {kids
-                                                .iter()
-                                                .map(|c| {
-                                                    let curl = c.console_url.clone();
-                                                    let cfreq = c.freq;
-                                                    let cid = c.id.clone();
-                                                    view! {
-                                                        <div class="child-row">
-                                                            <span class="child-name">
-                                                                {c.name.clone()}
-                                                            </span>
-                                                            <span class="child-freq">
-                                                                "×" {cfreq}
-                                                            </span>
-                                                            <button
-                                                                class="child-jump"
-                                                                on:click=move |_| {
-                                                                    open_url(curl.clone())
-                                                                }
-                                                            >
-                                                                "→"
-                                                            </button>
-                                                            <button
-                                                                class="child-select"
-                                                                on:click=move |_| {
-                                                                    selected_id.set(Some(cid.clone()))
-                                                                }
-                                                            >
-                                                                "詳細"
-                                                            </button>
-                                                        </div>
-                                                    }
-                                                })
-                                                .collect::<Vec<_>>()}
-                                        </div>
-                                    </Show>
                                 </div>
 
-                                // フッター: コンソールジャンプ
                                 <div class="detail-footer">
                                     <span class="detail-freq">
                                         "アクセス頻度: " {freq}

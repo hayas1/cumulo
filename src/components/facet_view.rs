@@ -1,6 +1,6 @@
 use super::facet_sidebar::FacetSidebar;
 use crate::logic::facet::filter_resources;
-use crate::model::{AppStore, Resource};
+use crate::model::{node, AppStore, Resource};
 use leptos::*;
 use web_sys::window;
 
@@ -16,12 +16,11 @@ pub fn FacetView(
     selected_tags: RwSignal<Vec<(String, String)>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
-    let filtered_parent_ids = create_memo(move |_| {
+    let filtered_ids = create_memo(move |_| {
         let s = store.get();
         let tags = selected_tags.get();
         filter_resources(&s.resources, &tags, &s.dimensions)
             .into_iter()
-            .filter(|r| r.parent_id.is_none())
             .map(|r| r.id.clone())
             .collect::<Vec<_>>()
     });
@@ -31,20 +30,19 @@ pub fn FacetView(
             <div class="facet-body">
                 <FacetSidebar store=store selected_tags=selected_tags />
 
-                // ── 結果リスト ───────────────────────────────────────────
                 <main class="facet-results">
                     {move || {
                         let s = store.get();
-                        let ids = filtered_parent_ids.get();
+                        let ids = filtered_ids.get();
 
-                        let parents: Vec<_> = s
+                        let resources: Vec<_> = s
                             .resources
                             .iter()
-                            .filter(|r| r.parent_id.is_none() && ids.contains(&r.id))
+                            .filter(|r| ids.contains(&r.id))
                             .cloned()
                             .collect();
 
-                        if parents.is_empty() {
+                        if resources.is_empty() {
                             return view! {
                                 <div class="facet-empty">
                                     "マッチするリソースがありません"
@@ -55,7 +53,7 @@ pub fn FacetView(
 
                         view! {
                             <div class="results-header-row">
-                                <span class="results-count">{parents.len()} " 件"</span>
+                                <span class="results-count">{resources.len()} " 件"</span>
                                 <button
                                     class="add-resource-btn"
                                     on:click=move |_| editing.set(Some(Resource::default()))
@@ -64,32 +62,28 @@ pub fn FacetView(
                                 </button>
                             </div>
                             <div class="results-list">
-                                {parents
+                                {resources
                                     .into_iter()
                                     .map(|r| {
                                         let url = r.console_url.clone();
-                                        let children: Vec<_> = s
-                                            .resources
-                                            .iter()
-                                            .filter(|c| {
-                                                c.parent_id.as_deref() == Some(r.id.as_str())
-                                            })
-                                            .cloned()
-                                            .collect();
 
-                                        let eff = r.effective_attrs(&s.resources);
-                                        let key_attrs = ["platform", "env"];
-                                        // (key, value, color) — color from matching dimension value
-                                        let chips: Vec<(String, String, Option<String>)> = key_attrs
+                                        // 全 attrs をチップ表示（ノードの label と color を使う）
+                                        let mut attrs_sorted: Vec<_> =
+                                            r.attrs.iter().collect::<Vec<_>>().into_iter()
+                                            .map(|(k, v)| (k.clone(), v.clone()))
+                                            .collect();
+                                        attrs_sorted.sort_by_key(|(k, _)| k.clone());
+
+                                        let chips: Vec<(String, String, String)> = attrs_sorted
                                             .iter()
-                                            .filter_map(|k| {
-                                                eff.get(*k).map(|v| {
-                                                    let color = s.dimensions.iter()
-                                                        .find(|d| &d.id == k)
-                                                        .and_then(|d| d.values.iter().find(|dv| &dv.value == v))
-                                                        .and_then(|dv| dv.color.clone());
-                                                    (k.to_string(), v.clone(), color)
-                                                })
+                                            .map(|(k, v)| {
+                                                let color = node(&s.dimensions, v)
+                                                    .map(|n| n.color.clone())
+                                                    .unwrap_or_default();
+                                                let label = node(&s.dimensions, v)
+                                                    .map(|n| n.label.clone())
+                                                    .unwrap_or_else(|| v.clone());
+                                                (k.clone(), label, color)
                                             })
                                             .collect();
 
@@ -118,49 +112,22 @@ pub fn FacetView(
                                                 <div class="result-attrs">
                                                     {chips
                                                         .into_iter()
-                                                        .map(|(k, v, color)| {
-                                                            let style = color.as_deref()
-                                                                .filter(|c| !c.is_empty())
-                                                                .map(|c| format!("border-color:{c};background:{c}1a"))
-                                                                .unwrap_or_default();
+                                                        .map(|(k, label, color)| {
+                                                            let style = if !color.is_empty() {
+                                                                format!("border-color:{color};background:{color}1a")
+                                                            } else {
+                                                                String::new()
+                                                            };
                                                             view! {
                                                                 <span class="result-chip" style=style>
                                                                     <span class="chip-k">{k}</span>
                                                                     <span class="chip-sep">":"</span>
-                                                                    <span class="chip-v">{v}</span>
+                                                                    <span class="chip-v">{label}</span>
                                                                 </span>
                                                             }
                                                         })
                                                         .collect::<Vec<_>>()}
                                                 </div>
-                                                {if !children.is_empty() {
-                                                    Some(view! {
-                                                        <div class="result-children">
-                                                            {children
-                                                                .into_iter()
-                                                                .map(|c| {
-                                                                    let curl = c.console_url.clone();
-                                                                    view! {
-                                                                        <div class="result-child">
-                                                                            <span class="child-indent">"↳"</span>
-                                                                            <span class="result-child-name">
-                                                                                {c.name.clone()}
-                                                                            </span>
-                                                                            <button
-                                                                                class="result-child-btn"
-                                                                                on:click=move |_| open_url(&curl)
-                                                                            >
-                                                                                "→"
-                                                                            </button>
-                                                                        </div>
-                                                                    }
-                                                                })
-                                                                .collect::<Vec<_>>()}
-                                                        </div>
-                                                    })
-                                                } else {
-                                                    None
-                                                }}
                                             </div>
                                         }
                                     })

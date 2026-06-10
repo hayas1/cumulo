@@ -1,36 +1,42 @@
 use crate::logic::facet::{filter_resources, resolve_dimension};
-use crate::model::{AppStore, Dimension};
+use crate::model::{ancestry, children_of, roots, AppStore, DimensionNode};
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
-/// 折りたたみ状態のキー（dim_id と value を区切り文字で連結）
-fn collapse_key(dim_id: &str, value: &str) -> String {
-    format!("{dim_id}\u{0}{value}")
+/// 折りたたみキー（ノードidをそのまま使う）
+fn collapse_key(node_id: &str) -> String {
+    node_id.to_string()
 }
 
-/// 階層dimensionを定義順でDFSし、(value, depth, count, has_children, collapsed) を出力する。
-/// count==0 のノードはスキップ。折りたたまれたノードの子孫は出力しない。
+/// 軸の根の直下から DFS し、(node_id, node_label, depth, count, has_children, is_collapsed) を出力。
+/// count == 0 のノードはスキップ。折りたたまれたノードの子孫は出力しない。
 fn dfs_collect(
-    dim: &Dimension,
-    parent: Option<&str>,
+    all_nodes: &[DimensionNode],
+    parent_id: &str,
     depth: usize,
     counts: &HashMap<String, usize>,
     collapsed: &HashSet<String>,
-    out: &mut Vec<(String, usize, usize, bool, bool)>,
+    out: &mut Vec<(String, String, usize, usize, bool, bool)>,
 ) {
-    for child in dim.children_of(parent) {
-        let cnt = counts.get(&child.value).copied().unwrap_or(0);
+    for child in children_of(all_nodes, parent_id) {
+        let cnt = counts.get(&child.id).copied().unwrap_or(0);
         if cnt == 0 {
             continue;
         }
-        let has_children = dim
-            .children_of(Some(&child.value))
+        let has_children = children_of(all_nodes, &child.id)
             .iter()
-            .any(|k| counts.get(&k.value).copied().unwrap_or(0) > 0);
-        let is_collapsed = collapsed.contains(&collapse_key(&dim.id, &child.value));
-        out.push((child.value.clone(), depth, cnt, has_children, is_collapsed));
+            .any(|k| counts.get(&k.id).copied().unwrap_or(0) > 0);
+        let is_collapsed = collapsed.contains(&collapse_key(&child.id));
+        out.push((
+            child.id.clone(),
+            child.label.clone(),
+            depth,
+            cnt,
+            has_children,
+            is_collapsed,
+        ));
         if has_children && !is_collapsed {
-            dfs_collect(dim, Some(&child.value), depth + 1, counts, collapsed, out);
+            dfs_collect(all_nodes, &child.id, depth + 1, counts, collapsed, out);
         }
     }
 }
@@ -39,12 +45,11 @@ fn dfs_collect(
 pub fn FacetSidebar(
     store: ReadSignal<AppStore>,
     selected_tags: RwSignal<Vec<(String, String)>>,
-    /// マップビューでのみ渡す。渡されたときはディメンションのタイトルをクリックで
+    /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
     #[prop(optional)]
     zoom_dim: Option<RwSignal<String>>,
 ) -> impl IntoView {
-    // 折りたたみ済みノード（collapse_key の集合）。ビュー内で永続。
     let collapsed = create_rw_signal(HashSet::<String>::new());
 
     view! {
@@ -54,26 +59,28 @@ pub fn FacetSidebar(
                 let tags = selected_tags.get();
                 let collapsed_set = collapsed.get();
 
-                s.dimensions
-                    .clone()
+                roots(&s.dimensions)
                     .into_iter()
-                    .filter_map(|dim| {
+                    .filter_map(|root| {
+                        // この軸を除いた絞り込みでベースを計算
                         let tags_minus: Vec<_> = tags
                             .iter()
-                            .filter(|(k, _)| k != &dim.id)
+                            .filter(|(k, _)| k != &root.id)
                             .cloned()
                             .collect();
                         let base = filter_resources(&s.resources, &tags_minus, &s.dimensions);
 
-                        // 祖先まで展開してロールアップ集計（中間ノードにも件数が乗る）
+                        // 根の直下ノードから集計（祖先ロールアップ）
                         let mut counts: HashMap<String, usize> = HashMap::new();
                         for r in &base {
-                            if r.parent_id.is_some() {
-                                continue;
-                            }
-                            if let Some(leaf) = resolve_dimension(r, &dim) {
-                                for anc in dim.ancestry(&leaf) {
-                                    *counts.entry(anc).or_default() += 1;
+                            if let Some(leaf_id) = resolve_dimension(r, &root.id) {
+                                // leaf 自身をカウント
+                                *counts.entry(leaf_id.clone()).or_default() += 1;
+                                // 祖先ノードもカウント（根を除く）
+                                for anc in ancestry(&s.dimensions, &leaf_id) {
+                                    if anc != leaf_id {
+                                        *counts.entry(anc).or_default() += 1;
+                                    }
                                 }
                             }
                         }
@@ -84,42 +91,32 @@ pub fn FacetSidebar(
 
                         let selected_val = tags
                             .iter()
-                            .find(|(k, _)| k == &dim.id)
+                            .find(|(k, _)| k == &root.id)
                             .map(|(_, v)| v.clone());
 
-                        let hierarchical = dim.is_hierarchical();
+                        let mut ordered: Vec<(String, String, usize, usize, bool, bool)> =
+                            Vec::new();
+                        dfs_collect(
+                            &s.dimensions,
+                            &root.id,
+                            0,
+                            &counts,
+                            &collapsed_set,
+                            &mut ordered,
+                        );
 
-                        // (value, depth, count, has_children, collapsed)
-                        let ordered: Vec<(String, usize, usize, bool, bool)> = if hierarchical {
-                            let mut out = Vec::new();
-                            dfs_collect(&dim, None, 0, &counts, &collapsed_set, &mut out);
-                            out
-                        } else {
-                            let mut vals: Vec<(String, usize)> =
-                                counts.iter().map(|(k, v)| (k.clone(), *v)).collect();
-                            if !dim.values.is_empty() {
-                                vals.sort_by_key(|(v, _)| {
-                                    dim.values
-                                        .iter()
-                                        .position(|dv| &dv.value == v)
-                                        .unwrap_or(usize::MAX)
-                                });
-                            } else {
-                                vals.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-                            }
-                            vals.into_iter()
-                                .map(|(v, c)| (v, 0, c, false, false))
-                                .collect()
-                        };
+                        if ordered.is_empty() {
+                            return None;
+                        }
 
-                        let dim_id = dim.id.clone();
-                        let dim_label = dim.label.clone();
+                        let root_id = root.id.clone();
+                        let root_label = root.label.clone();
 
-                        // ── ディメンションタイトル（マップ時はズーム軸選択ボタン）──
+                        // ── ディメンション軸タイトル ──────────────────────────
                         let title = match zoom_dim {
                             Some(zd) => {
-                                let did = dim_id.clone();
-                                let did_eq = dim_id.clone();
+                                let did = root_id.clone();
+                                let did_eq = root_id.clone();
                                 view! {
                                     <button
                                         class="facet-panel-title facet-panel-title-btn"
@@ -127,15 +124,15 @@ pub fn FacetSidebar(
                                         title="ズーム軸にする"
                                         on:click=move |_| zd.set(did.clone())
                                     >
-                                        {dim_label}
+                                        {root_label}
                                     </button>
                                 }
                                 .into_view()
                             }
-                            None => {
-                                view! { <div class="facet-panel-title">{dim_label}</div> }
-                                    .into_view()
+                            None => view! {
+                                <div class="facet-panel-title">{root_label}</div>
                             }
+                            .into_view(),
                         };
 
                         Some(view! {
@@ -143,23 +140,21 @@ pub fn FacetSidebar(
                                 {title}
                                 {ordered
                                     .into_iter()
-                                    .map(|(val, depth, count, has_children, is_collapsed)| {
+                                    .map(|(node_id, node_label, depth, count, has_children, is_collapsed)| {
                                         let is_sel =
-                                            selected_val.as_deref() == Some(val.as_str());
+                                            selected_val.as_deref() == Some(node_id.as_str());
                                         let indent = format!(
                                             "padding-left:{}rem",
                                             0.25 + depth as f32 * 0.85
                                         );
 
-                                        // ── 折りたたみキャレット ──
                                         let caret = if has_children {
-                                            let did = dim_id.clone();
-                                            let vv = val.clone();
+                                            let nid = node_id.clone();
                                             view! {
                                                 <button
                                                     class="facet-caret"
                                                     on:click=move |_| {
-                                                        let key = collapse_key(&did, &vv);
+                                                        let key = collapse_key(&nid);
                                                         collapsed.update(|c| {
                                                             if !c.remove(&key) {
                                                                 c.insert(key.clone());
@@ -176,8 +171,8 @@ pub fn FacetSidebar(
                                                 .into_view()
                                         };
 
-                                        let did = dim_id.clone();
-                                        let v_click = val.clone();
+                                        let rid = root_id.clone();
+                                        let nid_click = node_id.clone();
                                         view! {
                                             <div class="facet-row" style=indent>
                                                 {caret}
@@ -188,20 +183,18 @@ pub fn FacetSidebar(
                                                         "facet-value"
                                                     }
                                                     on:click=move |_| {
-                                                        let d = did.clone();
-                                                        let vv = v_click.clone();
+                                                        let k = rid.clone();
+                                                        let v = nid_click.clone();
                                                         selected_tags.update(|t| {
-                                                            let already = t
-                                                                .iter()
-                                                                .any(|(k, tv)| k == &d && tv == &vv);
-                                                            t.retain(|(k, _)| k != &d);
+                                                            let already = t.iter().any(|(tk, tv)| tk == &k && tv == &v);
+                                                            t.retain(|(tk, _)| tk != &k);
                                                             if !already {
-                                                                t.push((d, vv));
+                                                                t.push((k, v));
                                                             }
                                                         });
                                                     }
                                                 >
-                                                    <span class="fv-label">{val}</span>
+                                                    <span class="fv-label">{node_label}</span>
                                                     <span class="fv-count">{count}</span>
                                                 </button>
                                             </div>

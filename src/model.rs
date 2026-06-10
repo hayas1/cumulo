@@ -7,108 +7,97 @@ use serde::{Deserialize, Serialize};
 pub struct Resource {
     pub id: String,
     pub name: String,
-    /// キー名はユーザー定義。システムは強制しない。
+    /// キーは軸の根id。値はその軸内のノードid。
     pub attrs: HashMap<String, String>,
     pub console_url: String,
     pub created_at: Option<String>,
     /// アクセス頻度（表示サイズに使用）
     pub freq: u32,
-    pub parent_id: Option<String>,
 }
 
-impl Resource {
-    /// 親リソースの attrs を継承した実効 attrs を返す（子が優先）
-    pub fn effective_attrs<'a>(&'a self, all: &'a [Resource]) -> HashMap<String, String> {
-        if let Some(pid) = &self.parent_id {
-            if let Some(parent) = all.iter().find(|r| &r.id == pid) {
-                let mut merged = parent.effective_attrs(all);
-                merged.extend(self.attrs.clone());
-                return merged;
-            }
-        }
-        self.attrs.clone()
-    }
-}
-
-/// 論理軸の定義。ファセット推論とクラスタリングの両方に使う。
-///
-/// `values` は `parent` リンクによって森（複数の木）を成しうる。
-/// 例: `Cloud ⊃ GCP ⊃ BigQuery`。リソースは葉（または任意のノード）を
-/// `attrs[dim.id]` で指し、祖先は parent を辿って導出する。
+/// ディメンション森の1ノード。
+/// parent が None のノードが軸の根（＝属性キー）となる。
+/// リソースの attrs は { 根id → ノードid } で表現する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct Dimension {
+pub struct DimensionNode {
     pub id: String,
     pub label: String,
-    /// あり得る値の列挙（順序＋カラー＋親）。空なら動的に収集してアルファベット順。
-    pub values: Vec<DimensionValue>,
-}
-
-impl Dimension {
-    /// このdimensionの値が階層（親リンク）を持つか
-    pub fn is_hierarchical(&self) -> bool {
-        self.values.iter().any(|dv| dv.parent.is_some())
-    }
-
-    /// `value` から根までの祖先チェーン（自身を含む、近い順）を返す。
-    /// 未定義の値はその値だけを返す。循環は安全に打ち切る。
-    pub fn ancestry(&self, value: &str) -> Vec<String> {
-        let mut chain = Vec::new();
-        let mut cur = Some(value.to_string());
-        while let Some(v) = cur {
-            if chain.contains(&v) {
-                break; // 循環ガード
-            }
-            cur = self
-                .values
-                .iter()
-                .find(|dv| dv.value == v)
-                .and_then(|dv| dv.parent.clone());
-            chain.push(v);
-        }
-        chain
-    }
-
-    /// 指定した親を直接の親に持つ子values（`None`で根の一覧）。定義順を保つ。
-    pub fn children_of(&self, parent: Option<&str>) -> Vec<&DimensionValue> {
-        self.values
-            .iter()
-            .filter(|dv| dv.parent.as_deref() == parent)
-            .collect()
-    }
-}
-
-/// Dimensionに属する値の定義
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DimensionValue {
-    pub value: String,
-    pub color: Option<String>,
-    /// 同じdimension内の親valueへの参照。根はNone。
-    #[serde(default)]
+    /// color は必須（UI で常に表示する）
+    pub color: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
-}
-
-/// マップビューの設定
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct MapConfig {
-    /// ズーム軸（3段階）
-    pub zoom_axes: [String; 3],
-    /// 色軸（最深ズームでの色分けに使う）
-    pub color_axis: String,
-}
-
-impl Default for MapConfig {
-    fn default() -> Self {
-        Self {
-            zoom_axes: ["platform".to_string(), "env".to_string(), "env".to_string()],
-            color_axis: "platform".to_string(),
-        }
-    }
 }
 
 /// LocalStorageに保存するルートデータ構造
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AppStore {
     pub resources: Vec<Resource>,
-    pub dimensions: Vec<Dimension>,
-    pub map_config: MapConfig,
+    /// フラットなノード配列。parent リンクで森を構成する。
+    pub dimensions: Vec<DimensionNode>,
+}
+
+// ── フラットノード列に対するヘルパー ────────────────────────────────────────
+
+/// parent が None のノード（軸の根）を定義順で返す。
+pub fn roots(nodes: &[DimensionNode]) -> Vec<&DimensionNode> {
+    nodes.iter().filter(|n| n.parent.is_none()).collect()
+}
+
+/// 指定 id を直接の親に持つ子ノードを定義順で返す。
+pub fn children_of<'a>(nodes: &'a [DimensionNode], parent_id: &str) -> Vec<&'a DimensionNode> {
+    nodes
+        .iter()
+        .filter(|n| n.parent.as_deref() == Some(parent_id))
+        .collect()
+}
+
+/// id から根まで辿った祖先チェーン（自身を含む、近い順）を返す。
+/// ただし軸の根 (parent==None) の id は含めない（根はキーであり値ではない）。
+/// 循環は安全に打ち切る。
+pub fn ancestry(nodes: &[DimensionNode], id: &str) -> Vec<String> {
+    let mut chain = Vec::new();
+    let mut cur = Some(id.to_string());
+    while let Some(c) = cur {
+        if chain.contains(&c) {
+            break; // 循環ガード
+        }
+        let found = nodes.iter().find(|n| n.id == c);
+        let parent = found.and_then(|n| n.parent.clone());
+        if parent.is_none() {
+            // 根ノード自身は chain に含めない
+            break;
+        }
+        chain.push(c);
+        cur = parent;
+    }
+    chain
+}
+
+/// id が属する軸の根id を返す。id が根自身なら None。
+pub fn root_of(nodes: &[DimensionNode], id: &str) -> Option<String> {
+    let mut cur = id.to_string();
+    let mut seen = std::collections::HashSet::new();
+    loop {
+        if !seen.insert(cur.clone()) {
+            return None; // 循環
+        }
+        match nodes.iter().find(|n| n.id == cur) {
+            None => return None,
+            Some(n) => match &n.parent {
+                None => return None, // cur 自身が根
+                Some(p) => {
+                    // p が根かどうか確認
+                    if nodes.iter().find(|n| &n.id == p).map_or(false, |n| n.parent.is_none()) {
+                        return Some(p.clone());
+                    }
+                    cur = p.clone();
+                }
+            },
+        }
+    }
+}
+
+/// id に一致するノードを返す。
+pub fn node<'a>(nodes: &'a [DimensionNode], id: &str) -> Option<&'a DimensionNode> {
+    nodes.iter().find(|n| n.id == id)
 }

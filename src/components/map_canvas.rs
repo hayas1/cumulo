@@ -39,18 +39,8 @@ pub fn MapCanvas(
 
     // ── Effect 2: リソースデータ更新 ─────────────────────────────────────────
     create_effect(move |_| {
-        let store_data = store.get();
-        let resources = &store_data.resources;
-        // D3へ送る前に effective_attrs を展開（子リソースが親の attrs を継承）
-        let resources_for_d3: Vec<_> = resources
-            .iter()
-            .map(|r| {
-                let mut r2 = r.clone();
-                r2.attrs = r.effective_attrs(resources);
-                r2
-            })
-            .collect();
-        if let Ok(json) = serde_json::to_string(&resources_for_d3) {
+        let resources = &store.get().resources;
+        if let Ok(json) = serde_json::to_string(resources) {
             map_bridge::update_resources(&json);
         }
     });

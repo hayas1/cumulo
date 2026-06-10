@@ -1,4 +1,4 @@
-use crate::model::{AppStore, Resource};
+use crate::model::{children_of, roots, AppStore, Resource};
 use crate::storage::save_to_storage;
 use leptos::html::Input;
 use leptos::*;
@@ -8,36 +8,51 @@ fn gen_id() -> String {
     format!("r{n:x}")
 }
 
+/// 指定した根の下にある全ノードを DFS 順で (id, label, color, depth) として返す。
+fn descendants_dfs(
+    store: &AppStore,
+    root_id: &str,
+) -> Vec<(String, String, String, usize)> {
+    let mut out = Vec::new();
+    fn dfs(
+        nodes: &[crate::model::DimensionNode],
+        parent_id: &str,
+        depth: usize,
+        out: &mut Vec<(String, String, String, usize)>,
+    ) {
+        for n in children_of(nodes, parent_id) {
+            out.push((n.id.clone(), n.label.clone(), n.color.clone(), depth));
+            dfs(nodes, &n.id, depth + 1, out);
+        }
+    }
+    dfs(&store.dimensions, root_id, 0, &mut out);
+    out
+}
+
 #[component]
 pub fn ResourceForm(
     store: RwSignal<AppStore>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
-    // Local form state – plain RwSignals for static fields
     let form_name = create_rw_signal(String::new());
     let form_url = create_rw_signal(String::new());
     let form_freq = create_rw_signal(1u32);
-    let form_parent = create_rw_signal(Option::<String>::None);
 
-    // Attrs carry a stable u32 ID so <For> can diff without recreating rows
+    // Attrs: stable id + key + value
     let next_id = create_rw_signal(0u32);
     let form_attrs = create_rw_signal(Vec::<(u32, String, String)>::new());
 
-    // NodeRefs let us set input values imperatively (avoids prop:value re-render)
     let name_ref = create_node_ref::<Input>();
     let url_ref = create_node_ref::<Input>();
     let freq_ref = create_node_ref::<Input>();
 
-    // Populate form whenever `editing` changes
     create_effect(move |_| {
         let Some(r) = editing.get() else { return };
 
         form_name.set(r.name.clone());
         form_url.set(r.console_url.clone());
         form_freq.set(r.freq.max(1));
-        form_parent.set(r.parent_id.clone());
 
-        // Set DOM values imperatively so no prop:value re-render is needed
         if let Some(el) = name_ref.get() {
             el.set_value(&r.name);
         }
@@ -51,7 +66,6 @@ pub fn ResourceForm(
         let mut attrs: Vec<_> = r.attrs.into_iter().collect();
         attrs.sort_by_key(|(k, _)| k.clone());
 
-        // Assign stable IDs and reset counter
         let mut id = 0u32;
         let rows: Vec<(u32, String, String)> = attrs
             .into_iter()
@@ -86,7 +100,6 @@ pub fn ResourceForm(
             name,
             console_url: form_url.get_untracked(),
             freq: form_freq.get_untracked(),
-            parent_id: form_parent.get_untracked(),
             attrs: form_attrs
                 .get_untracked()
                 .into_iter()
@@ -125,7 +138,7 @@ pub fn ResourceForm(
                         node_ref=name_ref
                         class="form-input"
                         type="text"
-                        placeholder="例: auth-bigquery-prod"
+                        placeholder="例: auth / BigQuery (prod)"
                         on:input=move |ev| form_name.set(event_target_value(&ev))
                     />
 
@@ -151,91 +164,92 @@ pub fn ResourceForm(
                         }
                     />
 
-                    <label class="form-label">"親リソース"</label>
-                    <select
-                        class="form-input"
-                        prop:value=move || form_parent.get().unwrap_or_default()
-                        on:change=move |ev| {
-                            let v = event_target_value(&ev);
-                            form_parent.set(if v.is_empty() { None } else { Some(v) });
-                        }
-                    >
-                        <option value="">"なし"</option>
-                        {move || {
-                            let s = store.get();
-                            let cur_id = editing.with(|e| {
-                                e.as_ref().map(|r| r.id.clone()).unwrap_or_default()
-                            });
-                            s.resources
-                                .iter()
-                                .filter(|r| r.parent_id.is_none() && r.id != cur_id)
-                                .map(|r| view! {
-                                    <option value={r.id.clone()}>{r.name.clone()}</option>
-                                })
-                                .collect::<Vec<_>>()
-                        }}
-                    </select>
-
-                    // ── Dimension chip selectors ─────────────────────
+                    // ── 軸ごとのディメンションチップ ──────────────────────────
                     <label class="form-label">"属性"</label>
                     {move || {
-                        store.get().dimensions.into_iter().map(|dim| {
-                            let dim_id = dim.id.clone();
-                            let label = if dim.label.is_empty() { dim.id.clone() } else { dim.label.clone() };
-                            view! {
-                                <div class="form-dim-row">
-                                    <span class="form-dim-label">{label}</span>
-                                    <div class="form-dim-chips">
-                                        {dim.values.into_iter().map(|dv| {
-                                            let val   = dv.value.clone();
-                                            let color = dv.color.clone();
-                                            let k_sel = dim_id.clone();
-                                            let v_sel = val.clone();
-                                            let k_clk = dim_id.clone();
-                                            let v_clk = val.clone();
-                                            let style = color.as_deref()
-                                                .filter(|c| !c.is_empty())
-                                                .map(|c| format!("border-color:{c};background:{c}1a"))
-                                                .unwrap_or_default();
-                                            view! {
-                                                <span
-                                                    class="attr-chip"
-                                                    class:selected=move || form_attrs.get().iter()
-                                                        .any(|(_, k, v)| k == &k_sel && v == &v_sel)
-                                                    style=style
-                                                    on:click=move |_| {
-                                                        let already = form_attrs.get_untracked().iter()
-                                                            .any(|(_, k, v)| k == &k_clk && v == &v_clk);
-                                                        if already {
-                                                            form_attrs.update(|a| a.retain(|(_, k, _)| k != &k_clk));
-                                                        } else {
-                                                            let nid = next_id.get_untracked();
-                                                            next_id.set(nid + 1);
-                                                            form_attrs.update(|a| {
-                                                                a.retain(|(_, k, _)| k != &k_clk);
-                                                                a.push((nid, k_clk.clone(), v_clk.clone()));
-                                                            });
-                                                        }
+                        let s = store.get();
+                        roots(&s.dimensions)
+                            .into_iter()
+                            .map(|root| {
+                                let root_id = root.id.clone();
+                                let root_label = if root.label.is_empty() {
+                                    root.id.clone()
+                                } else {
+                                    root.label.clone()
+                                };
+                                let chips = descendants_dfs(&s, &root.id);
+                                view! {
+                                    <div class="form-dim-row">
+                                        <span class="form-dim-label">{root_label}</span>
+                                        <div class="form-dim-chips">
+                                            {chips
+                                                .into_iter()
+                                                .map(|(node_id, node_label, color, _depth)| {
+                                                    let k_sel = root_id.clone();
+                                                    let v_sel = node_id.clone();
+                                                    let k_clk = root_id.clone();
+                                                    let v_clk = node_id.clone();
+                                                    let style = if !color.is_empty() {
+                                                        format!(
+                                                            "border-color:{color};background:{color}1a"
+                                                        )
+                                                    } else {
+                                                        String::new()
+                                                    };
+                                                    view! {
+                                                        <span
+                                                            class="attr-chip"
+                                                            class:selected=move || {
+                                                                form_attrs
+                                                                    .get()
+                                                                    .iter()
+                                                                    .any(|(_, k, v)| k == &k_sel && v == &v_sel)
+                                                            }
+                                                            style=style
+                                                            on:click=move |_| {
+                                                                let already = form_attrs
+                                                                    .get_untracked()
+                                                                    .iter()
+                                                                    .any(|(_, k, v)| k == &k_clk && v == &v_clk);
+                                                                if already {
+                                                                    form_attrs.update(|a| {
+                                                                        a.retain(|(_, k, _)| k != &k_clk)
+                                                                    });
+                                                                } else {
+                                                                    let nid = next_id.get_untracked();
+                                                                    next_id.set(nid + 1);
+                                                                    form_attrs.update(|a| {
+                                                                        a.retain(|(_, k, _)| k != &k_clk);
+                                                                        a.push((nid, k_clk.clone(), v_clk.clone()));
+                                                                    });
+                                                                }
+                                                            }
+                                                        >
+                                                            {node_label}
+                                                        </span>
                                                     }
-                                                >
-                                                    {val}
-                                                </span>
-                                            }
-                                        }).collect::<Vec<_>>()}
+                                                })
+                                                .collect::<Vec<_>>()}
+                                        </div>
                                     </div>
-                                </div>
-                            }
-                        }).collect::<Vec<_>>()
+                                }
+                            })
+                            .collect::<Vec<_>>()
                     }}
 
-                    // ── Free-form attrs (keys not covered by any dimension) ───
+                    // ── ディメンションに含まれないフリーな属性 ────────────────
                     <For
                         each=move || {
-                            let dim_ids = store.with(|s| {
-                                s.dimensions.iter().map(|d| d.id.clone()).collect::<Vec<_>>()
+                            let root_ids = store.with(|s| {
+                                roots(&s.dimensions)
+                                    .into_iter()
+                                    .map(|r| r.id.clone())
+                                    .collect::<Vec<_>>()
                             });
-                            form_attrs.get().into_iter()
-                                .filter(|(_, k, _)| !dim_ids.contains(k))
+                            form_attrs
+                                .get()
+                                .into_iter()
+                                .filter(|(_, k, _)| !root_ids.contains(k))
                                 .collect::<Vec<_>>()
                         }
                         key=|(id, _, _)| *id
@@ -255,7 +269,8 @@ pub fn ResourceForm(
                         on:click=move |_| {
                             let id = next_id.get_untracked();
                             next_id.set(id + 1);
-                            form_attrs.update(|a| a.push((id, String::new(), String::new())));
+                            form_attrs
+                                .update(|a| a.push((id, String::new(), String::new())));
                         }
                     >
                         "+ 属性を追加"
@@ -275,7 +290,6 @@ pub fn ResourceForm(
     }
 }
 
-/// A single attribute row that manages its own inputs without causing list re-renders.
 #[component]
 fn AttrRow(
     row_id: u32,
@@ -286,7 +300,6 @@ fn AttrRow(
     let key_ref = create_node_ref::<Input>();
     let val_ref = create_node_ref::<Input>();
 
-    // Set DOM values once on mount (initial_key/val are owned strings, not reactive)
     let ik = initial_key.clone();
     let iv = initial_val.clone();
     create_effect(move |_| {
@@ -307,7 +320,6 @@ fn AttrRow(
                 placeholder="キー"
                 on:input=move |ev| {
                     let val = event_target_value(&ev);
-                    // update_untracked: stores the new value without triggering <For> re-diff
                     form_attrs.update_untracked(|a| {
                         if let Some(row) = a.iter_mut().find(|(id, _, _)| *id == row_id) {
                             row.1 = val;
@@ -332,7 +344,6 @@ fn AttrRow(
             <button
                 class="form-attr-remove"
                 on:click=move |_| {
-                    // Structural change: use tracked update so <For> re-diffs
                     form_attrs.update(|a| a.retain(|(id, _, _)| *id != row_id));
                 }
             >
