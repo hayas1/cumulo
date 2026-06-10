@@ -56,9 +56,10 @@ pub fn ResourcesTab(
                     .map(|r| {
                         let r_id = r.id.clone();
                         let r_edit = r.clone();
+                        let display = r.display_label(&s.dimensions);
                         view! {
                             <div class="resource-row">
-                                <span class="resource-row-name">{r.name.clone()}</span>
+                                <span class="resource-row-name">{display}</span>
                                 <div class="resource-row-actions">
                                     <button
                                         class="resource-row-edit"

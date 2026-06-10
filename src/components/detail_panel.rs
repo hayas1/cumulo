@@ -30,13 +30,26 @@ pub fn DetailPanel(
                             let url = r.console_url.clone();
                             let freq = r.freq;
                             let r_for_edit = r.clone();
+                            let s = store.get();
+                            let display = r.display_label(&s.dimensions);
 
-                            let mut attrs_sorted: Vec<_> =
-                                r.attrs.into_iter().collect();
-                            attrs_sorted.sort_by_key(|(k, _)| k.clone());
+                            let mut dims_sorted: Vec<_> = r.dimensions.into_iter()
+                                .map(|(k, v)| {
+                                    let k_label = crate::model::node(&s.dimensions, &k)
+                                        .map(|n| n.label.clone())
+                                        .filter(|l| !l.is_empty())
+                                        .unwrap_or_else(|| k.clone());
+                                    let v_label = crate::model::node(&s.dimensions, &v)
+                                        .map(|n| n.label.clone())
+                                        .filter(|l| !l.is_empty())
+                                        .unwrap_or_else(|| v.clone());
+                                    (k_label, v_label)
+                                })
+                                .collect();
+                            dims_sorted.sort_by_key(|(k, _)| k.clone());
                             view! {
                                 <div class="detail-header">
-                                    <div class="detail-name">{r.name.clone()}</div>
+                                    <div class="detail-name">{display}</div>
                                     <div class="detail-header-actions">
                                         <button
                                             class="detail-edit-btn"
@@ -54,9 +67,9 @@ pub fn DetailPanel(
                                 </div>
 
                                 <div class="detail-body">
-                                    <div class="detail-section-title">"属性"</div>
+                                    <div class="detail-section-title">"ディメンション"</div>
                                     <div class="detail-attrs">
-                                        {attrs_sorted
+                                        {dims_sorted
                                             .into_iter()
                                             .map(|(k, v)| {
                                                 view! {

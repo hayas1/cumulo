@@ -5,113 +5,113 @@
     "resources": [
       {
         "id": "bq-prod",
-        "name": "auth / BigQuery (prod)",
+        "label": "auth / BigQuery (prod)",
         "freq": 12,
-        "attrs": { "platform": "bigquery", "product": "auth", "env": "prod" },
+        "dimensions": { "platform": "bigquery", "product": "auth", "env": "prod" },
         "console_url": "https://console.cloud.google.com/bigquery?project=auth-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "bq-stg",
-        "name": "auth / BigQuery (stg)",
+        "label": "auth / BigQuery (stg)",
         "freq": 4,
-        "attrs": { "platform": "bigquery", "product": "auth", "env": "stg" },
+        "dimensions": { "platform": "bigquery", "product": "auth", "env": "stg" },
         "console_url": "https://console.cloud.google.com/bigquery?project=auth-stg",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "bt-prod",
-        "name": "payment / Bigtable (prod)",
+        "label": "payment / Bigtable (prod)",
         "freq": 6,
-        "attrs": { "platform": "bigtable", "product": "payment", "env": "prod" },
+        "dimensions": { "platform": "bigtable", "product": "payment", "env": "prod" },
         "console_url": "https://console.cloud.google.com/bigtable?project=payment-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "logging-prod",
-        "name": "infra / Cloud Logging (prod)",
+        "label": "infra / Cloud Logging (prod)",
         "freq": 9,
-        "attrs": { "platform": "cloud-logging", "product": "infra", "env": "prod" },
+        "dimensions": { "platform": "cloud-logging", "product": "infra", "env": "prod" },
         "console_url": "https://console.cloud.google.com/logs?project=infra-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "monitoring-prod",
-        "name": "infra / Cloud Monitoring (prod)",
+        "label": "infra / Cloud Monitoring (prod)",
         "freq": 7,
-        "attrs": { "platform": "cloud-monitoring", "product": "infra", "env": "prod" },
+        "dimensions": { "platform": "cloud-monitoring", "product": "infra", "env": "prod" },
         "console_url": "https://console.cloud.google.com/monitoring?project=infra-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "s3-prod",
-        "name": "payment / S3 (prod)",
+        "label": "payment / S3 (prod)",
         "freq": 10,
-        "attrs": { "platform": "s3", "product": "payment", "env": "prod" },
+        "dimensions": { "platform": "s3", "product": "payment", "env": "prod" },
         "console_url": "https://s3.console.aws.amazon.com/s3/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "msk-stg",
-        "name": "payment / MSK (stg)",
+        "label": "payment / MSK (stg)",
         "freq": 5,
-        "attrs": { "platform": "msk", "product": "payment", "env": "stg" },
+        "dimensions": { "platform": "msk", "product": "payment", "env": "stg" },
         "console_url": "https://console.aws.amazon.com/msk/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "rds-prod",
-        "name": "auth / RDS (prod)",
+        "label": "auth / RDS (prod)",
         "freq": 11,
-        "attrs": { "platform": "rds", "product": "auth", "env": "prod" },
+        "dimensions": { "platform": "rds", "product": "auth", "env": "prod" },
         "console_url": "https://console.aws.amazon.com/rds/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "secrets-dev",
-        "name": "auth / Secrets Manager (dev)",
+        "label": "auth / Secrets Manager (dev)",
         "freq": 3,
-        "attrs": { "platform": "secrets-manager", "product": "auth", "env": "dev" },
+        "dimensions": { "platform": "secrets-manager", "product": "auth", "env": "dev" },
         "console_url": "https://console.aws.amazon.com/secretsmanager/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "dd-dashboard-prod",
-        "name": "infra / Datadog Dashboard (prod)",
+        "label": "infra / Datadog Dashboard (prod)",
         "freq": 10,
-        "attrs": { "platform": "dashboard", "product": "infra", "env": "prod" },
+        "dimensions": { "platform": "dashboard", "product": "infra", "env": "prod" },
         "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Aprod",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "dd-dashboard-dev",
-        "name": "infra / Datadog Dashboard (dev)",
+        "label": "infra / Datadog Dashboard (dev)",
         "freq": 4,
-        "attrs": { "platform": "dashboard", "product": "infra", "env": "dev" },
+        "dimensions": { "platform": "dashboard", "product": "infra", "env": "dev" },
         "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Adev",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "dd-apm-tracing",
-        "name": "auth / Datadog APM — Tracing",
+        "label": "auth / Datadog APM — Tracing",
         "freq": 9,
-        "attrs": { "platform": "apm", "product": "auth", "env": "shared" },
+        "dimensions": { "platform": "apm", "product": "auth", "env": "shared" },
         "console_url": "https://app.datadoghq.com/apm/traces",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "dd-apm-services",
-        "name": "payment / Datadog APM — Service Page",
+        "label": "payment / Datadog APM — Service Page",
         "freq": 8,
-        "attrs": { "platform": "apm", "product": "payment", "env": "shared" },
+        "dimensions": { "platform": "apm", "product": "payment", "env": "shared" },
         "console_url": "https://app.datadoghq.com/apm/services",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
         "id": "kafka-ui-dev",
-        "name": "payment / Kafka UI (dev)",
+        "label": "payment / Kafka UI (dev)",
         "freq": 5,
-        "attrs": { "platform": "kafka-ui", "product": "payment", "env": "dev" },
+        "dimensions": { "platform": "kafka-ui", "product": "payment", "env": "dev" },
         "console_url": "https://kafka-ui.dev.internal.example.com",
         "created_at": "2026-01-01T00:00:00Z"
       }

@@ -3,16 +3,53 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 /// クラウドリソース（物理的な実体）
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Resource {
     pub id: String,
-    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
     /// キーは軸の根id。値はその軸内のノードid。
-    pub attrs: HashMap<String, String>,
+    pub dimensions: HashMap<String, String>,
     pub console_url: String,
     pub created_at: Option<String>,
     /// アクセス頻度（表示サイズに使用）
     pub freq: u32,
+}
+
+impl Default for Resource {
+    fn default() -> Self {
+        Resource {
+            id: String::new(),
+            label: None,
+            dimensions: HashMap::new(),
+            console_url: String::new(),
+            created_at: None,
+            freq: 1,
+        }
+    }
+}
+
+impl Resource {
+    /// 表示用ラベルを返す。label が空の場合はディメンション値のラベルで代替する。
+    pub fn display_label(&self, dim_nodes: &[DimensionNode]) -> String {
+        if let Some(l) = &self.label {
+            if !l.is_empty() {
+                return l.clone();
+            }
+        }
+        let mut parts: Vec<String> = self
+            .dimensions
+            .values()
+            .filter_map(|v| node(dim_nodes, v))
+            .map(|n| if n.label.is_empty() { n.id.clone() } else { n.label.clone() })
+            .collect();
+        parts.sort();
+        if parts.is_empty() {
+            "(名前なし)".to_string()
+        } else {
+            parts.join(" / ")
+        }
+    }
 }
 
 /// ディメンション森の1ノード。

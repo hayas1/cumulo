@@ -70,7 +70,7 @@ window.cumuloUpdateFilter = function (selectedJson) {
       filteredIds = new Set(
         resources
           .filter(r => selected.every(([k, v]) => {
-            const rv = r.attrs && r.attrs[k];
+            const rv = r.dimensions && r.dimensions[k];
             if (rv == null) return false;
             // 階層dimは祖先一致も許容（GCP を選ぶと BigQuery もマッチ）
             return ancestryIn(k, rv).includes(v);
@@ -123,11 +123,20 @@ function nodeLabel(id) {
   return (n && n.label) ? n.label : id;
 }
 
+// リソースの表示名を返す。label がなければ dimensions 値のラベルで代替。
+function resourceLabel(r) {
+  if (r.label) return r.label;
+  const parts = Object.values(r.dimensions || {})
+    .map(v => nodeLabel(v))
+    .sort();
+  return parts.length > 0 ? parts.join(' / ') : '(名前なし)';
+}
+
 // ズーム軸ディメンションでの、フォレスト根から葉までの完全パス（上→下）を返す。
 // 例: platform で BigQuery → [Cloud, GCP, BigQuery]。フラットdimなら [value]。
 function zoomPath(r) {
   if (!zoomDim) return null;
-  const leaf = r.attrs && r.attrs[zoomDim];
+  const leaf = r.dimensions && r.dimensions[zoomDim];
   if (leaf == null) return ['その他'];
   return ancestryIn(zoomDim, leaf).reverse();
 }
@@ -511,7 +520,7 @@ function drawResourceNode(parentG, node, rx, ry) {
   const hasChildren = node.children.length > 0;
 
   // ノードカラーは葉（zoomDim の値）で決定
-  const color = clusterColor(r.attrs && r.attrs[zoomDim]);
+  const color = clusterColor(r.dimensions && r.dimensions[zoomDim]);
 
   // クリック時に選択するリソース ID をクロージャで直接キャプチャ
   const resourceId = r.id;
@@ -535,7 +544,8 @@ function drawResourceNode(parentG, node, rx, ry) {
   // 名前ラベル: 円の内側中央に表示
   const labelFs = Math.max(5, Math.min(9, node.r * 0.45));
   const maxChars = Math.max(3, Math.floor(node.r * 1.6 / (labelFs * 0.55)));
-  const labelText = r.name.length > maxChars ? r.name.slice(0, maxChars - 1) + '…' : r.name;
+  const rLabel = resourceLabel(r);
+  const labelText = rLabel.length > maxChars ? rLabel.slice(0, maxChars - 1) + '…' : rLabel;
   nodeG.append('text')
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle')

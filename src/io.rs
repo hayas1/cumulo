@@ -67,8 +67,8 @@ mod tests {
         AppStore {
             resources: vec![Resource {
                 id: "r1".into(),
-                name: "auth / BigQuery (prod)".into(),
-                attrs: HashMap::from([
+                label: Some("BigQuery (prod)".into()),
+                dimensions: HashMap::from([
                     ("platform".into(), "bigquery".into()),
                     ("env".into(), "prod".into()),
                 ]),

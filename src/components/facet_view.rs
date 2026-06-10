@@ -67,14 +67,13 @@ pub fn FacetView(
                                     .map(|r| {
                                         let url = r.console_url.clone();
 
-                                        // 全 attrs をチップ表示（ノードの label と color を使う）
-                                        let mut attrs_sorted: Vec<_> =
-                                            r.attrs.iter().collect::<Vec<_>>().into_iter()
+                                        // dimensions チップ表示（ノードの label と color を使う）
+                                        let mut dims_sorted: Vec<_> = r.dimensions.iter()
                                             .map(|(k, v)| (k.clone(), v.clone()))
                                             .collect();
-                                        attrs_sorted.sort_by_key(|(k, _)| k.clone());
+                                        dims_sorted.sort_by_key(|(k, _)| k.clone());
 
-                                        let chips: Vec<(String, String, String)> = attrs_sorted
+                                        let chips: Vec<(String, String, String)> = dims_sorted
                                             .iter()
                                             .map(|(k, v)| {
                                                 let color = node(&s.dimensions, v)
@@ -91,7 +90,7 @@ pub fn FacetView(
                                         view! {
                                             <div class="result-card">
                                                 <div class="result-card-header">
-                                                    <span class="result-name">{r.name.clone()}</span>
+                                                    <span class="result-name">{r.display_label(&s.dimensions)}</span>
                                                     <div class="result-card-actions">
                                                         <button
                                                             class="result-edit-btn"

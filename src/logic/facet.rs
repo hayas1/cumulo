@@ -23,7 +23,7 @@ pub fn filter_resources<'a>(
 /// リソースがタグ (k, v) にマッチするか。
 /// k は軸の根id、v はノードid。リソースの attrs[k] の祖先チェーンに v が含まれればマッチ。
 fn tag_matches(r: &Resource, k: &str, v: &str, dimensions: &[DimensionNode]) -> bool {
-    let Some(rv) = r.attrs.get(k) else {
+    let Some(rv) = r.dimensions.get(k) else {
         return false;
     };
     // rv == v なら直接一致
@@ -50,7 +50,7 @@ pub fn available_facets(
         .map(|root| {
             let mut vals: Vec<String> = filtered
                 .iter()
-                .filter_map(|r| r.attrs.get(&root.id).cloned())
+                .filter_map(|r| r.dimensions.get(&root.id).cloned())
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .collect();
@@ -63,7 +63,7 @@ pub fn available_facets(
 
 /// リソースの属性値（軸の根id をキーとして直接引く）を返す。
 pub fn resolve_dimension(resource: &Resource, root_id: &str) -> Option<String> {
-    resource.attrs.get(root_id).cloned()
+    resource.dimensions.get(root_id).cloned()
 }
 
 /// 現在の絞り込み後リソースから選択可能な (軸id, ノードid) ペアを返す（祖先展開あり）。
@@ -80,7 +80,7 @@ pub fn available_tags(
 
     let mut tags: HashSet<(String, String)> = HashSet::new();
     for r in &filtered {
-        for (k, v) in &r.attrs {
+        for (k, v) in &r.dimensions {
             // v 自身
             if !selected_set.contains(&(k.as_str(), v.as_str())) {
                 tags.insert((k.clone(), v.clone()));
@@ -121,8 +121,8 @@ mod tests {
     fn res(id: &str, platform: &str) -> Resource {
         Resource {
             id: id.into(),
-            name: id.into(),
-            attrs: HashMap::from([("platform".into(), platform.into())]),
+            label: None,
+            dimensions: HashMap::from([("platform".into(), platform.into())]),
             console_url: String::new(),
             created_at: None,
             freq: 1,
