@@ -10,9 +10,17 @@ fn gen_id() -> String {
 }
 
 enum DimTreeItem {
-    Branch { id: String, label: String, color: String, depth: usize },
+    Branch {
+        id: String,
+        label: String,
+        color: String,
+        depth: usize,
+    },
     /// 同じ親を持つ葉ノードをまとめた行 (id, label, color)
-    Leaves { depth: usize, nodes: Vec<(String, String, String)> },
+    Leaves {
+        depth: usize,
+        nodes: Vec<(String, String, String)>,
+    },
 }
 
 fn descendants_dfs(store: &AppStore, root_id: &str) -> Vec<DimTreeItem> {
@@ -44,7 +52,13 @@ fn descendants_dfs(store: &AppStore, root_id: &str) -> Vec<DimTreeItem> {
     let mut i = 0;
     while i < flat.len() {
         let (id, label, color, depth, has_children, ref parent_id) = &flat[i];
-        let (id, label, color, depth, has_children) = (id.clone(), label.clone(), color.clone(), *depth, *has_children);
+        let (id, label, color, depth, has_children) = (
+            id.clone(),
+            label.clone(),
+            color.clone(),
+            *depth,
+            *has_children,
+        );
         if has_children {
             result.push(DimTreeItem::Branch {
                 id: id.clone(),
@@ -59,7 +73,8 @@ fn descendants_dfs(store: &AppStore, root_id: &str) -> Vec<DimTreeItem> {
             i += 1;
             while i < flat.len() {
                 let (id2, label2, color2, _, has2, ref p2) = &flat[i];
-                let (id2, label2, color2, has2) = (id2.clone(), label2.clone(), color2.clone(), *has2);
+                let (id2, label2, color2, has2) =
+                    (id2.clone(), label2.clone(), color2.clone(), *has2);
                 if !has2 && *p2 == parent_id {
                     leaves.push((id2.clone(), label2.clone(), color2.clone()));
                     i += 1;
@@ -67,7 +82,10 @@ fn descendants_dfs(store: &AppStore, root_id: &str) -> Vec<DimTreeItem> {
                     break;
                 }
             }
-            result.push(DimTreeItem::Leaves { depth, nodes: leaves });
+            result.push(DimTreeItem::Leaves {
+                depth,
+                nodes: leaves,
+            });
         }
     }
     result
@@ -120,7 +138,11 @@ pub fn ResourceForm(
         let lbl = form_label.get_untracked();
         let r = Resource {
             id: id.clone(),
-            label: if lbl.trim().is_empty() { None } else { Some(lbl) },
+            label: if lbl.trim().is_empty() {
+                None
+            } else {
+                Some(lbl)
+            },
             console_url: form_url.get_untracked(),
             freq: form_freq.get_untracked(),
             dimensions: form_dims.get_untracked(),

@@ -41,7 +41,13 @@ impl Resource {
             .dimensions
             .values()
             .filter_map(|v| node(dim_nodes, v))
-            .map(|n| if n.label.is_empty() { n.id.clone() } else { n.label.clone() })
+            .map(|n| {
+                if n.label.is_empty() {
+                    n.id.clone()
+                } else {
+                    n.label.clone()
+                }
+            })
             .collect();
         parts.sort();
         if parts.is_empty() {
@@ -124,7 +130,11 @@ pub fn root_of(nodes: &[DimensionNode], id: &str) -> Option<String> {
                 None => return None, // cur 自身が根
                 Some(p) => {
                     // p が根かどうか確認
-                    if nodes.iter().find(|n| &n.id == p).map_or(false, |n| n.parent.is_none()) {
+                    if nodes
+                        .iter()
+                        .find(|n| &n.id == p)
+                        .map_or(false, |n| n.parent.is_none())
+                    {
                         return Some(p.clone());
                     }
                     cur = p.clone();

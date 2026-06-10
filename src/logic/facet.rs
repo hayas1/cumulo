@@ -108,13 +108,48 @@ mod tests {
         // platform > cloud > gcp > bigquery / bigtable
         //                  > aws > s3
         vec![
-            DimensionNode { id: "platform".into(), label: "Platform".into(), color: "#aaa".into(), parent: None },
-            DimensionNode { id: "cloud".into(),    label: "Cloud".into(),    color: "#5B8DEF".into(), parent: Some("platform".into()) },
-            DimensionNode { id: "gcp".into(),      label: "GCP".into(),      color: "#1D9E75".into(), parent: Some("cloud".into()) },
-            DimensionNode { id: "aws".into(),      label: "AWS".into(),      color: "#F2920C".into(), parent: Some("cloud".into()) },
-            DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), color: "#1D9E75".into(), parent: Some("gcp".into()) },
-            DimensionNode { id: "bigtable".into(), label: "Bigtable".into(), color: "#3A9E86".into(), parent: Some("gcp".into()) },
-            DimensionNode { id: "s3".into(),       label: "S3".into(),       color: "#F2920C".into(), parent: Some("aws".into()) },
+            DimensionNode {
+                id: "platform".into(),
+                label: "Platform".into(),
+                color: "#aaa".into(),
+                parent: None,
+            },
+            DimensionNode {
+                id: "cloud".into(),
+                label: "Cloud".into(),
+                color: "#5B8DEF".into(),
+                parent: Some("platform".into()),
+            },
+            DimensionNode {
+                id: "gcp".into(),
+                label: "GCP".into(),
+                color: "#1D9E75".into(),
+                parent: Some("cloud".into()),
+            },
+            DimensionNode {
+                id: "aws".into(),
+                label: "AWS".into(),
+                color: "#F2920C".into(),
+                parent: Some("cloud".into()),
+            },
+            DimensionNode {
+                id: "bigquery".into(),
+                label: "BigQuery".into(),
+                color: "#1D9E75".into(),
+                parent: Some("gcp".into()),
+            },
+            DimensionNode {
+                id: "bigtable".into(),
+                label: "Bigtable".into(),
+                color: "#3A9E86".into(),
+                parent: Some("gcp".into()),
+            },
+            DimensionNode {
+                id: "s3".into(),
+                label: "S3".into(),
+                color: "#F2920C".into(),
+                parent: Some("aws".into()),
+            },
         ]
     }
 
@@ -143,11 +178,7 @@ mod tests {
     #[test]
     fn selecting_ancestor_matches_descendants() {
         let dimensions = dims();
-        let resources = vec![
-            res("a", "bigquery"),
-            res("b", "s3"),
-            res("c", "bigtable"),
-        ];
+        let resources = vec![res("a", "bigquery"), res("b", "s3"), res("c", "bigtable")];
 
         // gcp を選ぶと bigquery / bigtable がマッチ、s3 は外れる
         let got = filter_resources(
@@ -169,11 +200,7 @@ mod tests {
         assert_eq!(got.len(), 3);
 
         // 葉を直接選べば1件
-        let got = filter_resources(
-            &resources,
-            &[("platform".into(), "s3".into())],
-            &dimensions,
-        );
+        let got = filter_resources(&resources, &[("platform".into(), "s3".into())], &dimensions);
         assert_eq!(got.len(), 1);
     }
 }
