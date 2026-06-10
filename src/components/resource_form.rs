@@ -9,20 +9,68 @@ fn gen_id() -> String {
     format!("r{n:x}")
 }
 
-fn descendants_dfs(store: &AppStore, root_id: &str) -> Vec<(String, String, String)> {
-    let mut out = Vec::new();
+enum DimTreeItem {
+    Branch { id: String, label: String, color: String, depth: usize },
+    /// 同じ親を持つ葉ノードをまとめた行 (id, label, color)
+    Leaves { depth: usize, nodes: Vec<(String, String, String)> },
+}
+
+fn descendants_dfs(store: &AppStore, root_id: &str) -> Vec<DimTreeItem> {
+    // (id, label, color, depth, has_children, parent_id)
+    let mut flat: Vec<(String, String, String, usize, bool, String)> = Vec::new();
     fn dfs(
         nodes: &[crate::model::DimensionNode],
         parent_id: &str,
-        out: &mut Vec<(String, String, String)>,
+        depth: usize,
+        flat: &mut Vec<(String, String, String, usize, bool, String)>,
     ) {
         for n in children_of(nodes, parent_id) {
-            out.push((n.id.clone(), n.label.clone(), n.color.clone()));
-            dfs(nodes, &n.id, out);
+            let has_children = !children_of(nodes, &n.id).is_empty();
+            flat.push((
+                n.id.clone(),
+                n.label.clone(),
+                n.color.clone(),
+                depth,
+                has_children,
+                parent_id.to_string(),
+            ));
+            dfs(nodes, &n.id, depth + 1, flat);
         }
     }
-    dfs(&store.dimensions, root_id, &mut out);
-    out
+    dfs(&store.dimensions, root_id, 0, &mut flat);
+
+    // 連続する同一親の葉ノードをまとめる
+    let mut result = Vec::new();
+    let mut i = 0;
+    while i < flat.len() {
+        let (id, label, color, depth, has_children, ref parent_id) = &flat[i];
+        let (id, label, color, depth, has_children) = (id.clone(), label.clone(), color.clone(), *depth, *has_children);
+        if has_children {
+            result.push(DimTreeItem::Branch {
+                id: id.clone(),
+                label: label.clone(),
+                color: color.clone(),
+                depth,
+            });
+            i += 1;
+        } else {
+            let parent_id = parent_id.clone();
+            let mut leaves = vec![(id.clone(), label.clone(), color.clone())];
+            i += 1;
+            while i < flat.len() {
+                let (id2, label2, color2, _, has2, ref p2) = &flat[i];
+                let (id2, label2, color2, has2) = (id2.clone(), label2.clone(), color2.clone(), *has2);
+                if !has2 && *p2 == parent_id {
+                    leaves.push((id2.clone(), label2.clone(), color2.clone()));
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            result.push(DimTreeItem::Leaves { depth, nodes: leaves });
+        }
+    }
+    result
 }
 
 #[component]
@@ -152,51 +200,93 @@ pub fn ResourceForm(
                                 view! {
                                     <div class="form-dim-row">
                                         <span class="form-dim-label">{root_label}</span>
-                                        <div class="form-dim-chips">
+                                        <div class="form-dim-tree">
                                             {chips
                                                 .into_iter()
-                                                .map(|(node_id, node_label, color)| {
-                                                    let k_sel = root_id.clone();
-                                                    let v_sel = node_id.clone();
-                                                    let k_clk = root_id.clone();
-                                                    let v_clk = node_id.clone();
-                                                    let style = if !color.is_empty() {
-                                                        format!(
-                                                            "border-color:{color};background:{color}1a"
-                                                        )
-                                                    } else {
-                                                        String::new()
-                                                    };
-                                                    view! {
-                                                        <span
-                                                            class="attr-chip"
-                                                            class:selected=move || {
-                                                                form_dims
-                                                                    .get()
-                                                                    .get(&k_sel)
-                                                                    .map(|v| v == &v_sel)
-                                                                    .unwrap_or(false)
-                                                            }
-                                                            style=style
-                                                            on:click=move |_| {
-                                                                let already = form_dims
-                                                                    .get_untracked()
-                                                                    .get(&k_clk)
-                                                                    .map(|v| v == &v_clk)
-                                                                    .unwrap_or(false);
-                                                                if already {
-                                                                    form_dims.update(|d| {
-                                                                        d.remove(&k_clk);
-                                                                    });
-                                                                } else {
-                                                                    form_dims.update(|d| {
-                                                                        d.insert(k_clk.clone(), v_clk.clone());
-                                                                    });
-                                                                }
-                                                            }
-                                                        >
-                                                            {node_label}
-                                                        </span>
+                                                .map(|item| match item {
+                                                    DimTreeItem::Branch { id, label, color, depth } => {
+                                                        let row_style = format!(
+                                                            "padding-left:{}rem",
+                                                            depth as f32 * 0.9
+                                                        );
+                                                        let k_sel = root_id.clone();
+                                                        let v_sel = id.clone();
+                                                        let k_clk = root_id.clone();
+                                                        let v_clk = id.clone();
+                                                        let chip_style = if !color.is_empty() {
+                                                            format!("border-color:{color};background:{color}1a")
+                                                        } else {
+                                                            String::new()
+                                                        };
+                                                        view! {
+                                                            <div class="form-dim-node" style=row_style>
+                                                                <span
+                                                                    class="attr-chip dim-branch"
+                                                                    class:selected=move || {
+                                                                        form_dims.get().get(&k_sel)
+                                                                            .map(|v| v == &v_sel)
+                                                                            .unwrap_or(false)
+                                                                    }
+                                                                    style=chip_style
+                                                                    on:click=move |_| {
+                                                                        let already = form_dims.get_untracked()
+                                                                            .get(&k_clk).map(|v| v == &v_clk)
+                                                                            .unwrap_or(false);
+                                                                        if already {
+                                                                            form_dims.update(|d| { d.remove(&k_clk); });
+                                                                        } else {
+                                                                            form_dims.update(|d| { d.insert(k_clk.clone(), v_clk.clone()); });
+                                                                        }
+                                                                    }
+                                                                >
+                                                                    {label}
+                                                                </span>
+                                                            </div>
+                                                        }.into_view()
+                                                    }
+                                                    DimTreeItem::Leaves { depth, nodes } => {
+                                                        let row_style = format!(
+                                                            "padding-left:{}rem",
+                                                            depth as f32 * 0.9
+                                                        );
+                                                        view! {
+                                                            <div class="form-dim-node form-dim-leaf-row" style=row_style>
+                                                                {nodes.into_iter().map(|(node_id, node_label, color)| {
+                                                                    let k_sel = root_id.clone();
+                                                                    let v_sel = node_id.clone();
+                                                                    let k_clk = root_id.clone();
+                                                                    let v_clk = node_id.clone();
+                                                                    let chip_style = if !color.is_empty() {
+                                                                        format!("border-color:{color};background:{color}1a")
+                                                                    } else {
+                                                                        String::new()
+                                                                    };
+                                                                    view! {
+                                                                        <span
+                                                                            class="attr-chip"
+                                                                            class:selected=move || {
+                                                                                form_dims.get().get(&k_sel)
+                                                                                    .map(|v| v == &v_sel)
+                                                                                    .unwrap_or(false)
+                                                                            }
+                                                                            style=chip_style
+                                                                            on:click=move |_| {
+                                                                                let already = form_dims.get_untracked()
+                                                                                    .get(&k_clk).map(|v| v == &v_clk)
+                                                                                    .unwrap_or(false);
+                                                                                if already {
+                                                                                    form_dims.update(|d| { d.remove(&k_clk); });
+                                                                                } else {
+                                                                                    form_dims.update(|d| { d.insert(k_clk.clone(), v_clk.clone()); });
+                                                                                }
+                                                                            }
+                                                                        >
+                                                                            {node_label}
+                                                                        </span>
+                                                                    }
+                                                                }).collect::<Vec<_>>()}
+                                                            </div>
+                                                        }.into_view()
                                                     }
                                                 })
                                                 .collect::<Vec<_>>()}

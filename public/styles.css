@@ -1604,6 +1604,23 @@ body {
   flex-wrap: wrap;
   gap: 0.3rem;
 }
+.form-dim-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+.form-dim-node {
+  display: flex;
+}
+.form-dim-leaf-row {
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.attr-chip.dim-branch {
+  opacity: 0.65;
+  font-style: italic;
+}
 
 .attr-chip {
   display: inline-flex;
