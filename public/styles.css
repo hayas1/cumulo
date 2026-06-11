@@ -310,14 +310,16 @@ body {
 }
 
 .resource-row-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.7rem;
-  font-family: var(--font-sans);
-  padding: 0.15rem 0.4rem;
+  padding: 0.2rem;
+  line-height: 1;
   transition: border-color 0.1s, color 0.1s;
 }
 .resource-row-edit:hover { border-color: var(--accent); color: var(--accent); }
@@ -1460,14 +1462,16 @@ body {
 
 .result-edit-btn,
 .detail-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 1px solid var(--border);
   border-radius: 5px;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.72rem;
-  font-family: var(--font-sans);
-  padding: 0.2rem 0.55rem;
+  padding: 0.25rem;
+  line-height: 1;
   transition: border-color 0.12s, color 0.12s;
 }
 .result-edit-btn:hover,
