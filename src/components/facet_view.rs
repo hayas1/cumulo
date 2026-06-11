@@ -63,7 +63,6 @@ pub fn FacetView(
                                     .map(|r| {
                                         let url = r.console_url.clone();
 
-                                        // dimensions チップ表示（ノードの label と color を使う）
                                         let mut dims_sorted: Vec<_> = r.dimensions.iter()
                                             .map(|(k, v)| (k.clone(), v.clone()))
                                             .collect();

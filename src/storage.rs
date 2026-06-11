@@ -25,7 +25,6 @@ impl AppStore {
         }
     }
 
-    /// LocalStorage の保存データを消し、組み込みの初期データを返す。
     pub fn clear_storage() -> Self {
         LocalStorage::delete(STORAGE_KEY);
         Self::load_default()

@@ -28,7 +28,6 @@ fn tag_matches(r: &Resource, k: &str, v: &str, dimensions: &DimensionForest) -> 
     dimensions.ancestry(rv).iter().any(|a| a == v)
 }
 
-/// 根ノード（軸）ごとに、現在の絞り込みで取り得るノードid の候補を返す。
 #[allow(dead_code)]
 pub fn available_facets(
     resources: &[Resource],
@@ -60,7 +59,6 @@ pub fn resolve_dimension(resource: &Resource, root_id: &str) -> Option<String> {
     resource.dimensions.get(root_id).cloned()
 }
 
-/// 現在の絞り込み後リソースから選択可能な (軸id, ノードid) ペアを返す（祖先展開あり）。
 pub fn available_tags(
     resources: &[Resource],
     selected: &[(String, String)],

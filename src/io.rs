@@ -30,7 +30,6 @@ impl ExportData {
         serde_json::to_string_pretty(self).unwrap_or_default()
     }
 
-    /// JSON 文字列を解析して AppStore を返す。バージョン不一致はエラー。
     pub fn parse(json: &str) -> Result<AppStore, String> {
         let data: ExportData =
             serde_json::from_str(json).map_err(|e| format!("JSON parse error: {e}"))?;

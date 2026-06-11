@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
-/// クラウドリソース（物理的な実体）
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Resource {
     pub id: String,
@@ -57,7 +56,6 @@ impl Resource {
     }
 }
 
-/// ディメンション森の1ノード。
 /// parent が None のノードが軸の根（＝属性キー）となる。
 /// リソースの attrs は { 根id → ノードid } で表現する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -70,8 +68,7 @@ pub struct DimensionNode {
     pub parent: Option<String>,
 }
 
-/// ディメンション定義のフラットなノード配列。parent リンクで森を構成する。
-/// parent が None のノードが軸の根となる。
+/// parent リンクで森を構成する。parent が None のノードが軸の根となる。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 #[serde(transparent)]
 pub struct DimensionForest(pub Vec<DimensionNode>);
@@ -100,9 +97,7 @@ impl DimensionForest {
             .collect()
     }
 
-    /// id から根まで辿った祖先チェーン（自身を含む、近い順）を返す。
     /// 軸の根 (parent==None) の id は含めない（根はキーであり値ではない）。
-    /// 循環は安全に打ち切る。
     pub fn ancestry(&self, id: &str) -> Vec<String> {
         let mut chain = Vec::new();
         let mut cur = Some(id.to_string());
@@ -121,7 +116,6 @@ impl DimensionForest {
         chain
     }
 
-    /// id が属する軸の根id を返す。id が根自身なら None。
     pub fn root_of(&self, id: &str) -> Option<String> {
         let mut cur = id.to_string();
         let mut seen = HashSet::new();
@@ -152,7 +146,6 @@ impl DimensionForest {
         self.iter().find(|n| n.id == id)
     }
 
-    /// start から親を辿る過程に target が含まれるか。循環は安全に打ち切る。
     pub fn ancestry_contains(&self, start: &str, target: &str) -> bool {
         let mut cur = Some(start.to_string());
         let mut seen = HashSet::new();
@@ -168,7 +161,6 @@ impl DimensionForest {
         false
     }
 
-    /// root を根とする部分木のノード id を全て返す（root 自身を含む）。
     pub fn collect_descendants(&self, root: &str) -> HashSet<String> {
         let mut out = HashSet::new();
         self.collect_descendants_rec(root, &mut out);
@@ -184,8 +176,6 @@ impl DimensionForest {
         }
     }
 
-    /// root_id 直下を DFS した順序で (node_id, depth, has_children) を返す。
-    /// collapsed に含まれるノードの子孫はスキップする。
     pub fn dfs_order(
         &self,
         root_id: &str,
@@ -213,7 +203,6 @@ impl DimensionForest {
     }
 }
 
-/// LocalStorageに保存するルートデータ構造
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AppStore {
     pub resources: Vec<Resource>,

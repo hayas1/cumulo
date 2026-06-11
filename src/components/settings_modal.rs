@@ -174,7 +174,6 @@ pub fn SettingsModal(
                 </div>
             </div>
 
-            // ── 消去の確認ダイアログ ──────────────────────────────
             {move || confirm_clear.get().then(|| view! {
                 <div class="confirm-overlay" on:click=move |_| confirm_clear.set(false)>
                     <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
