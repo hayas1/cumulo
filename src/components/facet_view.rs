@@ -1,6 +1,6 @@
 use super::facet_sidebar::FacetSidebar;
 use crate::logic::facet::filter_resources;
-use crate::model::{node, AppStore, Resource};
+use crate::model::{AppStore, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -78,10 +78,10 @@ pub fn FacetView(
                                         let chips: Vec<(String, String, String)> = dims_sorted
                                             .iter()
                                             .map(|(k, v)| {
-                                                let color = node(&s.dimensions, v)
+                                                let color = s.dimensions.node(v)
                                                     .map(|n| n.color.clone())
                                                     .unwrap_or_default();
-                                                let label = node(&s.dimensions, v)
+                                                let label = s.dimensions.node(v)
                                                     .map(|n| n.label.clone())
                                                     .unwrap_or_else(|| v.clone());
                                                 (k.clone(), label, color)

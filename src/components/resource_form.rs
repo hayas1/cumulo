@@ -1,4 +1,4 @@
-use crate::model::{children_of, roots, AppStore, Resource};
+use crate::model::{AppStore, DimensionForest, Resource};
 use crate::storage::save_to_storage;
 use leptos::html::Input;
 use leptos::*;
@@ -23,17 +23,16 @@ enum DimTreeItem {
     },
 }
 
-fn descendants_dfs(store: &AppStore, root_id: &str) -> Vec<DimTreeItem> {
-    // (id, label, color, depth, has_children, parent_id)
+fn descendants_dfs(forest: &DimensionForest, root_id: &str) -> Vec<DimTreeItem> {
     let mut flat: Vec<(String, String, String, usize, bool, String)> = Vec::new();
     fn dfs(
-        nodes: &[crate::model::DimensionNode],
+        forest: &DimensionForest,
         parent_id: &str,
         depth: usize,
         flat: &mut Vec<(String, String, String, usize, bool, String)>,
     ) {
-        for n in children_of(nodes, parent_id) {
-            let has_children = !children_of(nodes, &n.id).is_empty();
+        for n in forest.children_of(parent_id) {
+            let has_children = !forest.children_of(&n.id).is_empty();
             flat.push((
                 n.id.clone(),
                 n.label.clone(),
@@ -42,10 +41,10 @@ fn descendants_dfs(store: &AppStore, root_id: &str) -> Vec<DimTreeItem> {
                 has_children,
                 parent_id.to_string(),
             ));
-            dfs(nodes, &n.id, depth + 1, flat);
+            dfs(forest, &n.id, depth + 1, flat);
         }
     }
-    dfs(&store.dimensions, root_id, 0, &mut flat);
+    dfs(&forest, root_id, 0, &mut flat);
 
     // 連続する同一親の葉ノードをまとめる
     let mut result = Vec::new();
@@ -209,7 +208,7 @@ pub fn ResourceForm(
                     <label class="form-label">"ディメンション"</label>
                     {move || {
                         let s = store.get();
-                        roots(&s.dimensions)
+                        s.dimensions.roots()
                             .into_iter()
                             .map(|root| {
                                 let root_id = root.id.clone();
@@ -218,7 +217,7 @@ pub fn ResourceForm(
                                 } else {
                                     root.label.clone()
                                 };
-                                let chips = descendants_dfs(&s, &root.id);
+                                let chips = descendants_dfs(&s.dimensions, &root.id);
                                 view! {
                                     <div class="form-dim-row">
                                         <span class="form-dim-label">{root_label}</span>

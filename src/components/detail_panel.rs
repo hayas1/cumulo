@@ -37,11 +37,11 @@ pub fn DetailPanel(
 
                             let mut dims_sorted: Vec<_> = r.dimensions.into_iter()
                                 .map(|(k, v)| {
-                                    let k_label = crate::model::node(&s.dimensions, &k)
+                                    let k_label = s.dimensions.node(&k)
                                         .map(|n| n.label.clone())
                                         .filter(|l| !l.is_empty())
                                         .unwrap_or_else(|| k.clone());
-                                    let v_label = crate::model::node(&s.dimensions, &v)
+                                    let v_label = s.dimensions.node(&v)
                                         .map(|n| n.label.clone())
                                         .filter(|l| !l.is_empty())
                                         .unwrap_or_else(|| v.clone());

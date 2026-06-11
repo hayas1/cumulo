@@ -1,4 +1,4 @@
-use crate::model::{children_of, root_of, AppStore, DimensionNode};
+use crate::model::{AppStore, DimensionNode};
 use crate::storage::save_to_storage;
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -57,42 +57,11 @@ fn root_sentinel(root_id: &str) -> String {
     format!("\x00root:{}", root_id)
 }
 
-fn ancestry_contains_flat(nodes: &[DimensionNode], start: &str, target: &str) -> bool {
-    let mut cur = Some(start.to_string());
-    let mut seen = HashSet::new();
-    while let Some(c) = cur {
-        if c == target {
-            return true;
-        }
-        if !seen.insert(c.clone()) {
-            break;
-        }
-        cur = nodes
-            .iter()
-            .find(|n| n.id == c)
-            .and_then(|n| n.parent.clone());
-    }
-    false
-}
-
-fn collect_descendants_flat(nodes: &[DimensionNode], root: &str) -> HashSet<String> {
-    let mut out = HashSet::new();
-    fn recurse(nodes: &[DimensionNode], id: &str, out: &mut HashSet<String>) {
-        if !out.insert(id.to_string()) {
-            return;
-        }
-        for child in children_of(nodes, id) {
-            recurse(nodes, &child.id, out);
-        }
-    }
-    recurse(nodes, root, &mut out);
-    out
-}
 
 fn reparent_flat(store: RwSignal<AppStore>, dragged: String, new_parent: Option<String>) {
     store.update(|s| {
         if let Some(np) = &new_parent {
-            if np == &dragged || ancestry_contains_flat(&s.dimensions, np, &dragged) {
+            if np == &dragged || s.dimensions.ancestry_contains(np, &dragged) {
                 return;
             }
         }
@@ -114,7 +83,7 @@ fn move_relative_flat(store: RwSignal<AppStore>, dragged: String, target: String
             .find(|n| n.id == target)
             .and_then(|n| n.parent.clone());
         if let Some(np) = &new_parent {
-            if ancestry_contains_flat(&s.dimensions, np, &dragged) {
+            if s.dimensions.ancestry_contains(np, &dragged) {
                 return;
             }
         }
@@ -129,7 +98,8 @@ fn move_relative_flat(store: RwSignal<AppStore>, dragged: String, target: String
             .position(|n| n.id == target)
             .unwrap_or(s.dimensions.len());
         let insert_at = if after { tpos + 1 } else { tpos };
-        s.dimensions.insert(insert_at.min(s.dimensions.len()), node);
+        let len = s.dimensions.len();
+        s.dimensions.insert(insert_at.min(len), node);
     });
     save_to_storage(&store.get_untracked());
 }
@@ -153,36 +123,12 @@ fn delete_promote_flat(store: RwSignal<AppStore>, node_id: String) {
 
 fn delete_subtree_flat(store: RwSignal<AppStore>, node_id: String) {
     store.update(|s| {
-        let doomed = collect_descendants_flat(&s.dimensions, &node_id);
+        let doomed = s.dimensions.collect_descendants(&node_id);
         s.dimensions.retain(|n| !doomed.contains(&n.id));
     });
     save_to_storage(&store.get_untracked());
 }
 
-fn dfs_order(
-    nodes: &[DimensionNode],
-    root_id: &str,
-    collapsed: &HashSet<String>,
-) -> Vec<(String, usize, bool)> {
-    let mut out = Vec::new();
-    fn recurse(
-        nodes: &[DimensionNode],
-        parent_id: &str,
-        depth: usize,
-        collapsed: &HashSet<String>,
-        out: &mut Vec<(String, usize, bool)>,
-    ) {
-        for child in children_of(nodes, parent_id) {
-            let has_children = !children_of(nodes, &child.id).is_empty();
-            out.push((child.id.clone(), depth, has_children));
-            if has_children && !collapsed.contains(&child.id) {
-                recurse(nodes, &child.id, depth + 1, collapsed, out);
-            }
-        }
-    }
-    recurse(nodes, root_id, 0, collapsed, &mut out);
-    out
-}
 
 fn commit_node_edit(
     editing_id: RwSignal<Option<String>>,
@@ -303,7 +249,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                         let root_id_del = root.id.clone();
                         let root_id_add = root.id.clone();
 
-                        let order = dfs_order(&s.dimensions, &root.id, &collapsed_set);
+                        let order = s.dimensions.dfs_order(&root.id, &collapsed_set);
                         let sentinel = root_sentinel(&root.id);
 
                         let is_root_editing = current_editing.as_deref() == Some(root.id.as_str());
@@ -315,7 +261,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                     if let Some(ref eid) = editing_id.get() {
                                         *eid == root_id_active
                                             || store.with(|s| {
-                                                root_of(&s.dimensions, eid)
+                                                s.dimensions.root_of(eid)
                                                     .map(|r| r == root_id_active)
                                                     .unwrap_or(false)
                                             })
@@ -472,7 +418,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                         move || {
                                                             let id2 = id.clone();
                                                             let doomed = store.with_untracked(|s| {
-                                                                collect_descendants_flat(&s.dimensions, &id2)
+                                                                s.dimensions.collect_descendants(&id2)
                                                             });
                                                             store.update(|s| {
                                                                 s.dimensions

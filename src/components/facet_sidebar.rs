@@ -1,24 +1,22 @@
 use crate::logic::facet::{filter_resources, resolve_dimension};
-use crate::model::{ancestry, children_of, roots, AppStore, DimensionNode};
+use crate::model::{AppStore, DimensionForest};
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
-/// 軸の根の直下から DFS し、(node_id, node_label, depth, count) を出力。
-/// count == 0 のノードはスキップ。ノード単位の折りたたみは行わず常に全子孫を出力する。
 fn dfs_collect(
-    all_nodes: &[DimensionNode],
+    forest: &DimensionForest,
     parent_id: &str,
     depth: usize,
     counts: &HashMap<String, usize>,
     out: &mut Vec<(String, String, usize, usize)>,
 ) {
-    for child in children_of(all_nodes, parent_id) {
+    for child in forest.children_of(parent_id) {
         let cnt = counts.get(&child.id).copied().unwrap_or(0);
         if cnt == 0 {
             continue;
         }
         out.push((child.id.clone(), child.label.clone(), depth, cnt));
-        dfs_collect(all_nodes, &child.id, depth + 1, counts, out);
+        dfs_collect(forest, &child.id, depth + 1, counts, out);
     }
 }
 
@@ -40,7 +38,7 @@ pub fn FacetSidebar(
                 let s = store.get();
                 let tags = selected_tags.get();
 
-                roots(&s.dimensions)
+                s.dimensions.roots()
                     .into_iter()
                     .filter_map(|root| {
                         let tags_minus: Vec<_> = tags
@@ -54,7 +52,7 @@ pub fn FacetSidebar(
                         for r in &base {
                             if let Some(leaf_id) = resolve_dimension(r, &root.id) {
                                 *counts.entry(leaf_id.clone()).or_default() += 1;
-                                for anc in ancestry(&s.dimensions, &leaf_id) {
+                                for anc in s.dimensions.ancestry(&leaf_id) {
                                     if anc != leaf_id {
                                         *counts.entry(anc).or_default() += 1;
                                     }

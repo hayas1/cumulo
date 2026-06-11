@@ -60,7 +60,7 @@ pub fn trigger_download(filename: &str, content: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{DimensionNode, Resource};
+    use crate::model::{DimensionForest, DimensionNode, Resource};
     use std::collections::HashMap;
 
     fn make_store() -> AppStore {
@@ -76,7 +76,7 @@ mod tests {
                 freq: 5,
                 created_at: None,
             }],
-            dimensions: vec![
+            dimensions: DimensionForest(vec![
                 DimensionNode {
                     id: "platform".into(),
                     label: "プラットフォーム".into(),
@@ -101,7 +101,7 @@ mod tests {
                     color: "#E24B4A".into(),
                     parent: Some("env".into()),
                 },
-            ],
+            ]),
         }
     }
 
