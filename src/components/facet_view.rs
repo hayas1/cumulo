@@ -1,16 +1,10 @@
 use super::facet_sidebar::FacetSidebar;
 use crate::logic::facet::filter_resources;
 use crate::model::{AppStore, Resource};
+use crate::web::open_url;
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
-use web_sys::window;
-
-fn open_url(url: &str) {
-    if let Some(win) = window() {
-        let _ = win.open_with_url_and_target(url, "_blank");
-    }
-}
 
 #[component]
 pub fn FacetView(

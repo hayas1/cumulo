@@ -1,14 +1,8 @@
 use crate::model::{AppStore, Resource};
+use crate::web::open_url;
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
-use web_sys::window;
-
-fn open_url(url: String) {
-    if let Some(win) = window() {
-        let _ = win.open_with_url_and_target(&url, "_blank");
-    }
-}
 
 #[component]
 pub fn DetailPanel(
@@ -53,7 +47,7 @@ pub fn DetailPanel(
                                 <div class="detail-header">
                                     <div
                                         class="detail-name detail-name-link"
-                                        on:click=move |_| open_url(url.clone())
+                                        on:click=move |_| open_url(&url)
                                     >
                                         {display}
                                     </div>

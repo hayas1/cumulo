@@ -4,6 +4,7 @@ mod logic;
 mod map_bridge;
 mod model;
 mod storage;
+mod web;
 
 use components::app::App;
 use leptos::*;
