@@ -2,8 +2,6 @@ use crate::logic::facet::available_tags;
 use crate::model::AppStore;
 use leptos::*;
 
-// "bq" が "bigquery" にマッチするような部分列照合。
-// query の各文字が target に順番通りに含まれるかを確認する。
 fn subsequence_match(query: &str, target: &str) -> bool {
     let mut target_iter = target.chars();
     for qc in query.chars() {
@@ -12,6 +10,40 @@ fn subsequence_match(query: &str, target: &str) -> bool {
         }
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::subsequence_match;
+
+    #[test]
+    fn abbreviation_matches() {
+        assert!(subsequence_match("bq", "bigquery"));
+        assert!(subsequence_match("gcs", "google-cloud-storage"));
+    }
+
+    #[test]
+    fn substring_matches() {
+        assert!(subsequence_match("big", "bigquery"));
+        assert!(subsequence_match("query", "bigquery"));
+    }
+
+    #[test]
+    fn no_match_when_char_missing() {
+        assert!(!subsequence_match("bq", "bigtable"));
+        assert!(!subsequence_match("bq", "storage"));
+    }
+
+    #[test]
+    fn order_matters() {
+        assert!(!subsequence_match("qb", "bigquery"));
+    }
+
+    #[test]
+    fn empty_query_matches_any() {
+        assert!(subsequence_match("", "bigquery"));
+        assert!(subsequence_match("", ""));
+    }
 }
 
 #[component]
