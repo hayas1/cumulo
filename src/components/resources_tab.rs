@@ -1,5 +1,5 @@
 use crate::model::{AppStore, Resource};
-use crate::storage::save_to_storage;
+
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -84,7 +84,7 @@ pub fn ResourcesTab(
                                                     store.update(|s| {
                                                         s.resources.retain(|r| r.id != id)
                                                     });
-                                                    save_to_storage(&store.get_untracked());
+                                                    store.get_untracked().save_to_storage();
                                                 },
                                                 confirm_msg,
                                                 confirm_action,

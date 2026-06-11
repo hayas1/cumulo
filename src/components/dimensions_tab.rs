@@ -1,5 +1,5 @@
 use crate::model::{AppStore, DimensionNode};
-use crate::storage::save_to_storage;
+
 use icondata as icon;
 use leptos::html::{Div, Input};
 use leptos::*;
@@ -69,7 +69,7 @@ fn reparent_flat(store: RwSignal<AppStore>, dragged: String, new_parent: Option<
             n.parent = new_parent;
         }
     });
-    save_to_storage(&store.get_untracked());
+    store.get_untracked().save_to_storage();
 }
 
 fn move_relative_flat(store: RwSignal<AppStore>, dragged: String, target: String, after: bool) {
@@ -101,7 +101,7 @@ fn move_relative_flat(store: RwSignal<AppStore>, dragged: String, target: String
         let len = s.dimensions.len();
         s.dimensions.insert(insert_at.min(len), node);
     });
-    save_to_storage(&store.get_untracked());
+    store.get_untracked().save_to_storage();
 }
 
 fn delete_promote_flat(store: RwSignal<AppStore>, node_id: String) {
@@ -118,7 +118,7 @@ fn delete_promote_flat(store: RwSignal<AppStore>, node_id: String) {
         }
         s.dimensions.retain(|n| n.id != node_id);
     });
-    save_to_storage(&store.get_untracked());
+    store.get_untracked().save_to_storage();
 }
 
 fn delete_subtree_flat(store: RwSignal<AppStore>, node_id: String) {
@@ -126,7 +126,7 @@ fn delete_subtree_flat(store: RwSignal<AppStore>, node_id: String) {
         let doomed = s.dimensions.collect_descendants(&node_id);
         s.dimensions.retain(|n| !doomed.contains(&n.id));
     });
-    save_to_storage(&store.get_untracked());
+    store.get_untracked().save_to_storage();
 }
 
 
@@ -169,7 +169,7 @@ fn commit_node_edit(
             n.color = new_color;
         }
     });
-    save_to_storage(&store.get_untracked());
+    store.get_untracked().save_to_storage();
     editing_id.set(None);
 }
 
@@ -329,7 +329,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                                 }
                                                             }
                                                         });
-                                                        save_to_storage(&store.get_untracked());
+                                                        store.get_untracked().save_to_storage();
                                                     }
                                                 >
                                                     "キャンセル"
@@ -424,7 +424,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                                 s.dimensions
                                                                     .retain(|n| !doomed.contains(&n.id));
                                                             });
-                                                            save_to_storage(&store.get_untracked());
+                                                            store.get_untracked().save_to_storage();
                                                         },
                                                         confirm_msg,
                                                         confirm_action,
@@ -632,9 +632,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                                     parent: Some(parent.clone()),
                                                                 });
                                                             });
-                                                            save_to_storage(
-                                                                &store.get_untracked(),
-                                                            );
+                                                            store.get_untracked().save_to_storage();
                                                             collapsed.update(|c| {
                                                                 c.remove(&nid_add);
                                                             });
@@ -773,7 +771,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                     parent: Some(root_id_add.clone()),
                                                 });
                                             });
-                                            save_to_storage(&store.get_untracked());
+                                            store.get_untracked().save_to_storage();
                                             editing_id.set(Some(new_id2));
                                         }
                                     >
@@ -800,7 +798,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                             parent: None,
                         });
                     });
-                    save_to_storage(&store.get_untracked());
+                    store.get_untracked().save_to_storage();
                     editing_id.set(Some(new_id2));
                 }
             >

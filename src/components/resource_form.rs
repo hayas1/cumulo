@@ -1,5 +1,5 @@
 use crate::model::{AppStore, DimensionForest, Resource};
-use crate::storage::save_to_storage;
+
 use leptos::html::Input;
 use leptos::*;
 use std::collections::HashMap;
@@ -155,7 +155,7 @@ pub fn ResourceForm(
                 s.resources.push(r);
             }
         });
-        save_to_storage(&store.get_untracked());
+        store.get_untracked().save_to_storage();
         editing.set(None);
     };
 

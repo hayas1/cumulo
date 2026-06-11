@@ -4,7 +4,7 @@ use super::{
     settings_modal::SettingsModal,
 };
 use crate::model::{AppStore, Resource};
-use crate::storage::load_from_storage;
+
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -12,7 +12,7 @@ use leptos_router::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let store = create_rw_signal::<AppStore>(load_from_storage());
+    let store = create_rw_signal::<AppStore>(AppStore::load_from_storage());
     let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
     let editing = create_rw_signal(Option::<Resource>::None);
     let settings_open = create_rw_signal(false);

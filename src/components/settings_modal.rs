@@ -2,7 +2,6 @@ use super::dimensions_tab::DimensionsTab;
 use super::resources_tab::ResourcesTab;
 use crate::io::{export_json, import_json, trigger_download};
 use crate::model::{AppStore, Resource};
-use crate::storage::{clear_storage, save_to_storage};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -39,7 +38,7 @@ pub fn SettingsModal(
     let on_clear = move |_| {
         // 消去前に必ずエクスポート（強制バックアップ）
         do_export();
-        let fresh = clear_storage();
+        let fresh = AppStore::clear_storage();
         store.set(fresh);
         confirm_clear.set(false);
         open.set(false);
@@ -70,7 +69,7 @@ pub fn SettingsModal(
                                         imported.dimensions.len(),
                                     );
                                     store.set(imported);
-                                    save_to_storage(&store.get_untracked());
+                                    store.get_untracked().save_to_storage();
                                     open.set(false);
                                     import_toast.set(Some(msg));
                                 }
