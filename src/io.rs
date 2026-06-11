@@ -13,25 +13,31 @@ pub struct ExportData {
     pub store: AppStore,
 }
 
-pub fn export_json(store: &AppStore) -> String {
-    let now = js_sys::Date::new_0()
-        .to_iso_string()
-        .as_string()
-        .unwrap_or_default();
-    let data = ExportData {
-        cumulo_version: CURRENT_VERSION,
-        exported_at: now,
-        store: store.clone(),
-    };
-    serde_json::to_string_pretty(&data).unwrap_or_default()
-}
+impl ExportData {
+    pub fn from_store(store: &AppStore) -> Self {
+        let now = js_sys::Date::new_0()
+            .to_iso_string()
+            .as_string()
+            .unwrap_or_default();
+        ExportData {
+            cumulo_version: CURRENT_VERSION,
+            exported_at: now,
+            store: store.clone(),
+        }
+    }
 
-pub fn import_json(json: &str) -> Result<AppStore, String> {
-    let data: ExportData =
-        serde_json::from_str(json).map_err(|e| format!("JSON parse error: {e}"))?;
-    match data.cumulo_version {
-        1 => Ok(data.store),
-        v => Err(format!("未対応のバージョン: {v}")),
+    pub fn to_json(&self) -> String {
+        serde_json::to_string_pretty(self).unwrap_or_default()
+    }
+
+    /// JSON 文字列を解析して AppStore を返す。バージョン不一致はエラー。
+    pub fn parse(json: &str) -> Result<AppStore, String> {
+        let data: ExportData =
+            serde_json::from_str(json).map_err(|e| format!("JSON parse error: {e}"))?;
+        match data.cumulo_version {
+            1 => Ok(data.store),
+            v => Err(format!("未対応のバージョン: {v}")),
+        }
     }
 }
 
@@ -114,7 +120,7 @@ mod tests {
             store: store.clone(),
         })
         .unwrap();
-        assert_eq!(import_json(&json).unwrap(), store);
+        assert_eq!(ExportData::parse(&json).unwrap(), store);
     }
 
     #[test]
@@ -125,6 +131,6 @@ mod tests {
             "store": { "resources": [], "dimensions": [] }
         })
         .to_string();
-        assert!(import_json(&json).is_err());
+        assert!(ExportData::parse(&json).is_err());
     }
 }

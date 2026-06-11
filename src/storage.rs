@@ -1,4 +1,4 @@
-use crate::io::import_json;
+use crate::io::ExportData;
 use crate::model::AppStore;
 use gloo_storage::{LocalStorage, Storage};
 
@@ -32,6 +32,6 @@ impl AppStore {
     }
 
     pub fn load_default() -> Self {
-        import_json(DEFAULT_JSON).expect("default.json is invalid")
+        ExportData::parse(DEFAULT_JSON).expect("default.json is invalid")
     }
 }

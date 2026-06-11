@@ -1,6 +1,6 @@
 use super::dimensions_tab::DimensionsTab;
 use super::resources_tab::ResourcesTab;
-use crate::io::{export_json, import_json, trigger_download};
+use crate::io::{trigger_download, ExportData};
 use crate::model::{AppStore, Resource};
 use icondata as icon;
 use leptos::*;
@@ -22,7 +22,7 @@ pub fn SettingsModal(
 
     let do_export = move || {
         let s = store.get_untracked();
-        let json = export_json(&s);
+        let json = ExportData::from_store(&s).to_json();
         let date = js_sys::Date::new_0()
             .to_iso_string()
             .as_string()
@@ -61,7 +61,7 @@ pub fn SettingsModal(
                     match JsFuture::from(text_promise).await {
                         Ok(js_text) => {
                             let json = js_text.as_string().unwrap_or_default();
-                            match import_json(&json) {
+                            match ExportData::parse(&json) {
                                 Ok(imported) => {
                                     let msg = format!(
                                         "インポート完了: リソース {}件、ディメンション {}件",
