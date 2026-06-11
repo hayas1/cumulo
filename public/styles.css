@@ -108,7 +108,10 @@ body {
 /* icondata_hi のアイコンは stroke/fill がハードコードされているため currentColor に上書き */
 .header-settings-btn svg *,
 .settings-action-btn svg *,
-.chip-editor-randomize svg * {
+.chip-editor-randomize svg *,
+.result-edit-btn svg *,
+.detail-edit-btn svg *,
+.resource-row-edit svg * {
   stroke: currentColor;
   fill: none;
 }
@@ -314,15 +317,14 @@ body {
   align-items: center;
   justify-content: center;
   background: none;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  border: none;
   color: var(--text-muted);
   cursor: pointer;
   padding: 0.2rem;
   line-height: 1;
-  transition: border-color 0.1s, color 0.1s;
+  transition: color 0.1s;
 }
-.resource-row-edit:hover { border-color: var(--accent); color: var(--accent); }
+.resource-row-edit:hover { color: var(--accent); }
 
 .resource-row-delete {
   background: none;
@@ -1466,16 +1468,15 @@ body {
   align-items: center;
   justify-content: center;
   background: none;
-  border: 1px solid var(--border);
-  border-radius: 5px;
+  border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.2rem;
   line-height: 1;
-  transition: border-color 0.12s, color 0.12s;
+  transition: color 0.12s;
 }
 .result-edit-btn:hover,
-.detail-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+.detail-edit-btn:hover { color: var(--accent); }
 
 .results-header-row {
   display: flex;
