@@ -1,7 +1,9 @@
 use super::facet_sidebar::FacetSidebar;
 use crate::logic::facet::filter_resources;
 use crate::model::{node, AppStore, Resource};
+use icondata as icon;
 use leptos::*;
+use leptos_icons::Icon;
 use web_sys::window;
 
 fn open_url(url: &str) {
@@ -90,21 +92,21 @@ pub fn FacetView(
                                         view! {
                                             <div class="result-card">
                                                 <div class="result-card-header">
-                                                    <span class="result-name">{r.display_label(&s.dimensions)}</span>
+                                                    <span
+                                                        class="result-name result-name-link"
+                                                        on:click=move |_| open_url(&url)
+                                                    >
+                                                        {r.display_label(&s.dimensions)}
+                                                    </span>
                                                     <div class="result-card-actions">
                                                         <button
                                                             class="result-edit-btn"
                                                             on:click=move |_| {
                                                                 editing.set(Some(r_for_edit.clone()))
                                                             }
+                                                            title="編集"
                                                         >
-                                                            "編集"
-                                                        </button>
-                                                        <button
-                                                            class="result-open-btn"
-                                                            on:click=move |_| open_url(&url)
-                                                        >
-                                                            "コンソールへ →"
+                                                            <Icon icon=icon::HiPencilOutlineLg width="14" height="14" />
                                                         </button>
                                                     </div>
                                                 </div>

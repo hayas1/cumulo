@@ -1055,6 +1055,16 @@ body {
   word-break: break-all;
   line-height: 1.4;
 }
+.detail-name-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: color 0.12s, text-decoration-color 0.12s;
+}
+.detail-name-link:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
 
 .detail-close {
   background: none;
@@ -1332,6 +1342,16 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.result-name-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: color 0.12s, text-decoration-color 0.12s;
+}
+.result-name-link:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 .result-open-btn {

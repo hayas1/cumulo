@@ -1,5 +1,7 @@
 use crate::model::{AppStore, Resource};
+use icondata as icon;
 use leptos::*;
+use leptos_icons::Icon;
 use web_sys::window;
 
 fn open_url(url: String) {
@@ -49,13 +51,19 @@ pub fn DetailPanel(
                             dims_sorted.sort_by_key(|(k, _)| k.clone());
                             view! {
                                 <div class="detail-header">
-                                    <div class="detail-name">{display}</div>
+                                    <div
+                                        class="detail-name detail-name-link"
+                                        on:click=move |_| open_url(url.clone())
+                                    >
+                                        {display}
+                                    </div>
                                     <div class="detail-header-actions">
                                         <button
                                             class="detail-edit-btn"
                                             on:click=move |_| editing.set(Some(r_for_edit.clone()))
+                                            title="編集"
                                         >
-                                            "編集"
+                                            <Icon icon=icon::HiPencilOutlineLg width="14" height="14" />
                                         </button>
                                         <button
                                             class="detail-close"
@@ -87,12 +95,6 @@ pub fn DetailPanel(
                                     <span class="detail-freq">
                                         "アクセス頻度: " {freq}
                                     </span>
-                                    <button
-                                        class="console-jump-btn"
-                                        on:click=move |_| open_url(url.clone())
-                                    >
-                                        "コンソールへ →"
-                                    </button>
                                 </div>
                             }
                         })

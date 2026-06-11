@@ -1,6 +1,8 @@
 use crate::model::{AppStore, Resource};
 use crate::storage::save_to_storage;
+use icondata as icon;
 use leptos::*;
+use leptos_icons::Icon;
 use std::rc::Rc;
 
 fn ask_confirm(
@@ -68,8 +70,9 @@ pub fn ResourcesTab(
                                             editing.set(Some(r_edit.clone()));
                                             settings_open.set(false);
                                         }
+                                        title="編集"
                                     >
-                                        "編集"
+                                        <Icon icon=icon::HiPencilOutlineLg width="14" height="14" />
                                     </button>
                                     <button
                                         class="resource-row-delete"
