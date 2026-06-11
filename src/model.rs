@@ -201,6 +201,86 @@ impl DimensionForest {
             }
         }
     }
+
+    /// 深さ優先で子孫を列挙し、counts > 0 のノードのみ (id, label, depth, count) を out に追加する。
+    pub fn dfs_collect_counts(
+        &self,
+        parent_id: &str,
+        depth: usize,
+        counts: &HashMap<String, usize>,
+        out: &mut Vec<(String, String, usize, usize)>,
+    ) {
+        for child in self.children_of(parent_id) {
+            let cnt = counts.get(&child.id).copied().unwrap_or(0);
+            if cnt == 0 {
+                continue;
+            }
+            out.push((child.id.clone(), child.label.clone(), depth, cnt));
+            self.dfs_collect_counts(&child.id, depth + 1, counts, out);
+        }
+    }
+
+    pub fn reparent(&mut self, dragged: &str, new_parent: Option<String>) {
+        if let Some(np) = &new_parent {
+            if np == dragged || self.ancestry_contains(np, dragged) {
+                return;
+            }
+        }
+        if let Some(n) = self.iter_mut().find(|n| n.id == dragged) {
+            n.parent = new_parent;
+        }
+    }
+
+    pub fn move_relative(&mut self, dragged: &str, target: &str, after: bool) {
+        if dragged == target {
+            return;
+        }
+        let new_parent = self.iter().find(|n| n.id == target).and_then(|n| n.parent.clone());
+        if let Some(np) = &new_parent {
+            if self.ancestry_contains(np, dragged) {
+                return;
+            }
+        }
+        let Some(dpos) = self.iter().position(|n| n.id == dragged) else {
+            return;
+        };
+        let mut node = self.remove(dpos);
+        node.parent = new_parent;
+        let tpos = self.iter().position(|n| n.id == target).unwrap_or(self.len());
+        let insert_at = if after { tpos + 1 } else { tpos };
+        let len = self.len();
+        self.insert(insert_at.min(len), node);
+    }
+
+    pub fn delete_promote(&mut self, node_id: &str) {
+        let parent = self.iter().find(|n| n.id == node_id).and_then(|n| n.parent.clone());
+        for child in self.iter_mut() {
+            if child.parent.as_deref() == Some(node_id) {
+                child.parent = parent.clone();
+            }
+        }
+        self.retain(|n| n.id != node_id);
+    }
+
+    pub fn delete_subtree(&mut self, node_id: &str) {
+        let doomed = self.collect_descendants(node_id);
+        self.retain(|n| !doomed.contains(&n.id));
+    }
+
+    pub fn rename_node(&mut self, old_id: &str, new_id: &str, label: &str, color: &str) {
+        if old_id != new_id {
+            for other in self.iter_mut() {
+                if other.parent.as_deref() == Some(old_id) {
+                    other.parent = Some(new_id.to_string());
+                }
+            }
+        }
+        if let Some(n) = self.iter_mut().find(|n| n.id == old_id) {
+            n.id = new_id.to_string();
+            n.label = label.to_string();
+            n.color = color.to_string();
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

@@ -8,179 +8,103 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
-fn new_node_id() -> String {
-    let n = (js_sys::Math::random() * 1e15) as u64;
-    format!("node{n:x}")
-}
+#[derive(Copy, Clone)]
+struct DimTabActions(RwSignal<AppStore>);
 
-fn random_nice_color() -> String {
-    const PALETTE: &[&str] = &[
-        "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6",
-        "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e",
-    ];
-    let idx = (js_sys::Math::random() * PALETTE.len() as f64) as usize;
-    PALETTE[idx.min(PALETTE.len() - 1)].to_string()
-}
-
-fn focus_left(ev: &web_sys::FocusEvent, selector: &str) -> bool {
-    ev.related_target()
-        .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
-        .and_then(|el| el.closest(selector).ok())
-        .flatten()
-        .is_none()
-}
-
-fn zone_from(top: f64, height: f64, client_y: i32) -> u8 {
-    if height > 0.0 {
-        let rel = (client_y as f64 - top) / height;
-        if rel < 0.3 {
-            return 0;
-        }
-        if rel > 0.7 {
-            return 2;
-        }
+impl DimTabActions {
+    fn reparent(self, dragged: String, new_parent: Option<String>) {
+        self.0.update(|s| s.dimensions.reparent(&dragged, new_parent));
+        self.0.get_untracked().save_to_storage();
     }
-    1
-}
 
-fn zone_of(row_ref: NodeRef<Div>, ev: &web_sys::DragEvent) -> u8 {
-    row_ref
-        .get_untracked()
-        .map(|el| {
-            let r = el.get_bounding_client_rect();
-            zone_from(r.top(), r.height(), ev.client_y())
-        })
-        .unwrap_or(1)
-}
-
-fn root_sentinel(root_id: &str) -> String {
-    format!("\x00root:{}", root_id)
-}
-
-
-fn reparent_flat(store: RwSignal<AppStore>, dragged: String, new_parent: Option<String>) {
-    store.update(|s| {
-        if let Some(np) = &new_parent {
-            if np == &dragged || s.dimensions.ancestry_contains(np, &dragged) {
-                return;
-            }
-        }
-        if let Some(n) = s.dimensions.iter_mut().find(|n| n.id == dragged) {
-            n.parent = new_parent;
-        }
-    });
-    store.get_untracked().save_to_storage();
-}
-
-fn move_relative_flat(store: RwSignal<AppStore>, dragged: String, target: String, after: bool) {
-    if dragged == target {
-        return;
+    fn move_relative(self, dragged: String, target: String, after: bool) {
+        self.0.update(|s| s.dimensions.move_relative(&dragged, &target, after));
+        self.0.get_untracked().save_to_storage();
     }
-    store.update(|s| {
-        let new_parent = s
-            .dimensions
-            .iter()
-            .find(|n| n.id == target)
-            .and_then(|n| n.parent.clone());
-        if let Some(np) = &new_parent {
-            if s.dimensions.ancestry_contains(np, &dragged) {
-                return;
-            }
-        }
-        let Some(dpos) = s.dimensions.iter().position(|n| n.id == dragged) else {
+
+    fn delete_promote(self, node_id: String) {
+        self.0.update(|s| s.dimensions.delete_promote(&node_id));
+        self.0.get_untracked().save_to_storage();
+    }
+
+    fn delete_subtree(self, node_id: String) {
+        self.0.update(|s| s.dimensions.delete_subtree(&node_id));
+        self.0.get_untracked().save_to_storage();
+    }
+
+    fn commit_node_edit(
+        self,
+        editing_id: RwSignal<Option<String>>,
+        id_ref: NodeRef<Input>,
+        label_ref: NodeRef<Input>,
+        color_ref: NodeRef<Input>,
+    ) {
+        let Some(old_id) = editing_id.get_untracked() else {
             return;
         };
-        let mut node = s.dimensions.remove(dpos);
-        node.parent = new_parent;
-        let tpos = s
-            .dimensions
-            .iter()
-            .position(|n| n.id == target)
-            .unwrap_or(s.dimensions.len());
-        let insert_at = if after { tpos + 1 } else { tpos };
-        let len = s.dimensions.len();
-        s.dimensions.insert(insert_at.min(len), node);
-    });
-    store.get_untracked().save_to_storage();
-}
-
-fn delete_promote_flat(store: RwSignal<AppStore>, node_id: String) {
-    store.update(|s| {
-        let parent = s
-            .dimensions
-            .iter()
-            .find(|n| n.id == node_id)
-            .and_then(|n| n.parent.clone());
-        for child in s.dimensions.iter_mut() {
-            if child.parent.as_deref() == Some(node_id.as_str()) {
-                child.parent = parent.clone();
-            }
+        let new_id = id_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
+        let new_label = label_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
+        let new_color = color_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
+        if new_id.trim().is_empty() {
+            return;
         }
-        s.dimensions.retain(|n| n.id != node_id);
-    });
-    store.get_untracked().save_to_storage();
-}
-
-fn delete_subtree_flat(store: RwSignal<AppStore>, node_id: String) {
-    store.update(|s| {
-        let doomed = s.dimensions.collect_descendants(&node_id);
-        s.dimensions.retain(|n| !doomed.contains(&n.id));
-    });
-    store.get_untracked().save_to_storage();
-}
-
-
-fn commit_node_edit(
-    editing_id: RwSignal<Option<String>>,
-    id_ref: NodeRef<Input>,
-    label_ref: NodeRef<Input>,
-    color_ref: NodeRef<Input>,
-    store: RwSignal<AppStore>,
-) {
-    let Some(old_id) = editing_id.get_untracked() else {
-        return;
-    };
-    let new_id = id_ref
-        .get_untracked()
-        .map(|el| el.value())
-        .unwrap_or_default();
-    let new_label = label_ref
-        .get_untracked()
-        .map(|el| el.value())
-        .unwrap_or_default();
-    let new_color = color_ref
-        .get_untracked()
-        .map(|el| el.value())
-        .unwrap_or_default();
-    if new_id.trim().is_empty() {
-        return;
+        self.0.update(|s| s.dimensions.rename_node(&old_id, &new_id, &new_label, &new_color));
+        self.0.get_untracked().save_to_storage();
+        editing_id.set(None);
     }
-    store.update(|s| {
-        if old_id != new_id {
-            for other in s.dimensions.iter_mut() {
-                if other.parent.as_deref() == Some(old_id.as_str()) {
-                    other.parent = Some(new_id.clone());
-                }
-            }
-        }
-        if let Some(n) = s.dimensions.iter_mut().find(|n| n.id == old_id) {
-            n.id = new_id;
-            n.label = new_label;
-            n.color = new_color;
-        }
-    });
-    store.get_untracked().save_to_storage();
-    editing_id.set(None);
 }
 
-fn ask_confirm(
-    msg: &'static str,
-    action: impl Fn() + 'static,
-    confirm_msg: RwSignal<Option<&'static str>>,
-    confirm_action: RwSignal<Option<Rc<dyn Fn()>>>,
-) {
-    confirm_msg.set(Some(msg));
-    confirm_action.set(Some(Rc::new(action)));
+#[derive(Copy, Clone)]
+struct ConfirmState {
+    msg: RwSignal<Option<&'static str>>,
+    action: RwSignal<Option<Rc<dyn Fn()>>>,
+}
+
+impl ConfirmState {
+    fn prompt(self, msg: &'static str, action: impl Fn() + 'static) {
+        self.msg.set(Some(msg));
+        self.action.set(Some(Rc::new(action)));
+    }
+
+    fn close(self) {
+        self.msg.set(None);
+        self.action.set(None);
+    }
+}
+
+struct UiHelper;
+
+impl UiHelper {
+    fn focus_left(ev: &web_sys::FocusEvent, selector: &str) -> bool {
+        ev.related_target()
+            .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
+            .and_then(|el| el.closest(selector).ok())
+            .flatten()
+            .is_none()
+    }
+
+    fn zone_from(top: f64, height: f64, client_y: i32) -> u8 {
+        if height > 0.0 {
+            let rel = (client_y as f64 - top) / height;
+            if rel < 0.3 {
+                return 0;
+            }
+            if rel > 0.7 {
+                return 2;
+            }
+        }
+        1
+    }
+
+    fn zone_of(row_ref: NodeRef<Div>, ev: &web_sys::DragEvent) -> u8 {
+        row_ref
+            .get_untracked()
+            .map(|el| {
+                let r = el.get_bounding_client_rect();
+                UiHelper::zone_from(r.top(), r.height(), ev.client_y())
+            })
+            .unwrap_or(1)
+    }
 }
 
 #[component]
@@ -195,12 +119,11 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
     let dragging = create_rw_signal(Option::<String>::None);
     let drag_over = create_rw_signal(Option::<(String, u8)>::None);
 
-    let confirm_msg = create_rw_signal(Option::<&'static str>::None);
-    let confirm_action: RwSignal<Option<Rc<dyn Fn()>>> = create_rw_signal(None);
-    let close_confirm = move || {
-        confirm_msg.set(None);
-        confirm_action.set(None);
+    let confirm = ConfirmState {
+        msg: create_rw_signal(None),
+        action: create_rw_signal(None),
     };
+    let acts = DimTabActions(store);
 
     let delete_target = create_rw_signal(Option::<(String, bool)>::None);
 
@@ -250,7 +173,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                         let root_id_add = root.id.clone();
 
                         let order = s.dimensions.dfs_order(&root.id, &collapsed_set);
-                        let sentinel = root_sentinel(&root.id);
+                        let sentinel = format!("\x00root:{}", root.id);
 
                         let is_root_editing = current_editing.as_deref() == Some(root.id.as_str());
 
@@ -270,7 +193,6 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                     }
                                 }
                             >
-                                // ── Root header ──────────────────────────────────
                                 <div class="dim-row-header">
                                     {if is_root_editing {
                                         let rid_cancel = root_id_header.clone();
@@ -278,14 +200,8 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             <div
                                                 class="dim-name-editor"
                                                 on:focusout=move |ev: web_sys::FocusEvent| {
-                                                    if focus_left(&ev, ".dim-name-editor") {
-                                                        commit_node_edit(
-                                                            editing_id,
-                                                            id_ref,
-                                                            label_ref,
-                                                            color_ref,
-                                                            store,
-                                                        );
+                                                    if UiHelper::focus_left(&ev, ".dim-name-editor") {
+                                                        acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                                     }
                                                 }
                                             >
@@ -316,7 +232,6 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                     class="dim-row-cancel"
                                                     on:click=move |_| {
                                                         editing_id.set(None);
-                                                        // If was a new (empty) axis, delete it
                                                         store.update(|s| {
                                                             if let Some(n) = s
                                                                 .dimensions
@@ -343,13 +258,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             <button
                                                 class="dim-name-btn"
                                                 on:click=move |_| {
-                                                    commit_node_edit(
-                                                        editing_id,
-                                                        id_ref,
-                                                        label_ref,
-                                                        color_ref,
-                                                        store,
-                                                    );
+                                                    acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                                     editing_id.set(Some(rid_click.clone()));
                                                 }
                                             >
@@ -391,7 +300,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 on:drop=move |ev: web_sys::DragEvent| {
                                                     ev.prevent_default();
                                                     if let Some(dval) = dragging.get_untracked() {
-                                                        reparent_flat(store, dval, Some(rid_drop.clone()));
+                                                        acts.reparent(dval, Some(rid_drop.clone()));
                                                     }
                                                     dragging.set(None);
                                                     drag_over.set(None);
@@ -413,21 +322,9 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 on:click=move |_| {
                                                     let id = rid_d.clone();
                                                     editing_id.set(None);
-                                                    ask_confirm(
+                                                    confirm.prompt(
                                                         "このディメンションを削除しますか？",
-                                                        move || {
-                                                            let id2 = id.clone();
-                                                            let doomed = store.with_untracked(|s| {
-                                                                s.dimensions.collect_descendants(&id2)
-                                                            });
-                                                            store.update(|s| {
-                                                                s.dimensions
-                                                                    .retain(|n| !doomed.contains(&n.id));
-                                                            });
-                                                            store.get_untracked().save_to_storage();
-                                                        },
-                                                        confirm_msg,
-                                                        confirm_action,
+                                                        move || acts.delete_subtree(id.clone()),
                                                     );
                                                 }
                                             >
@@ -440,7 +337,6 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                     }}
                                 </div>
 
-                                // ── Tree body ──────────────────────────────────────
                                 <div class="dim-tree">
                                     {order
                                         .into_iter()
@@ -501,14 +397,8 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                     <div
                                                         class="chip-editor dim-node-editor"
                                                         on:focusout=move |ev: web_sys::FocusEvent| {
-                                                            if focus_left(&ev, ".chip-editor") {
-                                                                commit_node_edit(
-                                                                    editing_id,
-                                                                    id_ref,
-                                                                    label_ref,
-                                                                    color_ref,
-                                                                    store,
-                                                                );
+                                                            if UiHelper::focus_left(&ev, ".chip-editor") {
+                                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                                             }
                                                         }
                                                     >
@@ -538,7 +428,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                         <button
                                                             class="chip-editor-randomize"
                                                             on:click=move |_| {
-                                                                let color = random_nice_color();
+                                                                let color = DimensionNode::random_color();
                                                                 if let Some(el) = color_ref.get_untracked()
                                                                 {
                                                                     el.set_value(&color);
@@ -595,13 +485,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                             if cur.as_deref() != Some(&nid_click)
                                                                 && cur.is_some()
                                                             {
-                                                                commit_node_edit(
-                                                                    editing_id,
-                                                                    id_ref,
-                                                                    label_ref,
-                                                                    color_ref,
-                                                                    store,
-                                                                );
+                                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                                             }
                                                             editing_id.set(Some(nid_click.clone()));
                                                         }
@@ -613,22 +497,16 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                         title="子を追加"
                                                         on:click=move |_| {
                                                             if editing_id.get_untracked().is_some() {
-                                                                commit_node_edit(
-                                                                    editing_id,
-                                                                    id_ref,
-                                                                    label_ref,
-                                                                    color_ref,
-                                                                    store,
-                                                                );
+                                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                                             }
                                                             let parent = nid_add.clone();
-                                                            let new_id = new_node_id();
+                                                            let new_id = DimensionNode::new_id();
                                                             let new_id2 = new_id.clone();
                                                             store.update(|s| {
                                                                 s.dimensions.push(DimensionNode {
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
-                                                                    color: random_nice_color(),
+                                                                    color: DimensionNode::random_color(),
                                                                     parent: Some(parent.clone()),
                                                                 });
                                                             });
@@ -689,32 +567,18 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                         if let Some(dt) = ev.data_transfer() {
                                                             dt.set_drop_effect("move");
                                                         }
-                                                        let zone = zone_of(row_ref, &ev);
+                                                        let zone = UiHelper::zone_of(row_ref, &ev);
                                                         drag_over.set(Some((v_over.clone(), zone)));
                                                     }
                                                     on:drop=move |ev: web_sys::DragEvent| {
                                                         ev.prevent_default();
-                                                        let zone = zone_of(row_ref, &ev);
+                                                        let zone = UiHelper::zone_of(row_ref, &ev);
                                                         if let Some(dval) = dragging.get_untracked()
                                                         {
                                                             match zone {
-                                                                0 => move_relative_flat(
-                                                                    store,
-                                                                    dval,
-                                                                    v_drop.clone(),
-                                                                    false,
-                                                                ),
-                                                                2 => move_relative_flat(
-                                                                    store,
-                                                                    dval,
-                                                                    v_drop.clone(),
-                                                                    true,
-                                                                ),
-                                                                _ => reparent_flat(
-                                                                    store,
-                                                                    dval,
-                                                                    Some(v_drop.clone()),
-                                                                ),
+                                                                0 => acts.move_relative(dval, v_drop.clone(), false),
+                                                                2 => acts.move_relative(dval, v_drop.clone(), true),
+                                                                _ => acts.reparent(dval, Some(v_drop.clone())),
                                                             }
                                                         }
                                                         dragging.set(None);
@@ -753,21 +617,15 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                         class="dim-add-root"
                                         on:click=move |_| {
                                             if editing_id.get_untracked().is_some() {
-                                                commit_node_edit(
-                                                    editing_id,
-                                                    id_ref,
-                                                    label_ref,
-                                                    color_ref,
-                                                    store,
-                                                );
+                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                             }
-                                            let new_id = new_node_id();
+                                            let new_id = DimensionNode::new_id();
                                             let new_id2 = new_id.clone();
                                             store.update(|s| {
                                                 s.dimensions.push(DimensionNode {
                                                     id: new_id.clone(),
                                                     label: String::new(),
-                                                    color: random_nice_color(),
+                                                    color: DimensionNode::random_color(),
                                                     parent: Some(root_id_add.clone()),
                                                 });
                                             });
@@ -787,8 +645,8 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             <button
                 class="dim-add-btn"
                 on:click=move |_| {
-                    commit_node_edit(editing_id, id_ref, label_ref, color_ref, store);
-                    let new_id = new_node_id();
+                    acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
+                    let new_id = DimensionNode::new_id();
                     let new_id2 = new_id.clone();
                     store.update(|s| {
                         s.dimensions.push(DimensionNode {
@@ -806,24 +664,23 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             </button>
         </div>
 
-        // ── 軸削除の確認ダイアログ ──────────────────────────────────────
         {move || {
-            confirm_msg.get().map(|msg| {
+            confirm.msg.get().map(|msg| {
                 view! {
-                    <div class="confirm-overlay" on:click=move |_| close_confirm()>
+                    <div class="confirm-overlay" on:click=move |_| confirm.close()>
                         <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
                             <p class="confirm-text">{msg}</p>
                             <div class="confirm-btns">
-                                <button class="confirm-cancel" on:click=move |_| close_confirm()>
+                                <button class="confirm-cancel" on:click=move |_| confirm.close()>
                                     "キャンセル"
                                 </button>
                                 <button
                                     class="confirm-ok"
                                     on:click=move |_| {
-                                        if let Some(action) = confirm_action.get_untracked() {
+                                        if let Some(action) = confirm.action.get_untracked() {
                                             action();
                                         }
-                                        close_confirm();
+                                        confirm.close();
                                     }
                                 >
                                     "削除"
@@ -835,7 +692,6 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             })
         }}
 
-        // ── ノード削除ダイアログ（子があれば選択式）────────────────────
         {move || {
             delete_target.get().map(|(node_id, has_children)| {
                 let label = node_id.clone();
@@ -859,7 +715,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             class="confirm-ok"
                                             on:click=move |_| {
                                                 editing_id.set(None);
-                                                delete_promote_flat(store, v_promote.clone());
+                                                acts.delete_promote(v_promote.clone());
                                                 delete_target.set(None);
                                             }
                                         >
@@ -869,7 +725,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             class="confirm-ok confirm-danger"
                                             on:click=move |_| {
                                                 editing_id.set(None);
-                                                delete_subtree_flat(store, v_subtree.clone());
+                                                acts.delete_subtree(v_subtree.clone());
                                                 delete_target.set(None);
                                             }
                                         >
@@ -883,7 +739,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             class="confirm-ok"
                                             on:click=move |_| {
                                                 editing_id.set(None);
-                                                delete_subtree_flat(store, v_simple.clone());
+                                                acts.delete_subtree(v_simple.clone());
                                                 delete_target.set(None);
                                             }
                                         >

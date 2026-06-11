@@ -1,24 +1,7 @@
 use crate::logic::facet::{filter_resources, resolve_dimension};
-use crate::model::{AppStore, DimensionForest};
+use crate::model::AppStore;
 use leptos::*;
 use std::collections::{HashMap, HashSet};
-
-fn dfs_collect(
-    forest: &DimensionForest,
-    parent_id: &str,
-    depth: usize,
-    counts: &HashMap<String, usize>,
-    out: &mut Vec<(String, String, usize, usize)>,
-) {
-    for child in forest.children_of(parent_id) {
-        let cnt = counts.get(&child.id).copied().unwrap_or(0);
-        if cnt == 0 {
-            continue;
-        }
-        out.push((child.id.clone(), child.label.clone(), depth, cnt));
-        dfs_collect(forest, &child.id, depth + 1, counts, out);
-    }
-}
 
 #[component]
 pub fn FacetSidebar(
@@ -70,7 +53,7 @@ pub fn FacetSidebar(
                             .map(|(_, v)| v.clone());
 
                         let mut ordered: Vec<(String, String, usize, usize)> = Vec::new();
-                        dfs_collect(&s.dimensions, &root.id, 0, &counts, &mut ordered);
+                        s.dimensions.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
                         if ordered.is_empty() {
                             return None;
@@ -79,7 +62,6 @@ pub fn FacetSidebar(
                         let root_id = root.id.clone();
                         let root_label = root.label.clone();
 
-                        // ── パネル折りたたみボタン ────────────────────────────
                         let rid_toggle = root_id.clone();
                         let rid_icon = root_id.clone();
                         let chevron = view! {
@@ -98,7 +80,6 @@ pub fn FacetSidebar(
                             </button>
                         };
 
-                        // ── ディメンション軸タイトル ──────────────────────────
                         let title = match zoom_dim {
                             Some(zd) => {
                                 let did = root_id.clone();
