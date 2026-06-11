@@ -2,6 +2,18 @@ use crate::logic::facet::available_tags;
 use crate::model::AppStore;
 use leptos::*;
 
+// "bq" が "bigquery" にマッチするような部分列照合。
+// query の各文字が target に順番通りに含まれるかを確認する。
+fn subsequence_match(query: &str, target: &str) -> bool {
+    let mut target_iter = target.chars();
+    for qc in query.chars() {
+        if !target_iter.any(|tc| tc == qc) {
+            return false;
+        }
+    }
+    true
+}
+
 #[component]
 pub fn Palette(
     store: ReadSignal<AppStore>,
@@ -21,7 +33,9 @@ pub fn Palette(
         if !input.is_empty() {
             let lower = input.to_lowercase();
             avail.retain(|(k, v)| {
-                k.to_lowercase().contains(&lower) || v.to_lowercase().contains(&lower)
+                let kl = k.to_lowercase();
+                let vl = v.to_lowercase();
+                subsequence_match(&lower, &kl) || subsequence_match(&lower, &vl)
             });
         }
 
