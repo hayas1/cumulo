@@ -69,7 +69,7 @@ pub fn DetailPanel(
                                 </div>
 
                                 <div class="detail-body">
-                                    <div class="detail-section-title">"ディメンション"</div>
+                                    <div class="detail-section-title">"カテゴリ"</div>
                                     <div class="detail-value">
                                         {dims_sorted
                                             .into_iter()

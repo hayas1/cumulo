@@ -117,7 +117,7 @@ pub fn SettingsModal(
                             class:active=move || active_tab.get() == "dim"
                             on:click=move |_| active_tab.set("dim".into())
                         >
-                            "ディメンション"
+                            "カテゴリ"
                         </button>
                     </nav>
                     <div class="settings-content">

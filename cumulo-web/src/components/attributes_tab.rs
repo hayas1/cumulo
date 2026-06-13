@@ -175,8 +175,6 @@ pub fn AttributesTab(
                 let s = bipartite.get();
                 let collapsed_set = collapsed.get();
                 let current_editing = editing_id.get();
-                let is_dragging = dragging.get().is_some();
-
                 let root_nodes: Vec<Category<CategoryAttribute>> = s
                     .taxonomy
                     .iter()
@@ -296,44 +294,52 @@ pub fn AttributesTab(
                                         .into_view()
                                     }}
 
-                                    // Root drop zone (visible while dragging)
-                                    {if is_dragging {
-                                        let s_drag = sentinel.clone();
-                                        let s_over = sentinel.clone();
-                                        let rid_drop = root_id_drop.clone();
-                                        view! {
-                                            <div
-                                                class="dim-root-drop"
-                                                class:over=move || {
-                                                    drag_over
-                                                        .get()
-                                                        .as_ref()
-                                                        .map(|(id, _)| *id == s_over)
-                                                        .unwrap_or(false)
+                                    // Root drop zone: dragging シグナルだけを追跡する独立した reactive closure。
+                                    // 外側 closure が dragging を読むと dragstart 時に row_ref が全部作り直され
+                                    // drop ハンドラが stale ref を掴んでしまうため分離している。
+                                    {
+                                        let s_drag_z = sentinel.clone();
+                                        let rid_drop_z = root_id_drop.clone();
+                                        move || {
+                                            if dragging.get().is_some() {
+                                                let s_drag = s_drag_z.clone();
+                                                let s_over = s_drag_z.clone();
+                                                let rid_drop = rid_drop_z.clone();
+                                                view! {
+                                                    <div
+                                                        class="dim-root-drop"
+                                                        class:over=move || {
+                                                            drag_over
+                                                                .get()
+                                                                .as_ref()
+                                                                .map(|(id, _)| *id == s_over)
+                                                                .unwrap_or(false)
+                                                        }
+                                                        on:dragover=move |ev: web_sys::DragEvent| {
+                                                            ev.prevent_default();
+                                                            if let Some(dt) = ev.data_transfer() {
+                                                                dt.set_drop_effect("move");
+                                                            }
+                                                            drag_over.set(Some((s_drag.clone(), 1)));
+                                                        }
+                                                        on:drop=move |ev: web_sys::DragEvent| {
+                                                            ev.prevent_default();
+                                                            if let Some(dval) = dragging.get_untracked() {
+                                                                acts.reparent(dval, Some(rid_drop.clone()));
+                                                            }
+                                                            dragging.set(None);
+                                                            drag_over.set(None);
+                                                        }
+                                                    >
+                                                        "⬚ 直下へ"
+                                                    </div>
                                                 }
-                                                on:dragover=move |ev: web_sys::DragEvent| {
-                                                    ev.prevent_default();
-                                                    if let Some(dt) = ev.data_transfer() {
-                                                        dt.set_drop_effect("move");
-                                                    }
-                                                    drag_over.set(Some((s_drag.clone(), 1)));
-                                                }
-                                                on:drop=move |ev: web_sys::DragEvent| {
-                                                    ev.prevent_default();
-                                                    if let Some(dval) = dragging.get_untracked() {
-                                                        acts.reparent(dval, Some(rid_drop.clone()));
-                                                    }
-                                                    dragging.set(None);
-                                                    drag_over.set(None);
-                                                }
-                                            >
-                                                "⬚ 直下へ"
-                                            </div>
+                                                .into_view()
+                                            } else {
+                                                view! { <span /> }.into_view()
+                                            }
                                         }
-                                        .into_view()
-                                    } else {
-                                        view! { <span /> }.into_view()
-                                    }}
+                                    }
 
                                     {if !is_root_editing {
                                         let rid_d = root_id_del.clone();

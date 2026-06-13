@@ -205,7 +205,7 @@ pub fn EntityForm(
                     />
 
                     // ── 軸ごとのディメンションチップ ──────────────────────────
-                    <label class="form-label">"ディメンション"</label>
+                    <label class="form-label">"カテゴリ"</label>
                     {move || {
                         let s = bipartite.get();
                         s.taxonomy.roots()
