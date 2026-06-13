@@ -1,14 +1,14 @@
 use crate::map_bridge;
 use crate::platform::{AttributeValue, EntityValue};
-use cumulo_model::model::Bipartite;
+use cumulo_model::model::{Attribute, Bipartite, Entity, Id};
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(String, String)>>,
-    zoom_dim: RwSignal<String>,
-    selected_entity: RwSignal<Option<String>>,
+    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
+    zoom_dim: RwSignal<Id<Attribute>>,
+    selected_entity: RwSignal<Option<Id<Entity>>>,
     zoom_level: RwSignal<u32>,
 ) -> impl IntoView {
     // ── Effect 1: D3初期化（一度だけ。シグナル依存なし）──────────────────────
@@ -16,7 +16,7 @@ pub fn MapCanvas(
         map_bridge::init_map("main-svg");
 
         map_bridge::on_entity_select(move |id| {
-            selected_entity.set(Some(id));
+            selected_entity.set(Some(id.into()));
         });
 
         map_bridge::on_zoom_level_change(move |level| {
@@ -26,8 +26,8 @@ pub fn MapCanvas(
         // クラスタへのズームイン → そのディメンション値を絞り込み軸へ反映（置換）
         map_bridge::on_cluster_drill(move |axis, value| {
             selected_tags.update(|t| {
-                t.retain(|(k, _)| k != &axis);
-                t.push((axis, value));
+                t.retain(|(k, _)| k.as_str() != axis);
+                t.push((axis.into(), value.into()));
             });
         });
 

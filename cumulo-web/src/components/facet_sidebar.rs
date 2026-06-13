@@ -1,19 +1,19 @@
 use crate::platform::{AttributeValue, EntityValue};
-use cumulo_model::model::Bipartite;
+use cumulo_model::model::{Attribute, Bipartite, Id};
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
 pub fn FacetSidebar(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(String, String)>>,
+    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
     /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
     #[prop(optional)]
-    zoom_dim: Option<RwSignal<String>>,
+    zoom_dim: Option<RwSignal<Id<Attribute>>>,
 ) -> impl IntoView {
     // 折りたたまれているパネルの根id を管理（ノード単位ではなくパネル単位）
-    let collapsed = create_rw_signal(HashSet::<String>::new());
+    let collapsed = create_rw_signal(HashSet::<Id<Attribute>>::new());
 
     view! {
         <aside class="facet-sidebar">
@@ -31,12 +31,12 @@ pub fn FacetSidebar(
                             .collect();
                         let base = s.filter_entities(&tags_minus);
 
-                        let mut counts: HashMap<String, usize> = HashMap::new();
+                        let mut counts: HashMap<Id<Attribute>, usize> = HashMap::new();
                         for r in &base {
                             if let Some(leaf_id) = r.attribute(&root.id) {
-                                *counts.entry(leaf_id.to_string()).or_default() += 1;
+                                *counts.entry(leaf_id.clone()).or_default() += 1;
                                 for anc in s.attributes.ancestry(leaf_id) {
-                                    if anc != leaf_id {
+                                    if &anc != leaf_id {
                                         *counts.entry(anc).or_default() += 1;
                                     }
                                 }
@@ -52,7 +52,7 @@ pub fn FacetSidebar(
                             .find(|(k, _)| k == &root.id)
                             .map(|(_, v)| v.clone());
 
-                        let mut ordered: Vec<(String, String, usize, usize)> = Vec::new();
+                        let mut ordered: Vec<(Id<Attribute>, String, usize, usize)> = Vec::new();
                         s.attributes.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
                         if ordered.is_empty() {

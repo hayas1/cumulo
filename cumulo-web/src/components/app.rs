@@ -5,7 +5,7 @@ use super::{
 };
 use crate::platform::{AttributeValue, EntityValue};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Bipartite, Entity};
+use cumulo_model::model::{Attribute, Bipartite, Entity, Id};
 
 use icondata as icon;
 use leptos::*;
@@ -15,7 +15,7 @@ use leptos_router::*;
 #[component]
 pub fn App() -> impl IntoView {
     let bipartite = create_rw_signal::<Bipartite<EntityValue, AttributeValue>>(AppStorage::load());
-    let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
+    let selected_tags = create_rw_signal(Vec::<(Id<Attribute>, Id<Attribute>)>::new());
     let editing = create_rw_signal(Option::<Entity<EntityValue>>::None);
     let settings_open = create_rw_signal(false);
     let import_toast = create_rw_signal(Option::<String>::None);
@@ -83,10 +83,10 @@ pub fn App() -> impl IntoView {
 #[component]
 fn MapView(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(String, String)>>,
+    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
     editing: RwSignal<Option<Entity<EntityValue>>>,
 ) -> impl IntoView {
-    let selected_entity_id = create_rw_signal(Option::<String>::None);
+    let selected_entity_id = create_rw_signal(Option::<Id<Entity>>::None);
     let zoom_level = create_rw_signal(0u32);
     // ズーム軸＝ディメンション。既定は一番上の facet（最初のディメンション）。
     let zoom_dim = create_rw_signal({

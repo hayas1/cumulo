@@ -41,7 +41,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{AttributeForest, AttributeNode, NoValue, Entity};
+    use crate::model::{AttributeForest, Attribute, NoValue, Entity};
     use std::collections::HashMap;
 
     fn make_bipartite() -> Bipartite {
@@ -56,10 +56,10 @@ mod tests {
                 value: NoValue {},
             }],
             attributes: AttributeForest(vec![
-                AttributeNode { id: "platform".into(), label: "プラットフォーム".into(), parent: None, value: NoValue {} },
-                AttributeNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("platform".into()), value: NoValue {} },
-                AttributeNode { id: "env".into(), label: "環境".into(), parent: None, value: NoValue {} },
-                AttributeNode { id: "prod".into(), label: "prod".into(), parent: Some("env".into()), value: NoValue {} },
+                Attribute { id: "platform".into(), label: "プラットフォーム".into(), parent: None, value: NoValue {} },
+                Attribute { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("platform".into()), value: NoValue {} },
+                Attribute { id: "env".into(), label: "環境".into(), parent: None, value: NoValue {} },
+                Attribute { id: "prod".into(), label: "prod".into(), parent: Some("env".into()), value: NoValue {} },
             ]),
         }
     }
@@ -81,7 +81,7 @@ mod tests {
         let json = serde_json::json!({
             "cumulo_version": 99,
             "exported_at": "2026-06-10T00:00:00.000Z",
-            "store": { "resources": [], "dimensions": [] }
+            "store": { "entities": [], "attributes": [] }
         })
         .to_string();
         assert!(ExportData::<NoValue>::parse(&json).is_err());

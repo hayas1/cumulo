@@ -1,12 +1,12 @@
 use crate::platform::{AttributeValue, EntityValue};
-use cumulo_model::model::Bipartite;
+use cumulo_model::model::{Attribute, Bipartite, Id};
 use cumulo_model::query::Query;
 use leptos::*;
 
 #[component]
 pub fn Palette(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(String, String)>>,
+    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());
     let focused_index = create_rw_signal(Option::<usize>::None);
@@ -31,7 +31,7 @@ pub fn Palette(
         avail
     });
 
-    let commit_tag = move |k: String, v: String| {
+    let commit_tag = move |k: Id<Attribute>, v: Id<Attribute>| {
         selected_tags.update(|t| {
             t.retain(|(tk, _)| tk != &k);
             t.push((k, v));
@@ -59,9 +59,9 @@ pub fn Palette(
                             let v2 = v.clone();
                             view! {
                                 <span class="tag-pill">
-                                    <span class="pill-key">{k.clone()}</span>
+                                    <span class="pill-key">{k.to_string()}</span>
                                     <span class="pill-sep">":"</span>
-                                    <span class="pill-val">{v.clone()}</span>
+                                    <span class="pill-val">{v.to_string()}</span>
                                     <button
                                         class="pill-remove"
                                         on:click=move |_| {
@@ -159,9 +159,9 @@ pub fn Palette(
                                                     commit_tag(k2.clone(), v2.clone());
                                                 }
                                             >
-                                                <span class="sug-key">{k}</span>
+                                                <span class="sug-key">{k.to_string()}</span>
                                                 <span class="sug-sep">":"</span>
-                                                <span class="sug-val">{v}</span>
+                                                <span class="sug-val">{v.to_string()}</span>
                                             </button>
                                         }
                                     })
@@ -202,9 +202,9 @@ pub fn Palette(
                                             commit_tag(k2.clone(), v2.clone());
                                         }
                                     >
-                                        <span class="sug-key">{k}</span>
+                                        <span class="sug-key">{k.to_string()}</span>
                                         ":"
-                                        <span class="sug-val">{v}</span>
+                                        <span class="sug-val">{v.to_string()}</span>
                                     </button>
                                 }
                             })

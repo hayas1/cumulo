@@ -1,3 +1,4 @@
+use cumulo_model::model::{Attribute, Entity, Id};
 use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::{JsCast, JsValue};
@@ -12,7 +13,7 @@ pub struct EntityValue {
     pub freq: u32,
 }
 
-/// Web 層が AttributeNode に付与するビジュアル属性。
+/// Web 層が Attribute に付与するビジュアル属性。
 /// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct AttributeValue {
@@ -24,14 +25,14 @@ pub struct AttributeValue {
 pub struct Platform;
 
 impl Platform {
-    pub fn new_node_id() -> String {
+    pub fn new_node_id() -> Id<Attribute> {
         let n = (js_sys::Math::random() * 1e15) as u64;
-        format!("node{n:x}")
+        format!("node{n:x}").into()
     }
 
-    pub fn new_resource_id() -> String {
+    pub fn new_entity_id() -> Id<Entity> {
         let n = (js_sys::Math::random() * 1e15) as u64;
-        format!("r{n:x}")
+        format!("r{n:x}").into()
     }
 
     pub fn random_color() -> String {

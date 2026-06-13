@@ -1,6 +1,6 @@
 use super::facet_sidebar::FacetSidebar;
 use crate::platform::{AttributeValue, EntityValue, Platform};
-use cumulo_model::model::{Bipartite, Entity};
+use cumulo_model::model::{Attribute, Bipartite, Entity, Id};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -8,7 +8,7 @@ use leptos_icons::Icon;
 #[component]
 pub fn FacetView(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(String, String)>>,
+    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
     editing: RwSignal<Option<Entity<EntityValue>>>,
 ) -> impl IntoView {
     let filtered_ids = create_memo(move |_| {
@@ -75,8 +75,8 @@ pub fn FacetView(
                                                     .unwrap_or_default();
                                                 let label = s.attributes.node(v)
                                                     .map(|n| n.label.clone())
-                                                    .unwrap_or_else(|| v.clone());
-                                                (k.clone(), label, color)
+                                                    .unwrap_or_else(|| v.to_string());
+                                                (k.to_string(), label, color)
                                             })
                                             .collect();
 

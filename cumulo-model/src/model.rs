@@ -2,6 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+pub use crate::id::Id;
+
 /// UI などが追加するビジュアル属性を持たない既定値。
 /// `#[serde(flatten)]` で展開されるので JSON に余分なフィールドは追加されない。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -9,11 +11,11 @@ pub struct NoValue {}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Entity<V = NoValue> {
-    pub id: String,
+    pub id: Id<Entity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     /// キーは軸の根id。値はその軸内のノードid。
-    pub attributes: HashMap<String, String>,
+    pub attributes: HashMap<Id<Attribute>, Id<Attribute>>,
     #[serde(flatten)]
     pub value: V,
 }
@@ -21,7 +23,7 @@ pub struct Entity<V = NoValue> {
 impl<V: Default> Default for Entity<V> {
     fn default() -> Self {
         Entity {
-            id: String::new(),
+            id: Id::<Entity>::default(),
             label: None,
             attributes: HashMap::new(),
             value: V::default(),
@@ -42,7 +44,7 @@ impl<V> Entity<V> {
             .filter_map(|v| forest.node(v))
             .map(|n| {
                 if n.label.is_empty() {
-                    n.id.clone()
+                    n.id.to_string()
                 } else {
                     n.label.clone()
                 }
@@ -56,19 +58,19 @@ impl<V> Entity<V> {
         }
     }
 
-    pub fn attribute(&self, root_id: &str) -> Option<&str> {
-        self.attributes.get(root_id).map(String::as_str)
+    pub fn attribute(&self, root_id: &Id<Attribute>) -> Option<&Id<Attribute>> {
+        self.attributes.get(root_id)
     }
 }
 
 /// parent が None のノードが軸の根（＝属性キー）となる。
-/// リソースの value は { 根id → ノードid } で表現する。
+/// エンティティの value は { 根id → ノードid } で表現する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct AttributeNode<A = NoValue> {
-    pub id: String,
+pub struct Attribute<A = NoValue> {
+    pub id: Id<Attribute>,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent: Option<String>,
+    pub parent: Option<Id<Attribute>>,
     /// `A = NoValue` のとき flatten は何も追加しない。
     /// web 層は `A = AttributeValue { color }` を指定して color を同じ JSON レベルに展開する。
     #[serde(flatten)]
@@ -78,10 +80,10 @@ pub struct AttributeNode<A = NoValue> {
 /// parent リンクで森を構成する。parent が None のノードが軸の根となる。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 #[serde(transparent)]
-pub struct AttributeForest<A = NoValue>(pub Vec<AttributeNode<A>>);
+pub struct AttributeForest<A = NoValue>(pub Vec<Attribute<A>>);
 
 impl<A> std::ops::Deref for AttributeForest<A> {
-    type Target = Vec<AttributeNode<A>>;
+    type Target = Vec<Attribute<A>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -94,20 +96,20 @@ impl<A> std::ops::DerefMut for AttributeForest<A> {
 }
 
 impl<A> AttributeForest<A> {
-    pub fn roots(&self) -> Vec<&AttributeNode<A>> {
+    pub fn roots(&self) -> Vec<&Attribute<A>> {
         self.iter().filter(|n| n.parent.is_none()).collect()
     }
 
-    pub fn children_of(&self, parent_id: &str) -> Vec<&AttributeNode<A>> {
+    pub fn children_of(&self, parent_id: &Id<Attribute>) -> Vec<&Attribute<A>> {
         self.iter()
-            .filter(|n| n.parent.as_deref() == Some(parent_id))
+            .filter(|n| n.parent.as_ref() == Some(parent_id))
             .collect()
     }
 
     /// 軸の根 (parent==None) の id は含めない（根はキーであり値ではない）。
-    pub fn ancestry(&self, id: &str) -> Vec<String> {
+    pub fn ancestry(&self, id: &Id<Attribute>) -> Vec<Id<Attribute>> {
         let mut chain = Vec::new();
-        let mut cur = Some(id.to_string());
+        let mut cur = Some(id.clone());
         while let Some(c) = cur {
             if chain.contains(&c) {
                 break;
@@ -123,8 +125,8 @@ impl<A> AttributeForest<A> {
         chain
     }
 
-    pub fn root_of(&self, id: &str) -> Option<String> {
-        let mut cur = id.to_string();
+    pub fn root_of(&self, id: &Id<Attribute>) -> Option<Id<Attribute>> {
+        let mut cur = id.clone();
         let mut seen = HashSet::new();
         loop {
             if !seen.insert(cur.clone()) {
@@ -149,33 +151,36 @@ impl<A> AttributeForest<A> {
         }
     }
 
-    pub fn node(&self, id: &str) -> Option<&AttributeNode<A>> {
-        self.iter().find(|n| n.id == id)
+    pub fn node(&self, id: &Id<Attribute>) -> Option<&Attribute<A>> {
+        self.iter().find(|n| &n.id == id)
     }
 
-    pub fn ancestry_contains(&self, start: &str, target: &str) -> bool {
-        let mut cur = Some(start.to_string());
+    pub fn ancestry_contains(&self, start: &Id<Attribute>, target: &Id<Attribute>) -> bool {
+        let mut cur = Some(start.clone());
         let mut seen = HashSet::new();
         while let Some(c) = cur {
-            if c == target {
+            if &c == target {
                 return true;
             }
             if !seen.insert(c.clone()) {
                 break;
             }
-            cur = self.iter().find(|n| n.id == c).and_then(|n| n.parent.clone());
+            cur = self
+                .iter()
+                .find(|n| n.id == c)
+                .and_then(|n| n.parent.clone());
         }
         false
     }
 
-    pub fn collect_descendants(&self, root: &str) -> HashSet<String> {
+    pub fn collect_descendants(&self, root: &Id<Attribute>) -> HashSet<Id<Attribute>> {
         let mut out = HashSet::new();
         self.collect_descendants_rec(root, &mut out);
         out
     }
 
-    fn collect_descendants_rec(&self, id: &str, out: &mut HashSet<String>) {
-        if !out.insert(id.to_string()) {
+    fn collect_descendants_rec(&self, id: &Id<Attribute>, out: &mut HashSet<Id<Attribute>>) {
+        if !out.insert(id.clone()) {
             return;
         }
         for child in self.children_of(id) {
@@ -185,9 +190,9 @@ impl<A> AttributeForest<A> {
 
     pub fn dfs_order(
         &self,
-        root_id: &str,
-        collapsed: &HashSet<String>,
-    ) -> Vec<(String, usize, bool)> {
+        root_id: &Id<Attribute>,
+        collapsed: &HashSet<Id<Attribute>>,
+    ) -> Vec<(Id<Attribute>, usize, bool)> {
         let mut out = Vec::new();
         self.dfs_order_rec(root_id, 0, collapsed, &mut out);
         out
@@ -195,15 +200,15 @@ impl<A> AttributeForest<A> {
 
     fn dfs_order_rec(
         &self,
-        parent_id: &str,
+        parent_id: &Id<Attribute>,
         depth: usize,
-        collapsed: &HashSet<String>,
-        out: &mut Vec<(String, usize, bool)>,
+        collapsed: &HashSet<Id<Attribute>>,
+        out: &mut Vec<(Id<Attribute>, usize, bool)>,
     ) {
         for child in self.children_of(parent_id) {
             let has_children = !self.children_of(&child.id).is_empty();
             out.push((child.id.clone(), depth, has_children));
-            if has_children && !collapsed.contains(&child.id) {
+            if has_children && !collapsed.contains(child.id.as_str()) {
                 self.dfs_order_rec(&child.id, depth + 1, collapsed, out);
             }
         }
@@ -212,13 +217,13 @@ impl<A> AttributeForest<A> {
     /// 深さ優先で子孫を列挙し、counts > 0 のノードのみ (id, label, depth, count) を out に追加する。
     pub fn dfs_collect_counts(
         &self,
-        parent_id: &str,
+        parent_id: &Id<Attribute>,
         depth: usize,
-        counts: &HashMap<String, usize>,
-        out: &mut Vec<(String, String, usize, usize)>,
+        counts: &HashMap<Id<Attribute>, usize>,
+        out: &mut Vec<(Id<Attribute>, String, usize, usize)>,
     ) {
         for child in self.children_of(parent_id) {
-            let cnt = counts.get(&child.id).copied().unwrap_or(0);
+            let cnt = counts.get(child.id.as_str()).copied().unwrap_or(0);
             if cnt == 0 {
                 continue;
             }
@@ -227,80 +232,87 @@ impl<A> AttributeForest<A> {
         }
     }
 
-    pub fn reparent(&mut self, dragged: &str, new_parent: Option<String>) {
+    pub fn reparent(&mut self, dragged: &Id<Attribute>, new_parent: Option<Id<Attribute>>) {
         if let Some(np) = &new_parent {
             if np == dragged || self.ancestry_contains(np, dragged) {
                 return;
             }
         }
-        if let Some(n) = self.iter_mut().find(|n| n.id == dragged) {
+        if let Some(n) = self.iter_mut().find(|n| &n.id == dragged) {
             n.parent = new_parent;
         }
     }
 
-    pub fn move_relative(&mut self, dragged: &str, target: &str, after: bool) {
+    pub fn move_relative(&mut self, dragged: &Id<Attribute>, target: &Id<Attribute>, after: bool) {
         if dragged == target {
             return;
         }
-        let new_parent = self.iter().find(|n| n.id == target).and_then(|n| n.parent.clone());
+        let new_parent = self
+            .iter()
+            .find(|n| &n.id == target)
+            .and_then(|n| n.parent.clone());
         if let Some(np) = &new_parent {
             if self.ancestry_contains(np, dragged) {
                 return;
             }
         }
-        let Some(dpos) = self.iter().position(|n| n.id == dragged) else {
+        let Some(dpos) = self.iter().position(|n| &n.id == dragged) else {
             return;
         };
         let mut node = self.remove(dpos);
         node.parent = new_parent;
         let tpos = self
             .iter()
-            .position(|n| n.id == target)
+            .position(|n| &n.id == target)
             .unwrap_or(self.len());
         let insert_at = if after { tpos + 1 } else { tpos };
         let len = self.len();
         self.insert(insert_at.min(len), node);
     }
 
-    pub fn delete_promote(&mut self, node_id: &str) {
+    pub fn delete_promote(&mut self, node_id: &Id<Attribute>) {
         let parent = self
             .iter()
-            .find(|n| n.id == node_id)
+            .find(|n| &n.id == node_id)
             .and_then(|n| n.parent.clone());
         for child in self.iter_mut() {
-            if child.parent.as_deref() == Some(node_id) {
+            if child.parent.as_ref() == Some(node_id) {
                 child.parent = parent.clone();
             }
         }
-        self.retain(|n| n.id != node_id);
+        self.retain(|n| &n.id != node_id);
     }
 
-    pub fn delete_subtree(&mut self, node_id: &str) {
+    pub fn delete_subtree(&mut self, node_id: &Id<Attribute>) {
         let doomed = self.collect_descendants(node_id);
-        self.retain(|n| !doomed.contains(&n.id));
+        self.retain(|n| !doomed.contains(n.id.as_str()));
     }
 
-    pub fn rename_node(&mut self, old_id: &str, new_id: &str, label: &str, value: A) {
-        if old_id != new_id {
+    pub fn rename_node(
+        &mut self,
+        old_id: &Id<Attribute>,
+        new_id: Id<Attribute>,
+        label: &str,
+        value: A,
+    ) {
+        if old_id != &new_id {
             for other in self.iter_mut() {
-                if other.parent.as_deref() == Some(old_id) {
-                    other.parent = Some(new_id.to_string());
+                if other.parent.as_ref() == Some(old_id) {
+                    other.parent = Some(new_id.clone());
                 }
             }
         }
-        if let Some(n) = self.iter_mut().find(|n| n.id == old_id) {
-            n.id = new_id.to_string();
+        if let Some(n) = self.iter_mut().find(|n| &n.id == old_id) {
+            n.id = new_id;
             n.label = label.to_string();
             n.value = value;
         }
     }
 
-    /// (node, depth, has_children, parent_id) のフラットリストを DFS 順で返す。
-    /// entity_form の葉グルーピングなど呼び出し側が parent_id を使いたいケース向け。
     pub fn subtree_flat<'a>(
         &'a self,
-        root_id: &'a str,
-    ) -> Vec<(&'a AttributeNode<A>, usize, bool, &'a str)> {
+        root_id: &'a Id<Attribute>,
+    ) -> Vec<(&'a Attribute<A>, usize, bool, &'a Id<Attribute>)> {
         let mut out = Vec::new();
         self.subtree_flat_rec(root_id, 0, &mut out);
         out
@@ -308,9 +320,9 @@ impl<A> AttributeForest<A> {
 
     fn subtree_flat_rec<'a>(
         &'a self,
-        parent_id: &'a str,
+        parent_id: &'a Id<Attribute>,
         depth: usize,
-        out: &mut Vec<(&'a AttributeNode<A>, usize, bool, &'a str)>,
+        out: &mut Vec<(&'a Attribute<A>, usize, bool, &'a Id<Attribute>)>,
     ) {
         for child in self.children_of(parent_id) {
             let has_children = !self.children_of(&child.id).is_empty();
@@ -329,20 +341,16 @@ pub struct Bipartite<RV = NoValue, DV = NoValue> {
 impl<RV, DV> Bipartite<RV, DV> {
     pub fn filter_entities<'a>(
         &'a self,
-        selected_tags: &[(String, String)],
+        selected_tags: &[(Id<Attribute>, Id<Attribute>)],
     ) -> Vec<&'a Entity<RV>> {
         self.entities
             .iter()
-            .filter(|r| {
-                selected_tags
-                    .iter()
-                    .all(|(k, v)| self.tag_matches(r, k, v))
-            })
+            .filter(|r| selected_tags.iter().all(|(k, v)| self.tag_matches(r, k, v)))
             .collect()
     }
 
-    fn tag_matches(&self, r: &Entity<RV>, k: &str, v: &str) -> bool {
-        let Some(rv) = r.attributes.get(k) else {
+    fn tag_matches(&self, r: &Entity<RV>, k: &Id<Attribute>, v: &Id<Attribute>) -> bool {
+        let Some(rv) = r.attributes.get(k.as_str()) else {
             return false;
         };
         if rv == v {
@@ -351,14 +359,17 @@ impl<RV, DV> Bipartite<RV, DV> {
         self.attributes.ancestry(rv).iter().any(|a| a == v)
     }
 
-    pub fn available_tags(&self, selected: &[(String, String)]) -> Vec<(String, String)> {
+    pub fn available_tags(
+        &self,
+        selected: &[(Id<Attribute>, Id<Attribute>)],
+    ) -> Vec<(Id<Attribute>, Id<Attribute>)> {
         let filtered = self.filter_entities(selected);
         let selected_set: HashSet<(&str, &str)> = selected
             .iter()
             .map(|(k, v)| (k.as_str(), v.as_str()))
             .collect();
 
-        let mut tags: HashSet<(String, String)> = HashSet::new();
+        let mut tags: HashSet<(Id<Attribute>, Id<Attribute>)> = HashSet::new();
         for r in &filtered {
             for (k, v) in &r.attributes {
                 if !selected_set.contains(&(k.as_str(), v.as_str())) {
@@ -372,8 +383,8 @@ impl<RV, DV> Bipartite<RV, DV> {
             }
         }
 
-        let mut tags_vec: Vec<(String, String)> = tags.into_iter().collect();
-        tags_vec.sort();
+        let mut tags_vec: Vec<(Id<Attribute>, Id<Attribute>)> = tags.into_iter().collect();
+        tags_vec.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
         tags_vec
     }
 }
@@ -386,37 +397,78 @@ pub(crate) mod tests {
         // platform > cloud > gcp > bigquery / bigtable
         //                  > aws > s3
         AttributeForest(vec![
-            AttributeNode { id: "platform".into(), label: "Platform".into(), parent: None, value: NoValue {} },
-            AttributeNode { id: "cloud".into(), label: "Cloud".into(), parent: Some("platform".into()), value: NoValue {} },
-            AttributeNode { id: "gcp".into(), label: "GCP".into(), parent: Some("cloud".into()), value: NoValue {} },
-            AttributeNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("gcp".into()), value: NoValue {} },
-            AttributeNode { id: "bigtable".into(), label: "Bigtable".into(), parent: Some("gcp".into()), value: NoValue {} },
-            AttributeNode { id: "aws".into(), label: "AWS".into(), parent: Some("cloud".into()), value: NoValue {} },
-            AttributeNode { id: "s3".into(), label: "S3".into(), parent: Some("aws".into()), value: NoValue {} },
+            Attribute {
+                id: "platform".into(),
+                label: "Platform".into(),
+                parent: None,
+                value: NoValue {},
+            },
+            Attribute {
+                id: "cloud".into(),
+                label: "Cloud".into(),
+                parent: Some("platform".into()),
+                value: NoValue {},
+            },
+            Attribute {
+                id: "gcp".into(),
+                label: "GCP".into(),
+                parent: Some("cloud".into()),
+                value: NoValue {},
+            },
+            Attribute {
+                id: "bigquery".into(),
+                label: "BigQuery".into(),
+                parent: Some("gcp".into()),
+                value: NoValue {},
+            },
+            Attribute {
+                id: "bigtable".into(),
+                label: "Bigtable".into(),
+                parent: Some("gcp".into()),
+                value: NoValue {},
+            },
+            Attribute {
+                id: "aws".into(),
+                label: "AWS".into(),
+                parent: Some("cloud".into()),
+                value: NoValue {},
+            },
+            Attribute {
+                id: "s3".into(),
+                label: "S3".into(),
+                parent: Some("aws".into()),
+                value: NoValue {},
+            },
         ])
     }
 
     #[test]
     fn ancestry_walks_to_root_exclusive() {
         let f = test_forest();
-        assert_eq!(f.ancestry("bigquery"), vec!["bigquery", "gcp", "cloud"]);
-        assert_eq!(f.ancestry("cloud"), vec!["cloud"]);
-        assert_eq!(f.ancestry("unknown"), Vec::<String>::new());
+        assert_eq!(
+            f.ancestry(&"bigquery".into()),
+            vec!["bigquery".into(), "gcp".into(), "cloud".into()]
+        );
+        assert_eq!(
+            f.ancestry(&"cloud".into()),
+            vec![Id::<Attribute>::from("cloud")]
+        );
+        assert_eq!(f.ancestry(&"unknown".into()), Vec::<Id<Attribute>>::new());
     }
 
     #[test]
     fn ancestry_contains_detects_ancestor() {
         let f = test_forest();
-        assert!(f.ancestry_contains("bigquery", "gcp"));
-        assert!(f.ancestry_contains("bigquery", "cloud"));
-        assert!(!f.ancestry_contains("bigquery", "s3"));
-        assert!(!f.ancestry_contains("bigquery", "bigtable"));
+        assert!(f.ancestry_contains(&"bigquery".into(), &"gcp".into()));
+        assert!(f.ancestry_contains(&"bigquery".into(), &"cloud".into()));
+        assert!(!f.ancestry_contains(&"bigquery".into(), &"s3".into()));
+        assert!(!f.ancestry_contains(&"bigquery".into(), &"bigtable".into()));
     }
 
     #[test]
     fn collect_descendants_includes_self_and_all_children() {
         let f = test_forest();
-        let desc = f.collect_descendants("gcp");
+        let desc = f.collect_descendants(&"gcp".into());
         assert!(desc.contains("gcp"));
         assert!(desc.contains("bigquery"));
         assert!(desc.contains("bigtable"));
@@ -430,15 +482,29 @@ pub(crate) mod tests {
         let bipartite = Bipartite {
             attributes: f,
             entities: vec![
-                Entity { id: "a".into(), label: None, attributes: HashMap::from([("platform".into(), "bigquery".into())]), value: NoValue {} },
-                Entity { id: "b".into(), label: None, attributes: HashMap::from([("platform".into(), "s3".into())]), value: NoValue {} },
-                Entity { id: "c".into(), label: None, attributes: HashMap::from([("platform".into(), "bigtable".into())]), value: NoValue {} },
+                Entity {
+                    id: "a".into(),
+                    label: None,
+                    attributes: HashMap::from([("platform".into(), "bigquery".into())]),
+                    value: NoValue {},
+                },
+                Entity {
+                    id: "b".into(),
+                    label: None,
+                    attributes: HashMap::from([("platform".into(), "s3".into())]),
+                    value: NoValue {},
+                },
+                Entity {
+                    id: "c".into(),
+                    label: None,
+                    attributes: HashMap::from([("platform".into(), "bigtable".into())]),
+                    value: NoValue {},
+                },
             ],
         };
         let got = bipartite.filter_entities(&[("platform".into(), "gcp".into())]);
-        let ids: Vec<&str> = got.iter().map(|r| r.id.as_str()).collect();
-        assert!(ids.contains(&"a"));
-        assert!(ids.contains(&"c"));
-        assert!(!ids.contains(&"b"));
+        assert!(got.iter().any(|r| r.id.as_str() == "a"));
+        assert!(got.iter().any(|r| r.id.as_str() == "c"));
+        assert!(!got.iter().any(|r| r.id.as_str() == "b"));
     }
 }

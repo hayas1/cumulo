@@ -1,6 +1,6 @@
 use crate::platform::{AttributeValue, EntityValue, Platform};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Bipartite, AttributeNode};
+use cumulo_model::model::{Attribute, Bipartite, Id};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -14,29 +14,29 @@ use wasm_bindgen::JsCast;
 struct DimTabActions(RwSignal<Bipartite<EntityValue, AttributeValue>>);
 
 impl DimTabActions {
-    fn reparent(self, dragged: String, new_parent: Option<String>) {
+    fn reparent(self, dragged: Id<Attribute>, new_parent: Option<Id<Attribute>>) {
         self.0.update(|s| s.attributes.reparent(&dragged, new_parent));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn move_relative(self, dragged: String, target: String, after: bool) {
+    fn move_relative(self, dragged: Id<Attribute>, target: Id<Attribute>, after: bool) {
         self.0.update(|s| s.attributes.move_relative(&dragged, &target, after));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn delete_promote(self, node_id: String) {
+    fn delete_promote(self, node_id: Id<Attribute>) {
         self.0.update(|s| s.attributes.delete_promote(&node_id));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn delete_subtree(self, node_id: String) {
+    fn delete_subtree(self, node_id: Id<Attribute>) {
         self.0.update(|s| s.attributes.delete_subtree(&node_id));
         AppStorage::save(&self.0.get_untracked());
     }
 
     fn commit_node_edit(
         self,
-        editing_id: RwSignal<Option<String>>,
+        editing_id: RwSignal<Option<Id<Attribute>>>,
         id_ref: NodeRef<Input>,
         label_ref: NodeRef<Input>,
         color_ref: NodeRef<Input>,
@@ -52,7 +52,7 @@ impl DimTabActions {
         }
         self.0.update(|s| {
             s.attributes
-                .rename_node(&old_id, &new_id, &new_label, AttributeValue { color: new_color })
+                .rename_node(&old_id, new_id.into(), &new_label, AttributeValue { color: new_color })
         });
         AppStorage::save(&self.0.get_untracked());
         editing_id.set(None);
@@ -114,15 +114,15 @@ impl UiHelper {
 
 #[component]
 pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>) -> impl IntoView {
-    let editing_id = create_rw_signal(Option::<String>::None);
+    let editing_id = create_rw_signal(Option::<Id<Attribute>>::None);
     let id_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();
     let color_ref = create_node_ref::<Input>();
     let preview_color = create_rw_signal(String::new());
 
-    let collapsed = create_rw_signal(HashSet::<String>::new());
-    let dragging = create_rw_signal(Option::<String>::None);
-    let drag_over = create_rw_signal(Option::<(String, u8)>::None);
+    let collapsed = create_rw_signal(HashSet::<Id<Attribute>>::new());
+    let dragging = create_rw_signal(Option::<Id<Attribute>>::None);
+    let drag_over = create_rw_signal(Option::<(Id<Attribute>, u8)>::None);
 
     let confirm = ConfirmState {
         msg: create_rw_signal(None),
@@ -130,7 +130,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
     };
     let acts = DimTabActions(bipartite);
 
-    let delete_target = create_rw_signal(Option::<(String, bool)>::None);
+    let delete_target = create_rw_signal(Option::<(Id<Attribute>, bool)>::None);
 
     create_effect(move |_| {
         let Some(eid) = editing_id.get() else {
@@ -161,7 +161,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                 let current_editing = editing_id.get();
                 let is_dragging = dragging.get().is_some();
 
-                let root_nodes: Vec<AttributeNode<AttributeValue>> = s
+                let root_nodes: Vec<Attribute<AttributeValue>> = s
                     .attributes
                     .iter()
                     .filter(|n| n.parent.is_none())
@@ -178,7 +178,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                         let root_id_add = root.id.clone();
 
                         let order = s.attributes.dfs_order(&root.id, &collapsed_set);
-                        let sentinel = format!("\x00root:{}", root.id);
+                        let sentinel: Id<Attribute> = format!("\x00root:{}", root.id).into();
 
                         let is_root_editing = current_editing.as_deref() == Some(root.id.as_str());
 
@@ -274,7 +274,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                                         root.label.clone()
                                                     }}
                                                 </span>
-                                                <span class="dim-id-text">{root.id.clone()}</span>
+                                                <span class="dim-id-text">{root.id.to_string()}</span>
                                             </button>
                                         }
                                         .into_view()
@@ -355,7 +355,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                                 .unwrap();
                                             let node_color = n.value.color.clone();
                                             let node_label_text = if n.label.is_empty() {
-                                                n.id.clone()
+                                                n.id.to_string()
                                             } else {
                                                 n.label.clone()
                                             };
@@ -487,7 +487,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                                         }
                                                         on:click=move |_| {
                                                             let cur = editing_id.get_untracked();
-                                                            if cur.as_deref() != Some(&nid_click)
+                                                            if cur.as_deref() != Some(nid_click.as_str())
                                                                 && cur.is_some()
                                                             {
                                                                 acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
@@ -508,7 +508,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                                             let new_id = Platform::new_node_id();
                                                             let new_id2 = new_id.clone();
                                                             bipartite.update(|s| {
-                                                                s.attributes.push(AttributeNode {
+                                                                s.attributes.push(Attribute {
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
                                                                     value: AttributeValue {
@@ -629,7 +629,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                             let new_id = Platform::new_node_id();
                                             let new_id2 = new_id.clone();
                                             bipartite.update(|s| {
-                                                s.attributes.push(AttributeNode {
+                                                s.attributes.push(Attribute {
                                                     id: new_id.clone(),
                                                     label: String::new(),
                                                     value: AttributeValue {
@@ -658,7 +658,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                     let new_id = Platform::new_node_id();
                     let new_id2 = new_id.clone();
                     bipartite.update(|s| {
-                        s.attributes.push(AttributeNode {
+                        s.attributes.push(Attribute {
                             id: new_id.clone(),
                             label: String::new(),
                             value: AttributeValue { color: "#8899AA".to_string() },

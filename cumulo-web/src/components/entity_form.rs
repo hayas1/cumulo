@@ -1,6 +1,6 @@
 use crate::platform::{AttributeValue, EntityValue, Platform};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Bipartite, AttributeForest, Entity};
+use cumulo_model::model::{Attribute, AttributeForest, Bipartite, Entity, Id};
 
 use leptos::html::Input;
 use leptos::*;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 enum DimTreeItem {
     Branch {
-        id: String,
+        id: Id<Attribute>,
         label: String,
         color: String,
         depth: usize,
@@ -16,17 +16,17 @@ enum DimTreeItem {
     /// 同じ親を持つ葉ノードをまとめた行 (id, label, color)
     Leaves {
         depth: usize,
-        nodes: Vec<(String, String, String)>,
+        nodes: Vec<(Id<Attribute>, String, String)>,
     },
 }
 
-fn descendants_dfs(forest: &AttributeForest<AttributeValue>, root_id: &str) -> Vec<DimTreeItem> {
-    let mut flat: Vec<(String, String, String, usize, bool, String)> = Vec::new();
+fn descendants_dfs(forest: &AttributeForest<AttributeValue>, root_id: &Id<Attribute>) -> Vec<DimTreeItem> {
+    let mut flat: Vec<(Id<Attribute>, String, String, usize, bool, Id<Attribute>)> = Vec::new();
     fn dfs(
         forest: &AttributeForest<AttributeValue>,
-        parent_id: &str,
+        parent_id: &Id<Attribute>,
         depth: usize,
-        flat: &mut Vec<(String, String, String, usize, bool, String)>,
+        flat: &mut Vec<(Id<Attribute>, String, String, usize, bool, Id<Attribute>)>,
     ) {
         for n in forest.children_of(parent_id) {
             let has_children = !forest.children_of(&n.id).is_empty();
@@ -36,7 +36,7 @@ fn descendants_dfs(forest: &AttributeForest<AttributeValue>, root_id: &str) -> V
                 n.value.color.clone(),
                 depth,
                 has_children,
-                parent_id.to_string(),
+                parent_id.clone(),
             ));
             dfs(forest, &n.id, depth + 1, flat);
         }
@@ -95,7 +95,7 @@ pub fn EntityForm(
     let form_label = create_rw_signal(String::new());
     let form_url = create_rw_signal(String::new());
     let form_freq = create_rw_signal(1u32);
-    let form_dims = create_rw_signal(HashMap::<String, String>::new());
+    let form_dims = create_rw_signal(HashMap::<Id<Attribute>, Id<Attribute>>::new());
 
     let label_ref = create_node_ref::<Input>();
     let url_ref = create_node_ref::<Input>();
@@ -129,7 +129,7 @@ pub fn EntityForm(
                     .filter(|r| !r.id.is_empty())
                     .map(|r| r.id.clone())
             })
-            .unwrap_or_else(Platform::new_resource_id);
+            .unwrap_or_else(Platform::new_entity_id);
 
         let lbl = form_label.get_untracked();
         let r = Entity {
@@ -212,7 +212,7 @@ pub fn EntityForm(
                             .map(|root| {
                                 let root_id = root.id.clone();
                                 let root_label = if root.label.is_empty() {
-                                    root.id.clone()
+                                    root.id.to_string()
                                 } else {
                                     root.label.clone()
                                 };
