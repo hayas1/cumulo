@@ -1,21 +1,21 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::attribute::{Attribute, AttributeForest};
-use crate::entity::Entity;
 use crate::id::Id;
+use crate::resource::Resource;
+use crate::taxonomy::{Category, Taxonomy};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Bipartite<RV, DV> {
-    pub entities: Vec<Entity<RV, DV>>,
-    pub attributes: AttributeForest<DV>,
+    pub resources: Vec<Resource<RV, DV>>,
+    pub taxonomy: Taxonomy<DV>,
 }
 
 impl<RV, DV: Clone + PartialEq> Bipartite<RV, DV> {
-    pub fn filter_entities<'a>(
+    pub fn filter_resources<'a>(
         &'a self,
-        selected_tags: &[(Id<Attribute<DV>>, Id<Attribute<DV>>)],
-    ) -> Vec<&'a Entity<RV, DV>> {
-        self.entities
+        selected_tags: &[(Id<Category<DV>>, Id<Category<DV>>)],
+    ) -> Vec<&'a Resource<RV, DV>> {
+        self.resources
             .iter()
             .filter(|r| selected_tags.iter().all(|(k, v)| self.tag_matches(r, k, v)))
             .collect()
@@ -23,23 +23,30 @@ impl<RV, DV: Clone + PartialEq> Bipartite<RV, DV> {
 
     fn tag_matches(
         &self,
-        r: &Entity<RV, DV>,
-        k: &Id<Attribute<DV>>,
-        v: &Id<Attribute<DV>>,
+        r: &Resource<RV, DV>,
+        k: &Id<Category<DV>>,
+        v: &Id<Category<DV>>,
     ) -> bool {
-        let Some(rv) = r.attributes.get(k.as_str()) else {
+        let Some(rv) = r.categories.get(k.as_str()) else {
             return false;
         };
         if rv == v {
             return true;
         }
-        self.attributes.ancestry(rv).iter().any(|a| a == v)
+        self.taxonomy.ancestry(rv).iter().any(|a| a == v)
     }
 
-    /// 属性フォレストの non-root ノード（選択可能な属性値）へのビューを返す。
-    pub fn attribute_view(&self) -> AttributeView<'_, RV, DV> {
-        let view = self.attributes.iter().filter(|a| a.parent.is_some()).collect();
-        AttributeView { bipartite: self, view }
+    /// カテゴリフォレストの non-root ノード（選択可能なカテゴリ値）へのビューを返す。
+    pub fn category_view(&self) -> CategoryView<'_, RV, DV> {
+        let view = self
+            .taxonomy
+            .iter()
+            .filter(|a| a.parent.is_some())
+            .collect();
+        CategoryView {
+            bipartite: self,
+            view,
+        }
     }
 }
 
@@ -80,13 +87,13 @@ where
     }
 }
 
-/// Bipartite の属性フォレストに対するフィルタ可能なビュー。
-pub struct AttributeView<'a, RV, DV> {
+/// Bipartite のカテゴリフォレストに対するフィルタ可能なビュー。
+pub struct CategoryView<'a, RV, DV> {
     pub bipartite: &'a Bipartite<RV, DV>,
-    pub view: Vec<&'a Attribute<DV>>,
+    pub view: Vec<&'a Category<DV>>,
 }
 
-impl<'a, RV, DV> AttributeView<'a, RV, DV> {
+impl<'a, RV, DV> CategoryView<'a, RV, DV> {
     /// id または label に対してサブシーケンス照合でフィルタする。大文字小文字は区別しない。
     pub fn query(self, q: &str) -> Self {
         if q.is_empty() {
@@ -101,7 +108,10 @@ impl<'a, RV, DV> AttributeView<'a, RV, DV> {
                     || Self::subsequence_matches(&q_lower, &a.label.to_lowercase())
             })
             .collect();
-        AttributeView { bipartite: self.bipartite, view }
+        CategoryView {
+            bipartite: self.bipartite,
+            view,
+        }
     }
 
     /// "bq" → "bigquery" のような略称にも対応するサブシーケンス照合。
@@ -119,37 +129,36 @@ impl<'a, RV, DV> AttributeView<'a, RV, DV> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attribute::{tests::test_forest, Attribute, AttributeForest};
+    use crate::taxonomy::{tests::test_forest, Category, Taxonomy};
     use std::collections::HashMap;
-
 
     #[test]
     fn filter_selects_by_ancestry() {
         let f = test_forest();
         let bipartite: Bipartite<(), ()> = Bipartite {
-            attributes: f,
-            entities: vec![
-                Entity {
+            taxonomy: f,
+            resources: vec![
+                Resource {
                     id: "a".into(),
                     label: None,
-                    attributes: HashMap::from([("platform".into(), "bigquery".into())]),
+                    categories: HashMap::from([("platform".into(), "bigquery".into())]),
                     value: (),
                 },
-                Entity {
+                Resource {
                     id: "b".into(),
                     label: None,
-                    attributes: HashMap::from([("platform".into(), "s3".into())]),
+                    categories: HashMap::from([("platform".into(), "s3".into())]),
                     value: (),
                 },
-                Entity {
+                Resource {
                     id: "c".into(),
                     label: None,
-                    attributes: HashMap::from([("platform".into(), "bigtable".into())]),
+                    categories: HashMap::from([("platform".into(), "bigtable".into())]),
                     value: (),
                 },
             ],
         };
-        let got = bipartite.filter_entities(&[("platform".into(), "gcp".into())]);
+        let got = bipartite.filter_resources(&[("platform".into(), "gcp".into())]);
         assert!(got.iter().any(|r| r.id.as_str() == "a"));
         assert!(got.iter().any(|r| r.id.as_str() == "c"));
         assert!(!got.iter().any(|r| r.id.as_str() == "b"));
@@ -158,20 +167,40 @@ mod tests {
     #[test]
     fn roundtrip() {
         let bipartite: Bipartite<(), ()> = Bipartite {
-            entities: vec![Entity {
+            resources: vec![Resource {
                 id: "r1".into(),
                 label: Some("BigQuery (prod)".into()),
-                attributes: HashMap::from([
+                categories: HashMap::from([
                     ("platform".into(), "bigquery".into()),
                     ("env".into(), "prod".into()),
                 ]),
                 value: (),
             }],
-            attributes: AttributeForest(vec![
-                Attribute { id: "platform".into(), label: "プラットフォーム".into(), parent: None, value: () },
-                Attribute { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("platform".into()), value: () },
-                Attribute { id: "env".into(), label: "環境".into(), parent: None, value: () },
-                Attribute { id: "prod".into(), label: "prod".into(), parent: Some("env".into()), value: () },
+            taxonomy: Taxonomy(vec![
+                Category {
+                    id: "platform".into(),
+                    label: "プラットフォーム".into(),
+                    parent: None,
+                    value: (),
+                },
+                Category {
+                    id: "bigquery".into(),
+                    label: "BigQuery".into(),
+                    parent: Some("platform".into()),
+                    value: (),
+                },
+                Category {
+                    id: "env".into(),
+                    label: "環境".into(),
+                    parent: None,
+                    value: (),
+                },
+                Category {
+                    id: "prod".into(),
+                    label: "prod".into(),
+                    parent: Some("env".into()),
+                    value: (),
+                },
             ]),
         };
         let json = serde_json::to_string(&ExportData {
@@ -188,7 +217,7 @@ mod tests {
         let json = serde_json::json!({
             "cumulo_version": 99,
             "exported_at": "2026-06-10T00:00:00.000Z",
-            "store": { "entities": [], "attributes": [] }
+            "store": { "resources": [], "taxonomy": [] }
         })
         .to_string();
         assert!(ExportData::<(), ()>::parse(&json).is_err());
@@ -196,58 +225,82 @@ mod tests {
 
     #[test]
     fn abbreviation_matches() {
-        assert!(AttributeView::<(), ()>::subsequence_matches("bq", "bigquery"));
-        assert!(AttributeView::<(), ()>::subsequence_matches("gcs", "google-cloud-storage"));
+        assert!(CategoryView::<(), ()>::subsequence_matches(
+            "bq", "bigquery"
+        ));
+        assert!(CategoryView::<(), ()>::subsequence_matches(
+            "gcs",
+            "google-cloud-storage"
+        ));
     }
 
     #[test]
     fn substring_matches() {
-        assert!(AttributeView::<(), ()>::subsequence_matches("big", "bigquery"));
-        assert!(AttributeView::<(), ()>::subsequence_matches("query", "bigquery"));
+        assert!(CategoryView::<(), ()>::subsequence_matches(
+            "big", "bigquery"
+        ));
+        assert!(CategoryView::<(), ()>::subsequence_matches(
+            "query", "bigquery"
+        ));
     }
 
     #[test]
     fn no_match_when_char_missing() {
-        assert!(!AttributeView::<(), ()>::subsequence_matches("bq", "bigtable"));
-        assert!(!AttributeView::<(), ()>::subsequence_matches("bq", "storage"));
+        assert!(!CategoryView::<(), ()>::subsequence_matches(
+            "bq", "bigtable"
+        ));
+        assert!(!CategoryView::<(), ()>::subsequence_matches(
+            "bq", "storage"
+        ));
     }
 
     #[test]
     fn order_matters() {
-        assert!(!AttributeView::<(), ()>::subsequence_matches("qb", "bigquery"));
+        assert!(!CategoryView::<(), ()>::subsequence_matches(
+            "qb", "bigquery"
+        ));
     }
 
     #[test]
     fn empty_query_matches_any() {
-        assert!(AttributeView::<(), ()>::subsequence_matches("", "bigquery"));
-        assert!(AttributeView::<(), ()>::subsequence_matches("", ""));
+        assert!(CategoryView::<(), ()>::subsequence_matches("", "bigquery"));
+        assert!(CategoryView::<(), ()>::subsequence_matches("", ""));
     }
 
     #[test]
-    fn attribute_view_excludes_roots() {
+    fn category_view_excludes_roots() {
         let f = test_forest();
-        let bipartite: Bipartite<(), ()> = Bipartite { attributes: f, entities: vec![] };
-        let view = bipartite.attribute_view();
+        let bipartite: Bipartite<(), ()> = Bipartite {
+            taxonomy: f,
+            resources: vec![],
+        };
+        let view = bipartite.category_view();
         assert!(view.view.iter().all(|a| a.parent.is_some()));
         assert!(!view.view.is_empty());
     }
 
     #[test]
-    fn attribute_view_query_filters_by_id_and_label() {
+    fn category_view_query_filters_by_id_and_label() {
         let f = test_forest();
-        let bipartite: Bipartite<(), ()> = Bipartite { attributes: f, entities: vec![] };
-        let view = bipartite.attribute_view().query("bq");
+        let bipartite: Bipartite<(), ()> = Bipartite {
+            taxonomy: f,
+            resources: vec![],
+        };
+        let view = bipartite.category_view().query("bq");
         assert!(view.view.iter().any(|a| a.id.as_str() == "bigquery"));
         assert!(!view.view.iter().any(|a| a.id.as_str() == "s3"));
     }
 
     #[test]
-    fn attribute_view_empty_query_returns_all_non_roots() {
+    fn category_view_empty_query_returns_all_non_roots() {
         let f = test_forest();
-        let bipartite: Bipartite<(), ()> = Bipartite { attributes: f, entities: vec![] };
-        let all = bipartite.attribute_view().query("").view;
+        let bipartite: Bipartite<(), ()> = Bipartite {
+            taxonomy: f,
+            resources: vec![],
+        };
+        let all = bipartite.category_view().query("").view;
         let all_non_roots = bipartite
-            .attributes
+            .taxonomy
             .iter()
             .filter(|a| a.parent.is_some())
             .count();

@@ -1,11 +1,11 @@
 use super::{
-    controls::Controls, detail_panel::DetailPanel, facet_sidebar::FacetSidebar,
-    facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, entity_form::EntityForm,
+    controls::Controls, detail_panel::DetailPanel, entity_form::EntityForm,
+    facet_sidebar::FacetSidebar, facet_view::FacetView, map_canvas::MapCanvas, palette::Palette,
     settings_modal::SettingsModal,
 };
-use crate::platform::{AttributeId, AttributeValue, EntityId, EntityValue};
+use crate::platform::{CategoryId, CategoryValue, ResourceId, ResourceValue};
 use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Entity};
+use cumulo_model::{Bipartite, Resource};
 
 use icondata as icon;
 use leptos::*;
@@ -14,9 +14,9 @@ use leptos_router::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let bipartite = create_rw_signal::<Bipartite<EntityValue, AttributeValue>>(AppStorage::load());
-    let selected_tags = create_rw_signal(Vec::<(AttributeId, AttributeId)>::new());
-    let editing = create_rw_signal(Option::<Entity<EntityValue, AttributeValue>>::None);
+    let bipartite = create_rw_signal::<Bipartite<ResourceValue, CategoryValue>>(AppStorage::load());
+    let selected_tags = create_rw_signal(Vec::<(CategoryId, CategoryId)>::new());
+    let editing = create_rw_signal(Option::<Resource<ResourceValue, CategoryValue>>::None);
     let settings_open = create_rw_signal(false);
     let import_toast = create_rw_signal(Option::<String>::None);
     let return_to_settings = create_rw_signal(false);
@@ -82,19 +82,16 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn MapView(
-    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
-    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
 ) -> impl IntoView {
-    let selected_entity_id = create_rw_signal(Option::<EntityId>::None);
+    let selected_entity_id = create_rw_signal(Option::<ResourceId>::None);
     let zoom_level = create_rw_signal(0u32);
     // ズーム軸＝ディメンション。既定は一番上の facet（最初のディメンション）。
     let zoom_dim = create_rw_signal({
         let s = bipartite.get_untracked();
-        s.attributes
-            .first()
-            .map(|d| d.id.clone())
-            .unwrap_or_default()
+        s.taxonomy.first().map(|d| d.id.clone()).unwrap_or_default()
     });
 
     view! {

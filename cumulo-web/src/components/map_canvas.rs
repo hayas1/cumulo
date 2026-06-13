@@ -1,14 +1,14 @@
 use crate::map_bridge;
-use crate::platform::{AttributeId, AttributeValue, EntityId, EntityValue};
+use crate::platform::{CategoryId, CategoryValue, ResourceId, ResourceValue};
 use cumulo_model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
-    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
-    zoom_dim: RwSignal<AttributeId>,
-    selected_entity: RwSignal<Option<EntityId>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    zoom_dim: RwSignal<CategoryId>,
+    selected_entity: RwSignal<Option<ResourceId>>,
     zoom_level: RwSignal<u32>,
 ) -> impl IntoView {
     // ── Effect 1: D3初期化（一度だけ。シグナル依存なし）──────────────────────
@@ -40,7 +40,7 @@ pub fn MapCanvas(
 
     // ── Effect 2: リソースデータ更新 ─────────────────────────────────────────
     create_effect(move |_| {
-        let resources = &bipartite.get().entities;
+        let resources = &bipartite.get().resources;
         if let Ok(json) = serde_json::to_string(resources) {
             map_bridge::update_entities(&json);
         }
@@ -48,7 +48,7 @@ pub fn MapCanvas(
 
     // ── Effect 3b: ディメンション（カラー定義含む）更新 ──────────────────────
     create_effect(move |_| {
-        let dimensions = bipartite.get().attributes;
+        let dimensions = bipartite.get().taxonomy;
         if let Ok(json) = serde_json::to_string(&dimensions) {
             map_bridge::update_attributes(&json);
         }

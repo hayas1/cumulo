@@ -1,6 +1,6 @@
-use crate::platform::{AttributeId, AttributeValue, EntityValue, Platform};
+use crate::platform::{CategoryId, CategoryValue, Platform, ResourceValue};
 use crate::storage::AppStorage;
-use cumulo_model::{Attribute, Bipartite};
+use cumulo_model::{Bipartite, Category};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -11,32 +11,33 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(RwSignal<Bipartite<EntityValue, AttributeValue>>);
+struct DimTabActions(RwSignal<Bipartite<ResourceValue, CategoryValue>>);
 
 impl DimTabActions {
-    fn reparent(self, dragged: AttributeId, new_parent: Option<AttributeId>) {
-        self.0.update(|s| s.attributes.reparent(&dragged, new_parent));
+    fn reparent(self, dragged: CategoryId, new_parent: Option<CategoryId>) {
+        self.0.update(|s| s.taxonomy.reparent(&dragged, new_parent));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn move_relative(self, dragged: AttributeId, target: AttributeId, after: bool) {
-        self.0.update(|s| s.attributes.move_relative(&dragged, &target, after));
+    fn move_relative(self, dragged: CategoryId, target: CategoryId, after: bool) {
+        self.0
+            .update(|s| s.taxonomy.move_relative(&dragged, &target, after));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn delete_promote(self, node_id: AttributeId) {
-        self.0.update(|s| s.attributes.delete_promote(&node_id));
+    fn delete_promote(self, node_id: CategoryId) {
+        self.0.update(|s| s.taxonomy.delete_promote(&node_id));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn delete_subtree(self, node_id: AttributeId) {
-        self.0.update(|s| s.attributes.delete_subtree(&node_id));
+    fn delete_subtree(self, node_id: CategoryId) {
+        self.0.update(|s| s.taxonomy.delete_subtree(&node_id));
         AppStorage::save(&self.0.get_untracked());
     }
 
     fn commit_node_edit(
         self,
-        editing_id: RwSignal<Option<AttributeId>>,
+        editing_id: RwSignal<Option<CategoryId>>,
         id_ref: NodeRef<Input>,
         label_ref: NodeRef<Input>,
         color_ref: NodeRef<Input>,
@@ -44,15 +45,28 @@ impl DimTabActions {
         let Some(old_id) = editing_id.get_untracked() else {
             return;
         };
-        let new_id = id_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
-        let new_label = label_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
-        let new_color = color_ref.get_untracked().map(|el| el.value()).unwrap_or_default();
+        let new_id = id_ref
+            .get_untracked()
+            .map(|el| el.value())
+            .unwrap_or_default();
+        let new_label = label_ref
+            .get_untracked()
+            .map(|el| el.value())
+            .unwrap_or_default();
+        let new_color = color_ref
+            .get_untracked()
+            .map(|el| el.value())
+            .unwrap_or_default();
         if new_id.trim().is_empty() {
             return;
         }
         self.0.update(|s| {
-            s.attributes
-                .rename_node(&old_id, new_id.into(), &new_label, AttributeValue { color: new_color })
+            s.taxonomy.rename_node(
+                &old_id,
+                new_id.into(),
+                &new_label,
+                CategoryValue { color: new_color },
+            )
         });
         AppStorage::save(&self.0.get_untracked());
         editing_id.set(None);
@@ -113,16 +127,18 @@ impl UiHelper {
 }
 
 #[component]
-pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>) -> impl IntoView {
-    let editing_id = create_rw_signal(Option::<AttributeId>::None);
+pub fn AttributesTab(
+    bipartite: RwSignal<Bipartite<ResourceValue, CategoryValue>>,
+) -> impl IntoView {
+    let editing_id = create_rw_signal(Option::<CategoryId>::None);
     let id_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();
     let color_ref = create_node_ref::<Input>();
     let preview_color = create_rw_signal(String::new());
 
-    let collapsed = create_rw_signal(HashSet::<AttributeId>::new());
-    let dragging = create_rw_signal(Option::<AttributeId>::None);
-    let drag_over = create_rw_signal(Option::<(AttributeId, u8)>::None);
+    let collapsed = create_rw_signal(HashSet::<CategoryId>::new());
+    let dragging = create_rw_signal(Option::<CategoryId>::None);
+    let drag_over = create_rw_signal(Option::<(CategoryId, u8)>::None);
 
     let confirm = ConfirmState {
         msg: create_rw_signal(None),
@@ -130,7 +146,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
     };
     let acts = DimTabActions(bipartite);
 
-    let delete_target = create_rw_signal(Option::<(AttributeId, bool)>::None);
+    let delete_target = create_rw_signal(Option::<(CategoryId, bool)>::None);
 
     create_effect(move |_| {
         let Some(eid) = editing_id.get() else {
@@ -138,7 +154,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
             return;
         };
         let s = bipartite.get_untracked();
-        let Some(n) = s.attributes.iter().find(|n| n.id == eid) else {
+        let Some(n) = s.taxonomy.iter().find(|n| n.id == eid) else {
             return;
         };
         preview_color.set(n.value.color.clone());
@@ -161,8 +177,8 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                 let current_editing = editing_id.get();
                 let is_dragging = dragging.get().is_some();
 
-                let root_nodes: Vec<Attribute<AttributeValue>> = s
-                    .attributes
+                let root_nodes: Vec<Category<CategoryValue>> = s
+                    .taxonomy
                     .iter()
                     .filter(|n| n.parent.is_none())
                     .cloned()
@@ -177,8 +193,8 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                         let root_id_del = root.id.clone();
                         let root_id_add = root.id.clone();
 
-                        let order = s.attributes.dfs_order(&root.id, &collapsed_set);
-                        let sentinel: AttributeId = format!("\x00root:{}", root.id).into();
+                        let order = s.taxonomy.dfs_order(&root.id, &collapsed_set);
+                        let sentinel: CategoryId = format!("\x00root:{}", root.id).into();
 
                         let is_root_editing = current_editing.as_deref() == Some(root.id.as_str());
 
@@ -189,7 +205,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                     if let Some(ref eid) = editing_id.get() {
                                         *eid == root_id_active
                                             || bipartite.with(|s| {
-                                                s.attributes.root_of(eid)
+                                                s.taxonomy.root_of(eid)
                                                     .map(|r| r == root_id_active)
                                                     .unwrap_or(false)
                                             })
@@ -239,13 +255,13 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                                         editing_id.set(None);
                                                         bipartite.update(|s| {
                                                             if let Some(n) = s
-                                                                .attributes
+                                                                .taxonomy
                                                                 .iter()
                                                                 .find(|n| n.id == rid_cancel)
                                                             {
                                                                 if n.label.is_empty() && n.id.starts_with("node") {
                                                                     let id = n.id.clone();
-                                                                    s.attributes.retain(|n| n.id != id);
+                                                                    s.taxonomy.retain(|n| n.id != id);
                                                                 }
                                                             }
                                                         });
@@ -348,7 +364,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                         .map(|(node_id, depth, has_children)| {
                                             let row_ref = create_node_ref::<Div>();
                                             let n = s
-                                                .attributes
+                                                .taxonomy
                                                 .iter()
                                                 .find(|n| n.id == node_id)
                                                 .cloned()
@@ -508,10 +524,10 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                                             let new_id = Platform::new_node_id();
                                                             let new_id2 = new_id.clone();
                                                             bipartite.update(|s| {
-                                                                s.attributes.push(Attribute {
+                                                                s.taxonomy.push(Category {
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
-                                                                    value: AttributeValue {
+                                                                    value: CategoryValue {
                                                                         color: Platform::random_color(),
                                                                     },
                                                                     parent: Some(parent.clone()),
@@ -629,10 +645,10 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                                             let new_id = Platform::new_node_id();
                                             let new_id2 = new_id.clone();
                                             bipartite.update(|s| {
-                                                s.attributes.push(Attribute {
+                                                s.taxonomy.push(Category {
                                                     id: new_id.clone(),
                                                     label: String::new(),
-                                                    value: AttributeValue {
+                                                    value: CategoryValue {
                                                         color: Platform::random_color(),
                                                     },
                                                     parent: Some(root_id_add.clone()),
@@ -658,10 +674,10 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                     let new_id = Platform::new_node_id();
                     let new_id2 = new_id.clone();
                     bipartite.update(|s| {
-                        s.attributes.push(Attribute {
+                        s.taxonomy.push(Category {
                             id: new_id.clone(),
                             label: String::new(),
-                            value: AttributeValue { color: "#8899AA".to_string() },
+                            value: CategoryValue { color: "#8899AA".to_string() },
                             parent: None,
                         });
                     });

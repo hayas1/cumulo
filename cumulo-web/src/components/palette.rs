@@ -1,11 +1,11 @@
-use crate::platform::{AttributeId, AttributeValue, EntityValue};
+use crate::platform::{CategoryId, CategoryValue, ResourceValue};
 use cumulo_model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn Palette(
-    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());
     let focused_index = create_rw_signal(Option::<usize>::None);
@@ -15,18 +15,18 @@ pub fn Palette(
         let s = bipartite.get();
         let input = input_text.get();
 
-        let mut result: Vec<(AttributeId, AttributeId)> = s
-            .attribute_view()
+        let mut result: Vec<(CategoryId, CategoryId)> = s
+            .category_view()
             .query(&input)
             .view
             .into_iter()
-            .filter_map(|attr| Some((s.attributes.root_of(&attr.id)?, attr.id.clone())))
+            .filter_map(|attr| Some((s.taxonomy.root_of(&attr.id)?, attr.id.clone())))
             .collect();
         result.truncate(10);
         result
     });
 
-    let commit_tag = move |k: AttributeId, v: AttributeId| {
+    let commit_tag = move |k: CategoryId, v: CategoryId| {
         selected_tags.update(|t| {
             t.retain(|(tk, _)| tk != &k);
             t.push((k, v));

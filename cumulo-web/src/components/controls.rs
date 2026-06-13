@@ -1,22 +1,22 @@
 use crate::map_bridge;
-use crate::platform::{AttributeId, AttributeValue, EntityValue};
-use cumulo_model::{Bipartite, Entity};
+use crate::platform::{CategoryId, CategoryValue, ResourceValue};
+use cumulo_model::{Bipartite, Resource};
 use leptos::*;
 
 #[component]
 pub fn Controls(
-    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
     zoom_level: ReadSignal<u32>,
-    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
+    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
 ) -> impl IntoView {
     let entity_count = create_memo(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();
-        s.filter_entities(&tags).len()
+        s.filter_resources(&tags).len()
     });
 
-    let total_count = create_memo(move |_| bipartite.get().entities.len());
+    let total_count = create_memo(move |_| bipartite.get().resources.len());
 
     view! {
         <div class="controls-bar">
@@ -24,7 +24,7 @@ pub fn Controls(
             <div class="controls-right">
                 <button
                     class="add-resource-btn"
-                    on:click=move |_| editing.set(Some(Entity::default()))
+                    on:click=move |_| editing.set(Some(Resource::default()))
                 >
                     "+ 追加"
                 </button>

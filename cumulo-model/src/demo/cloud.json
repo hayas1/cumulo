@@ -2,12 +2,12 @@
   "cumulo_version": 1,
   "exported_at": "2026-06-10T00:00:00.000Z",
   "store": {
-    "entities": [
+    "resources": [
       {
         "id": "bq-prod",
         "label": "auth / BigQuery (prod)",
         "freq": 12,
-        "attributes": { "platform": "bigquery", "product": "auth", "env": "prod" },
+        "categories": { "platform": "bigquery", "product": "auth", "env": "prod" },
         "console_url": "https://console.cloud.google.com/bigquery?project=auth-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -15,7 +15,7 @@
         "id": "bq-stg",
         "label": "auth / BigQuery (stg)",
         "freq": 4,
-        "attributes": { "platform": "bigquery", "product": "auth", "env": "stg" },
+        "categories": { "platform": "bigquery", "product": "auth", "env": "stg" },
         "console_url": "https://console.cloud.google.com/bigquery?project=auth-stg",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -23,7 +23,7 @@
         "id": "bt-prod",
         "label": "payment / Bigtable (prod)",
         "freq": 6,
-        "attributes": { "platform": "bigtable", "product": "payment", "env": "prod" },
+        "categories": { "platform": "bigtable", "product": "payment", "env": "prod" },
         "console_url": "https://console.cloud.google.com/bigtable?project=payment-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -31,7 +31,7 @@
         "id": "logging-prod",
         "label": "infra / Cloud Logging (prod)",
         "freq": 9,
-        "attributes": { "platform": "cloud-logging", "product": "infra", "env": "prod" },
+        "categories": { "platform": "cloud-logging", "product": "infra", "env": "prod" },
         "console_url": "https://console.cloud.google.com/logs?project=infra-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -39,7 +39,7 @@
         "id": "monitoring-prod",
         "label": "infra / Cloud Monitoring (prod)",
         "freq": 7,
-        "attributes": { "platform": "cloud-monitoring", "product": "infra", "env": "prod" },
+        "categories": { "platform": "cloud-monitoring", "product": "infra", "env": "prod" },
         "console_url": "https://console.cloud.google.com/monitoring?project=infra-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -47,7 +47,7 @@
         "id": "s3-prod",
         "label": "payment / S3 (prod)",
         "freq": 10,
-        "attributes": { "platform": "s3", "product": "payment", "env": "prod" },
+        "categories": { "platform": "s3", "product": "payment", "env": "prod" },
         "console_url": "https://s3.console.aws.amazon.com/s3/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -55,7 +55,7 @@
         "id": "msk-stg",
         "label": "payment / MSK (stg)",
         "freq": 5,
-        "attributes": { "platform": "msk", "product": "payment", "env": "stg" },
+        "categories": { "platform": "msk", "product": "payment", "env": "stg" },
         "console_url": "https://console.aws.amazon.com/msk/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -63,7 +63,7 @@
         "id": "rds-prod",
         "label": "auth / RDS (prod)",
         "freq": 11,
-        "attributes": { "platform": "rds", "product": "auth", "env": "prod" },
+        "categories": { "platform": "rds", "product": "auth", "env": "prod" },
         "console_url": "https://console.aws.amazon.com/rds/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -71,7 +71,7 @@
         "id": "secrets-dev",
         "label": "auth / Secrets Manager (dev)",
         "freq": 3,
-        "attributes": { "platform": "secrets-manager", "product": "auth", "env": "dev" },
+        "categories": { "platform": "secrets-manager", "product": "auth", "env": "dev" },
         "console_url": "https://console.aws.amazon.com/secretsmanager/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -79,7 +79,7 @@
         "id": "dd-dashboard-prod",
         "label": "infra / Datadog Dashboard (prod)",
         "freq": 10,
-        "attributes": { "platform": "dashboard", "product": "infra", "env": "prod" },
+        "categories": { "platform": "dashboard", "product": "infra", "env": "prod" },
         "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Aprod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -87,7 +87,7 @@
         "id": "dd-dashboard-dev",
         "label": "infra / Datadog Dashboard (dev)",
         "freq": 4,
-        "attributes": { "platform": "dashboard", "product": "infra", "env": "dev" },
+        "categories": { "platform": "dashboard", "product": "infra", "env": "dev" },
         "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Adev",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -95,7 +95,7 @@
         "id": "dd-apm-tracing",
         "label": "auth / Datadog APM — Tracing",
         "freq": 9,
-        "attributes": { "platform": "apm", "product": "auth", "env": "shared" },
+        "categories": { "platform": "apm", "product": "auth", "env": "shared" },
         "console_url": "https://app.datadoghq.com/apm/traces",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -103,7 +103,7 @@
         "id": "dd-apm-services",
         "label": "payment / Datadog APM — Service Page",
         "freq": 8,
-        "attributes": { "platform": "apm", "product": "payment", "env": "shared" },
+        "categories": { "platform": "apm", "product": "payment", "env": "shared" },
         "console_url": "https://app.datadoghq.com/apm/services",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -111,12 +111,12 @@
         "id": "kafka-ui-dev",
         "label": "payment / Kafka UI (dev)",
         "freq": 5,
-        "attributes": { "platform": "kafka-ui", "product": "payment", "env": "dev" },
+        "categories": { "platform": "kafka-ui", "product": "payment", "env": "dev" },
         "console_url": "https://kafka-ui.dev.internal.example.com",
         "created_at": "2026-01-01T00:00:00Z"
       }
     ],
-    "attributes": [
+    "taxonomy": [
       { "id": "platform",         "label": "プラットフォーム",   "color": "#8899AA" },
       { "id": "cloud",            "label": "Cloud",            "color": "#5B8DEF", "parent": "platform" },
       { "id": "gcp",              "label": "GCP",              "color": "#1D9E75", "parent": "cloud" },

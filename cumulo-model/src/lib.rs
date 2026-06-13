@@ -1,12 +1,12 @@
-pub mod attribute;
 pub mod bipartite;
-pub mod entity;
 pub mod id;
+pub mod resource;
+pub mod taxonomy;
 
-pub use attribute::{Attribute, AttributeForest};
-pub use bipartite::{AttributeView, Bipartite, ExportData};
-pub use entity::Entity;
+pub use bipartite::{Bipartite, CategoryView, ExportData};
 pub use id::Id;
+pub use resource::Resource;
+pub use taxonomy::{Category, Taxonomy};
 
 #[cfg(feature = "demo")]
 pub mod demo;

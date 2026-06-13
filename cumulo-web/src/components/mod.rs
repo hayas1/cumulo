@@ -1,11 +1,11 @@
 pub mod app;
+pub mod attributes_tab;
 pub mod controls;
 pub mod detail_panel;
-pub mod attributes_tab;
+pub mod entities_tab;
+pub mod entity_form;
 pub mod facet_sidebar;
 pub mod facet_view;
 pub mod map_canvas;
 pub mod palette;
-pub mod entity_form;
-pub mod entities_tab;
 pub mod settings_modal;

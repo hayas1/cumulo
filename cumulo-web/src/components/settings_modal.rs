@@ -1,9 +1,9 @@
 use super::attributes_tab::AttributesTab;
 use super::entities_tab::EntitiesTab;
-use crate::platform::{AttributeValue, EntityValue, Platform};
+use crate::platform::{CategoryValue, Platform, ResourceValue};
 use crate::storage::AppStorage;
 use cumulo_model::ExportData;
-use cumulo_model::{Bipartite, Entity};
+use cumulo_model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -12,10 +12,10 @@ use wasm_bindgen_futures::JsFuture;
 
 #[component]
 pub fn SettingsModal(
-    bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>,
+    bipartite: RwSignal<Bipartite<ResourceValue, CategoryValue>>,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
-    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
+    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
     let active_tab = create_rw_signal("data".to_string());
@@ -25,10 +25,7 @@ pub fn SettingsModal(
     let do_export = move || {
         let s = bipartite.get_untracked();
         let json = ExportData::new(s, Platform::now_iso()).to_json();
-        let date = Platform::now_iso()
-            .chars()
-            .take(10)
-            .collect::<String>();
+        let date = Platform::now_iso().chars().take(10).collect::<String>();
         Platform::trigger_download(&format!("cumulo-{date}.json"), &json);
     };
 
@@ -64,8 +61,8 @@ pub fn SettingsModal(
                                 Ok(imported) => {
                                     let msg = format!(
                                         "インポート完了: リソース {}件、ディメンション {}件",
-                                        imported.entities.len(),
-                                        imported.attributes.len(),
+                                        imported.resources.len(),
+                                        imported.taxonomy.len(),
                                     );
                                     bipartite.set(imported);
                                     AppStorage::save(&bipartite.get_untracked());

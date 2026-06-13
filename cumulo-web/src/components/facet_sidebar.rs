@@ -1,19 +1,19 @@
-use crate::platform::{AttributeId, AttributeValue, EntityValue};
+use crate::platform::{CategoryId, CategoryValue, ResourceValue};
 use cumulo_model::Bipartite;
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
 pub fn FacetSidebar(
-    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
     /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
     #[prop(optional)]
-    zoom_dim: Option<RwSignal<AttributeId>>,
+    zoom_dim: Option<RwSignal<CategoryId>>,
 ) -> impl IntoView {
     // 折りたたまれているパネルの根id を管理（ノード単位ではなくパネル単位）
-    let collapsed = create_rw_signal(HashSet::<AttributeId>::new());
+    let collapsed = create_rw_signal(HashSet::<CategoryId>::new());
 
     view! {
         <aside class="facet-sidebar">
@@ -21,7 +21,7 @@ pub fn FacetSidebar(
                 let s = bipartite.get();
                 let tags = selected_tags.get();
 
-                s.attributes.roots()
+                s.taxonomy.roots()
                     .into_iter()
                     .filter_map(|root| {
                         let tags_minus: Vec<_> = tags
@@ -29,13 +29,13 @@ pub fn FacetSidebar(
                             .filter(|(k, _)| k != &root.id)
                             .cloned()
                             .collect();
-                        let base = s.filter_entities(&tags_minus);
+                        let base = s.filter_resources(&tags_minus);
 
-                        let mut counts: HashMap<AttributeId, usize> = HashMap::new();
+                        let mut counts: HashMap<CategoryId, usize> = HashMap::new();
                         for r in &base {
-                            if let Some(leaf_id) = r.attribute(&root.id) {
+                            if let Some(leaf_id) = r.category(&root.id) {
                                 *counts.entry(leaf_id.clone()).or_default() += 1;
-                                for anc in s.attributes.ancestry(leaf_id) {
+                                for anc in s.taxonomy.ancestry(leaf_id) {
                                     if &anc != leaf_id {
                                         *counts.entry(anc).or_default() += 1;
                                     }
@@ -52,8 +52,8 @@ pub fn FacetSidebar(
                             .find(|(k, _)| k == &root.id)
                             .map(|(_, v)| v.clone());
 
-                        let mut ordered: Vec<(AttributeId, String, usize, usize)> = Vec::new();
-                        s.attributes.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
+                        let mut ordered: Vec<(CategoryId, String, usize, usize)> = Vec::new();
+                        s.taxonomy.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
                         if ordered.is_empty() {
                             return None;

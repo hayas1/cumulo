@@ -1,48 +1,47 @@
-use cumulo_model::{Attribute, Entity, Id};
+use cumulo_model::{Category, Id, Resource};
 use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-/// Web 層が Entity に付与する値。
+/// Web 層が Resource に付与する値。
 /// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct EntityValue {
+pub struct ResourceValue {
     pub console_url: String,
     pub created_at: Option<String>,
     pub freq: u32,
 }
 
-/// Web 層が Attribute に付与するビジュアル属性。
+/// Web 層が Category に付与するビジュアル属性。
 /// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct AttributeValue {
+pub struct CategoryValue {
     pub color: String,
 }
 
-pub type AttributeId = Id<Attribute<AttributeValue>>;
-pub type EntityId = Id<Entity<EntityValue, AttributeValue>>;
+pub type CategoryId = Id<Category<CategoryValue>>;
+pub type ResourceId = Id<Resource<ResourceValue, CategoryValue>>;
 
 /// ブラウザ固有の副作用（ID 生成、色生成、ダウンロード、URL 開放）をまとめる。
 /// js_sys / web_sys を使うため core クレートには含めない。
 pub struct Platform;
 
 impl Platform {
-    pub fn new_node_id() -> AttributeId {
+    pub fn new_node_id() -> CategoryId {
         let n = (js_sys::Math::random() * 1e15) as u64;
         format!("node{n:x}").into()
     }
 
-    pub fn new_entity_id() -> EntityId {
+    pub fn new_resource_id() -> ResourceId {
         let n = (js_sys::Math::random() * 1e15) as u64;
         format!("r{n:x}").into()
     }
 
     pub fn random_color() -> String {
         const PALETTE: &[&str] = &[
-            "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981",
-            "#14b8a6", "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
-            "#ec4899", "#f43f5e",
+            "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6",
+            "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e",
         ];
         let idx = (js_sys::Math::random() * PALETTE.len() as f64) as usize;
         PALETTE[idx.min(PALETTE.len() - 1)].to_string()

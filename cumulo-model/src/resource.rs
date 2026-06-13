@@ -2,40 +2,40 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::attribute::{Attribute, AttributeForest};
 use crate::id::Id;
+use crate::taxonomy::{Category, Taxonomy};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct Entity<V, A> {
-    pub id: Id<Entity<V, A>>,
+pub struct Resource<V, A> {
+    pub id: Id<Resource<V, A>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     /// キーは軸の根id。値はその軸内のノードid。
-    pub attributes: HashMap<Id<Attribute<A>>, Id<Attribute<A>>>,
+    pub categories: HashMap<Id<Category<A>>, Id<Category<A>>>,
     #[serde(flatten)]
     pub value: V,
 }
 
-impl<V: Default, A> Default for Entity<V, A> {
+impl<V: Default, A> Default for Resource<V, A> {
     fn default() -> Self {
-        Entity {
-            id: Id::<Entity<V, A>>::default(),
+        Resource {
+            id: Id::<Resource<V, A>>::default(),
             label: None,
-            attributes: HashMap::new(),
+            categories: HashMap::new(),
             value: V::default(),
         }
     }
 }
 
-impl<V, A: Clone> Entity<V, A> {
-    pub fn display_label(&self, forest: &AttributeForest<A>) -> String {
+impl<V, A: Clone> Resource<V, A> {
+    pub fn display_label(&self, forest: &Taxonomy<A>) -> String {
         if let Some(l) = &self.label {
             if !l.is_empty() {
                 return l.clone();
             }
         }
         let mut parts: Vec<String> = self
-            .attributes
+            .categories
             .values()
             .filter_map(|v| forest.node(v))
             .map(|n| {
@@ -54,7 +54,7 @@ impl<V, A: Clone> Entity<V, A> {
         }
     }
 
-    pub fn attribute(&self, root_id: &Id<Attribute<A>>) -> Option<&Id<Attribute<A>>> {
-        self.attributes.get(root_id)
+    pub fn category(&self, root_id: &Id<Category<A>>) -> Option<&Id<Category<A>>> {
+        self.categories.get(root_id)
     }
 }

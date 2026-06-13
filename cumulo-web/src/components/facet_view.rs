@@ -1,20 +1,20 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::platform::{AttributeId, AttributeValue, EntityValue, Platform};
-use cumulo_model::{Bipartite, Entity};
+use crate::platform::{CategoryId, CategoryValue, Platform, ResourceValue};
+use cumulo_model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
-    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
-    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
 ) -> impl IntoView {
     let filtered_ids = create_memo(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();
-        s.filter_entities(&tags)
+        s.filter_resources(&tags)
             .into_iter()
             .map(|r| r.id.clone())
             .collect::<Vec<_>>()
@@ -31,7 +31,7 @@ pub fn FacetView(
                         let ids = filtered_ids.get();
 
                         let entities: Vec<_> = s
-                            .entities
+                            .resources
                             .iter()
                             .filter(|r| ids.contains(&r.id))
                             .cloned()
@@ -51,7 +51,7 @@ pub fn FacetView(
                                 <span class="results-count">{entities.len()} " 件"</span>
                                 <button
                                     class="add-resource-btn"
-                                    on:click=move |_| editing.set(Some(Entity::<EntityValue, AttributeValue>::default()))
+                                    on:click=move |_| editing.set(Some(Resource::<ResourceValue, CategoryValue>::default()))
                                 >
                                     "+ 追加"
                                 </button>
@@ -62,7 +62,7 @@ pub fn FacetView(
                                     .map(|r| {
                                         let url = r.value.console_url.clone();
 
-                                        let mut dims_sorted: Vec<_> = r.attributes.iter()
+                                        let mut dims_sorted: Vec<_> = r.categories.iter()
                                             .map(|(k, v)| (k.clone(), v.clone()))
                                             .collect();
                                         dims_sorted.sort_by_key(|(k, _)| k.clone());
@@ -70,10 +70,10 @@ pub fn FacetView(
                                         let chips: Vec<(String, String, String)> = dims_sorted
                                             .iter()
                                             .map(|(k, v)| {
-                                                let color = s.attributes.node(v)
+                                                let color = s.taxonomy.node(v)
                                                     .map(|n| n.value.color.clone())
                                                     .unwrap_or_default();
-                                                let label = s.attributes.node(v)
+                                                let label = s.taxonomy.node(v)
                                                     .map(|n| n.label.clone())
                                                     .unwrap_or_else(|| v.to_string());
                                                 (k.to_string(), label, color)
@@ -88,7 +88,7 @@ pub fn FacetView(
                                                         class="result-name result-name-link"
                                                         on:click=move |_| Platform::open_url(&url)
                                                     >
-                                                        {r.display_label(&s.attributes)}
+                                                        {r.display_label(&s.taxonomy)}
                                                     </span>
                                                     <div class="result-card-actions">
                                                         <button

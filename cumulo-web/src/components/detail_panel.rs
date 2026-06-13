@@ -1,19 +1,19 @@
-use crate::platform::{AttributeValue, EntityId, EntityValue, Platform};
-use cumulo_model::{Bipartite, Entity};
+use crate::platform::{CategoryValue, Platform, ResourceId, ResourceValue};
+use cumulo_model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
 
 #[component]
 pub fn DetailPanel(
-    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_id: RwSignal<Option<EntityId>>,
-    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    selected_id: RwSignal<Option<ResourceId>>,
+    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
 ) -> impl IntoView {
     let resource = create_memo(move |_| {
         let id = selected_id.get()?;
         let s = bipartite.get();
-        s.entities.iter().find(|r| r.id == id).cloned()
+        s.resources.iter().find(|r| r.id == id).cloned()
     });
 
     view! {
@@ -27,15 +27,15 @@ pub fn DetailPanel(
                             let freq = r.value.freq;
                             let r_for_edit = r.clone();
                             let s = bipartite.get();
-                            let display = r.display_label(&s.attributes);
+                            let display = r.display_label(&s.taxonomy);
 
-                            let mut dims_sorted: Vec<_> = r.attributes.into_iter()
+                            let mut dims_sorted: Vec<_> = r.categories.into_iter()
                                 .map(|(k, v)| {
-                                    let k_label = s.attributes.node(&k)
+                                    let k_label = s.taxonomy.node(&k)
                                         .map(|n| n.label.clone())
                                         .filter(|l| !l.is_empty())
                                         .unwrap_or_else(|| k.to_string());
-                                    let v_label = s.attributes.node(&v)
+                                    let v_label = s.taxonomy.node(&v)
                                         .map(|n| n.label.clone())
                                         .filter(|l| !l.is_empty())
                                         .unwrap_or_else(|| v.to_string());

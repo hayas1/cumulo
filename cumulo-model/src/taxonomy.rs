@@ -4,17 +4,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::id::Id;
 
-/// parent が None のノードが軸の根（＝属性キー）となる。
-/// エンティティの value は { 根id → ノードid } で表現する。
+/// parent が None のノードが軸の根（＝カテゴリキー）となる。
+/// リソースの value は { 根id → ノードid } で表現する。
 /// `#[serde(bound)]` でデシリアライズ境界を明示し、flatten が生成する A: Default 境界を除去する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(bound(serialize = "A: Serialize", deserialize = "A: Deserialize<'de>"))]
-pub struct Attribute<A> {
-    pub id: Id<Attribute<A>>,
+pub struct Category<A> {
+    pub id: Id<Category<A>>,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent: Option<Id<Attribute<A>>>,
-    /// web 層は `A = AttributeValue { color }` を指定して color を同じ JSON レベルに展開する。
+    pub parent: Option<Id<Category<A>>>,
+    /// web 層は `A = CategoryValue { color }` を指定して color を同じ JSON レベルに展開する。
     #[serde(flatten)]
     pub value: A,
 }
@@ -22,40 +22,40 @@ pub struct Attribute<A> {
 /// parent リンクで森を構成する。parent が None のノードが軸の根となる。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(transparent)]
-pub struct AttributeForest<A>(pub Vec<Attribute<A>>);
+pub struct Taxonomy<A>(pub Vec<Category<A>>);
 
-impl<A> Default for AttributeForest<A> {
+impl<A> Default for Taxonomy<A> {
     fn default() -> Self {
-        AttributeForest(Vec::new())
+        Taxonomy(Vec::new())
     }
 }
 
-impl<A> std::ops::Deref for AttributeForest<A> {
-    type Target = Vec<Attribute<A>>;
+impl<A> std::ops::Deref for Taxonomy<A> {
+    type Target = Vec<Category<A>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<A> std::ops::DerefMut for AttributeForest<A> {
+impl<A> std::ops::DerefMut for Taxonomy<A> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<A> AttributeForest<A> {
-    pub fn roots(&self) -> Vec<&Attribute<A>> {
+impl<A> Taxonomy<A> {
+    pub fn roots(&self) -> Vec<&Category<A>> {
         self.iter().filter(|n| n.parent.is_none()).collect()
     }
 
-    pub fn children_of(&self, parent_id: &Id<Attribute<A>>) -> Vec<&Attribute<A>> {
+    pub fn children_of(&self, parent_id: &Id<Category<A>>) -> Vec<&Category<A>> {
         self.iter()
             .filter(|n| n.parent.as_ref() == Some(parent_id))
             .collect()
     }
 
     /// 軸の根 (parent==None) の id は含めない（根はキーであり値ではない）。
-    pub fn ancestry(&self, id: &Id<Attribute<A>>) -> Vec<Id<Attribute<A>>> {
+    pub fn ancestry(&self, id: &Id<Category<A>>) -> Vec<Id<Category<A>>> {
         let mut chain = Vec::new();
         let mut cur = Some(id.clone());
         while let Some(c) = cur {
@@ -73,7 +73,7 @@ impl<A> AttributeForest<A> {
         chain
     }
 
-    pub fn root_of(&self, id: &Id<Attribute<A>>) -> Option<Id<Attribute<A>>> {
+    pub fn root_of(&self, id: &Id<Category<A>>) -> Option<Id<Category<A>>> {
         let mut cur = id.clone();
         let mut seen = HashSet::new();
         loop {
@@ -99,11 +99,11 @@ impl<A> AttributeForest<A> {
         }
     }
 
-    pub fn node(&self, id: &Id<Attribute<A>>) -> Option<&Attribute<A>> {
+    pub fn node(&self, id: &Id<Category<A>>) -> Option<&Category<A>> {
         self.iter().find(|n| &n.id == id)
     }
 
-    pub fn ancestry_contains(&self, start: &Id<Attribute<A>>, target: &Id<Attribute<A>>) -> bool {
+    pub fn ancestry_contains(&self, start: &Id<Category<A>>, target: &Id<Category<A>>) -> bool {
         let mut cur = Some(start.clone());
         let mut seen = HashSet::new();
         while let Some(c) = cur {
@@ -121,13 +121,13 @@ impl<A> AttributeForest<A> {
         false
     }
 
-    pub fn collect_descendants(&self, root: &Id<Attribute<A>>) -> HashSet<Id<Attribute<A>>> {
+    pub fn collect_descendants(&self, root: &Id<Category<A>>) -> HashSet<Id<Category<A>>> {
         let mut out = HashSet::new();
         self.collect_descendants_rec(root, &mut out);
         out
     }
 
-    fn collect_descendants_rec(&self, id: &Id<Attribute<A>>, out: &mut HashSet<Id<Attribute<A>>>) {
+    fn collect_descendants_rec(&self, id: &Id<Category<A>>, out: &mut HashSet<Id<Category<A>>>) {
         if !out.insert(id.clone()) {
             return;
         }
@@ -138,9 +138,9 @@ impl<A> AttributeForest<A> {
 
     pub fn dfs_order(
         &self,
-        root_id: &Id<Attribute<A>>,
-        collapsed: &HashSet<Id<Attribute<A>>>,
-    ) -> Vec<(Id<Attribute<A>>, usize, bool)> {
+        root_id: &Id<Category<A>>,
+        collapsed: &HashSet<Id<Category<A>>>,
+    ) -> Vec<(Id<Category<A>>, usize, bool)> {
         let mut out = Vec::new();
         self.dfs_order_rec(root_id, 0, collapsed, &mut out);
         out
@@ -148,10 +148,10 @@ impl<A> AttributeForest<A> {
 
     fn dfs_order_rec(
         &self,
-        parent_id: &Id<Attribute<A>>,
+        parent_id: &Id<Category<A>>,
         depth: usize,
-        collapsed: &HashSet<Id<Attribute<A>>>,
-        out: &mut Vec<(Id<Attribute<A>>, usize, bool)>,
+        collapsed: &HashSet<Id<Category<A>>>,
+        out: &mut Vec<(Id<Category<A>>, usize, bool)>,
     ) {
         for child in self.children_of(parent_id) {
             let has_children = !self.children_of(&child.id).is_empty();
@@ -165,10 +165,10 @@ impl<A> AttributeForest<A> {
     /// 深さ優先で子孫を列挙し、counts > 0 のノードのみ (id, label, depth, count) を out に追加する。
     pub fn dfs_collect_counts(
         &self,
-        parent_id: &Id<Attribute<A>>,
+        parent_id: &Id<Category<A>>,
         depth: usize,
-        counts: &HashMap<Id<Attribute<A>>, usize>,
-        out: &mut Vec<(Id<Attribute<A>>, String, usize, usize)>,
+        counts: &HashMap<Id<Category<A>>, usize>,
+        out: &mut Vec<(Id<Category<A>>, String, usize, usize)>,
     ) {
         for child in self.children_of(parent_id) {
             let cnt = counts.get(child.id.as_str()).copied().unwrap_or(0);
@@ -180,7 +180,7 @@ impl<A> AttributeForest<A> {
         }
     }
 
-    pub fn reparent(&mut self, dragged: &Id<Attribute<A>>, new_parent: Option<Id<Attribute<A>>>) {
+    pub fn reparent(&mut self, dragged: &Id<Category<A>>, new_parent: Option<Id<Category<A>>>) {
         if let Some(np) = &new_parent {
             if np == dragged || self.ancestry_contains(np, dragged) {
                 return;
@@ -191,7 +191,12 @@ impl<A> AttributeForest<A> {
         }
     }
 
-    pub fn move_relative(&mut self, dragged: &Id<Attribute<A>>, target: &Id<Attribute<A>>, after: bool) {
+    pub fn move_relative(
+        &mut self,
+        dragged: &Id<Category<A>>,
+        target: &Id<Category<A>>,
+        after: bool,
+    ) {
         if dragged == target {
             return;
         }
@@ -218,7 +223,7 @@ impl<A> AttributeForest<A> {
         self.insert(insert_at.min(len), node);
     }
 
-    pub fn delete_promote(&mut self, node_id: &Id<Attribute<A>>) {
+    pub fn delete_promote(&mut self, node_id: &Id<Category<A>>) {
         let parent = self
             .iter()
             .find(|n| &n.id == node_id)
@@ -231,15 +236,15 @@ impl<A> AttributeForest<A> {
         self.retain(|n| &n.id != node_id);
     }
 
-    pub fn delete_subtree(&mut self, node_id: &Id<Attribute<A>>) {
+    pub fn delete_subtree(&mut self, node_id: &Id<Category<A>>) {
         let doomed = self.collect_descendants(node_id);
         self.retain(|n| !doomed.contains(n.id.as_str()));
     }
 
     pub fn rename_node(
         &mut self,
-        old_id: &Id<Attribute<A>>,
-        new_id: Id<Attribute<A>>,
+        old_id: &Id<Category<A>>,
+        new_id: Id<Category<A>>,
         label: &str,
         value: A,
     ) {
@@ -259,8 +264,8 @@ impl<A> AttributeForest<A> {
 
     pub fn subtree_flat<'a>(
         &'a self,
-        root_id: &'a Id<Attribute<A>>,
-    ) -> Vec<(&'a Attribute<A>, usize, bool, &'a Id<Attribute<A>>)> {
+        root_id: &'a Id<Category<A>>,
+    ) -> Vec<(&'a Category<A>, usize, bool, &'a Id<Category<A>>)> {
         let mut out = Vec::new();
         self.subtree_flat_rec(root_id, 0, &mut out);
         out
@@ -268,9 +273,9 @@ impl<A> AttributeForest<A> {
 
     fn subtree_flat_rec<'a>(
         &'a self,
-        parent_id: &'a Id<Attribute<A>>,
+        parent_id: &'a Id<Category<A>>,
         depth: usize,
-        out: &mut Vec<(&'a Attribute<A>, usize, bool, &'a Id<Attribute<A>>)>,
+        out: &mut Vec<(&'a Category<A>, usize, bool, &'a Id<Category<A>>)>,
     ) {
         for child in self.children_of(parent_id) {
             let has_children = !self.children_of(&child.id).is_empty();
@@ -284,17 +289,52 @@ impl<A> AttributeForest<A> {
 pub(crate) mod tests {
     use super::*;
 
-    pub fn test_forest() -> AttributeForest<()> {
+    pub fn test_forest() -> Taxonomy<()> {
         // platform > cloud > gcp > bigquery / bigtable
         //                  > aws > s3
-        AttributeForest(vec![
-            Attribute { id: "platform".into(), label: "Platform".into(), parent: None, value: () },
-            Attribute { id: "cloud".into(), label: "Cloud".into(), parent: Some("platform".into()), value: () },
-            Attribute { id: "gcp".into(), label: "GCP".into(), parent: Some("cloud".into()), value: () },
-            Attribute { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("gcp".into()), value: () },
-            Attribute { id: "bigtable".into(), label: "Bigtable".into(), parent: Some("gcp".into()), value: () },
-            Attribute { id: "aws".into(), label: "AWS".into(), parent: Some("cloud".into()), value: () },
-            Attribute { id: "s3".into(), label: "S3".into(), parent: Some("aws".into()), value: () },
+        Taxonomy(vec![
+            Category {
+                id: "platform".into(),
+                label: "Platform".into(),
+                parent: None,
+                value: (),
+            },
+            Category {
+                id: "cloud".into(),
+                label: "Cloud".into(),
+                parent: Some("platform".into()),
+                value: (),
+            },
+            Category {
+                id: "gcp".into(),
+                label: "GCP".into(),
+                parent: Some("cloud".into()),
+                value: (),
+            },
+            Category {
+                id: "bigquery".into(),
+                label: "BigQuery".into(),
+                parent: Some("gcp".into()),
+                value: (),
+            },
+            Category {
+                id: "bigtable".into(),
+                label: "Bigtable".into(),
+                parent: Some("gcp".into()),
+                value: (),
+            },
+            Category {
+                id: "aws".into(),
+                label: "AWS".into(),
+                parent: Some("cloud".into()),
+                value: (),
+            },
+            Category {
+                id: "s3".into(),
+                label: "S3".into(),
+                parent: Some("aws".into()),
+                value: (),
+            },
         ])
     }
 
@@ -305,8 +345,14 @@ pub(crate) mod tests {
             f.ancestry(&"bigquery".into()),
             vec!["bigquery".into(), "gcp".into(), "cloud".into()]
         );
-        assert_eq!(f.ancestry(&"cloud".into()), vec![Id::<Attribute<()>>::from("cloud")]);
-        assert_eq!(f.ancestry(&"unknown".into()), Vec::<Id<Attribute<()>>>::new());
+        assert_eq!(
+            f.ancestry(&"cloud".into()),
+            vec![Id::<Category<()>>::from("cloud")]
+        );
+        assert_eq!(
+            f.ancestry(&"unknown".into()),
+            Vec::<Id<Category<()>>>::new()
+        );
     }
 
     #[test]
