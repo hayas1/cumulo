@@ -139,6 +139,7 @@ pub fn EntityForm(
             } else {
                 Some(lbl)
             },
+            parent: None,
             categories: form_dims.get_untracked(),
             value: ResourceValue {
                 console_url: form_url.get_untracked(),
@@ -148,10 +149,10 @@ pub fn EntityForm(
         };
 
         bipartite.update(|s| {
-            if let Some(pos) = s.resources.iter().position(|x| x.id == id) {
-                s.resources[pos] = r;
+            if let Some(pos) = s.catalog.iter().position(|x| x.id == id) {
+                s.catalog[pos] = r;
             } else {
-                s.resources.push(r);
+                s.catalog.push(r);
             }
         });
         AppStorage::save(&bipartite.get_untracked());

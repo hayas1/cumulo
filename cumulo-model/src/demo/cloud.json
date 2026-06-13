@@ -2,7 +2,7 @@
   "cumulo_version": 1,
   "exported_at": "2026-06-10T00:00:00.000Z",
   "store": {
-    "resources": [
+    "catalog": [
       {
         "id": "bq-prod",
         "label": "auth / BigQuery (prod)",

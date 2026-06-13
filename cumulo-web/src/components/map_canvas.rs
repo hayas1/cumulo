@@ -40,7 +40,7 @@ pub fn MapCanvas(
 
     // ── Effect 2: リソースデータ更新 ─────────────────────────────────────────
     create_effect(move |_| {
-        let resources = &bipartite.get().resources;
+        let resources = &bipartite.get().catalog;
         if let Ok(json) = serde_json::to_string(resources) {
             map_bridge::update_entities(&json);
         }

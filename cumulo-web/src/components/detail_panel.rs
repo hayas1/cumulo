@@ -13,7 +13,7 @@ pub fn DetailPanel(
     let resource = create_memo(move |_| {
         let id = selected_id.get()?;
         let s = bipartite.get();
-        s.resources.iter().find(|r| r.id == id).cloned()
+        s.catalog.iter().find(|r| r.id == id).cloned()
     });
 
     view! {

@@ -61,7 +61,7 @@ pub fn SettingsModal(
                                 Ok(imported) => {
                                     let msg = format!(
                                         "インポート完了: リソース {}件、ディメンション {}件",
-                                        imported.resources.len(),
+                                        imported.catalog.len(),
                                         imported.taxonomy.len(),
                                     );
                                     bipartite.set(imported);

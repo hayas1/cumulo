@@ -16,7 +16,7 @@ pub fn Controls(
         s.filter_resources(&tags).len()
     });
 
-    let total_count = create_memo(move |_| bipartite.get().resources.len());
+    let total_count = create_memo(move |_| bipartite.get().catalog.len());
 
     view! {
         <div class="controls-bar">

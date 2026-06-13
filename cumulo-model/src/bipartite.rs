@@ -1,12 +1,12 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
+use crate::category::{Category, Taxonomy};
 use crate::id::Id;
-use crate::resource::Resource;
-use crate::taxonomy::{Category, Taxonomy};
+use crate::resource::{Catalog, Resource};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Bipartite<RV, DV> {
-    pub resources: Vec<Resource<RV, DV>>,
+    pub catalog: Catalog<RV, DV>,
     pub taxonomy: Taxonomy<DV>,
 }
 
@@ -15,7 +15,7 @@ impl<RV, DV: Clone + PartialEq> Bipartite<RV, DV> {
         &'a self,
         selected_tags: &[(Id<Category<DV>>, Id<Category<DV>>)],
     ) -> Vec<&'a Resource<RV, DV>> {
-        self.resources
+        self.catalog
             .iter()
             .filter(|r| selected_tags.iter().all(|(k, v)| self.tag_matches(r, k, v)))
             .collect()
@@ -129,7 +129,7 @@ impl<'a, RV, DV> CategoryView<'a, RV, DV> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::taxonomy::{tests::test_forest, Category, Taxonomy};
+    use crate::category::{tests::test_forest, Category, Taxonomy};
     use std::collections::HashMap;
 
     #[test]
@@ -137,26 +137,29 @@ mod tests {
         let f = test_forest();
         let bipartite: Bipartite<(), ()> = Bipartite {
             taxonomy: f,
-            resources: vec![
+            catalog: Catalog(vec![
                 Resource {
                     id: "a".into(),
                     label: None,
+                    parent: None,
                     categories: HashMap::from([("platform".into(), "bigquery".into())]),
                     value: (),
                 },
                 Resource {
                     id: "b".into(),
                     label: None,
+                    parent: None,
                     categories: HashMap::from([("platform".into(), "s3".into())]),
                     value: (),
                 },
                 Resource {
                     id: "c".into(),
                     label: None,
+                    parent: None,
                     categories: HashMap::from([("platform".into(), "bigtable".into())]),
                     value: (),
                 },
-            ],
+            ]),
         };
         let got = bipartite.filter_resources(&[("platform".into(), "gcp".into())]);
         assert!(got.iter().any(|r| r.id.as_str() == "a"));
@@ -167,15 +170,16 @@ mod tests {
     #[test]
     fn roundtrip() {
         let bipartite: Bipartite<(), ()> = Bipartite {
-            resources: vec![Resource {
+            catalog: Catalog(vec![Resource {
                 id: "r1".into(),
                 label: Some("BigQuery (prod)".into()),
+                parent: None,
                 categories: HashMap::from([
                     ("platform".into(), "bigquery".into()),
                     ("env".into(), "prod".into()),
                 ]),
                 value: (),
-            }],
+            }]),
             taxonomy: Taxonomy(vec![
                 Category {
                     id: "platform".into(),
@@ -217,7 +221,7 @@ mod tests {
         let json = serde_json::json!({
             "cumulo_version": 99,
             "exported_at": "2026-06-10T00:00:00.000Z",
-            "store": { "resources": [], "taxonomy": [] }
+            "store": { "catalog": [], "taxonomy": [] }
         })
         .to_string();
         assert!(ExportData::<(), ()>::parse(&json).is_err());
@@ -272,7 +276,7 @@ mod tests {
         let f = test_forest();
         let bipartite: Bipartite<(), ()> = Bipartite {
             taxonomy: f,
-            resources: vec![],
+            catalog: Catalog(vec![]),
         };
         let view = bipartite.category_view();
         assert!(view.view.iter().all(|a| a.parent.is_some()));
@@ -284,7 +288,7 @@ mod tests {
         let f = test_forest();
         let bipartite: Bipartite<(), ()> = Bipartite {
             taxonomy: f,
-            resources: vec![],
+            catalog: Catalog(vec![]),
         };
         let view = bipartite.category_view().query("bq");
         assert!(view.view.iter().any(|a| a.id.as_str() == "bigquery"));
@@ -296,7 +300,7 @@ mod tests {
         let f = test_forest();
         let bipartite: Bipartite<(), ()> = Bipartite {
             taxonomy: f,
-            resources: vec![],
+            catalog: Catalog(vec![]),
         };
         let all = bipartite.category_view().query("").view;
         let all_non_roots = bipartite

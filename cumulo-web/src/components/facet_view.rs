@@ -31,7 +31,7 @@ pub fn FacetView(
                         let ids = filtered_ids.get();
 
                         let entities: Vec<_> = s
-                            .resources
+                            .catalog
                             .iter()
                             .filter(|r| ids.contains(&r.id))
                             .cloned()

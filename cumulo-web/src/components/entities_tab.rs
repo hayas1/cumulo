@@ -48,14 +48,14 @@ pub fn EntitiesTab(
             {move || {
                 let s = bipartite.get();
 
-                if s.resources.is_empty() {
+                if s.catalog.is_empty() {
                     return view! {
                         <p class="resource-tab-empty">"リソースがありません"</p>
                     }
                     .into_view();
                 }
 
-                s.resources
+                s.catalog
                     .iter()
                     .map(|r| {
                         let r_id = r.id.clone();
@@ -84,7 +84,7 @@ pub fn EntitiesTab(
                                                 "このリソースを削除しますか？",
                                                 move || {
                                                     bipartite.update(|s| {
-                                                        s.resources.retain(|r| r.id != id)
+                                                        s.catalog.retain(|r| r.id != id)
                                                     });
                                                     AppStorage::save(&bipartite.get_untracked());
                                                 },
