@@ -1,6 +1,6 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::platform::{AttributeValue, EntityValue, Platform};
-use cumulo_model::model::{Attribute, Bipartite, Entity, Id};
+use crate::platform::{AttributeId, AttributeValue, EntityValue, Platform};
+use cumulo_model::{Bipartite, Entity};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -8,8 +8,8 @@ use leptos_icons::Icon;
 #[component]
 pub fn FacetView(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
-    editing: RwSignal<Option<Entity<EntityValue>>>,
+    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
+    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
 ) -> impl IntoView {
     let filtered_ids = create_memo(move |_| {
         let s = bipartite.get();
@@ -51,7 +51,7 @@ pub fn FacetView(
                                 <span class="results-count">{entities.len()} " 件"</span>
                                 <button
                                     class="add-resource-btn"
-                                    on:click=move |_| editing.set(Some(Entity::<EntityValue>::default()))
+                                    on:click=move |_| editing.set(Some(Entity::<EntityValue, AttributeValue>::default()))
                                 >
                                     "+ 追加"
                                 </button>

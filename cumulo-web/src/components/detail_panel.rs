@@ -1,5 +1,5 @@
-use crate::platform::{AttributeValue, EntityValue, Platform};
-use cumulo_model::model::{Bipartite, Entity, Id};
+use crate::platform::{AttributeValue, EntityId, EntityValue, Platform};
+use cumulo_model::{Bipartite, Entity};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -7,8 +7,8 @@ use leptos_icons::Icon;
 #[component]
 pub fn DetailPanel(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_id: RwSignal<Option<Id<Entity>>>,
-    editing: RwSignal<Option<Entity<EntityValue>>>,
+    selected_id: RwSignal<Option<EntityId>>,
+    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
 ) -> impl IntoView {
     let resource = create_memo(move |_| {
         let id = selected_id.get()?;

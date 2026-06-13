@@ -1,6 +1,6 @@
-use crate::platform::{AttributeValue, EntityValue, Platform};
+use crate::platform::{AttributeId, AttributeValue, EntityValue, Platform};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Attribute, AttributeForest, Bipartite, Entity, Id};
+use cumulo_model::{AttributeForest, Bipartite, Entity};
 
 use leptos::html::Input;
 use leptos::*;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 enum DimTreeItem {
     Branch {
-        id: Id<Attribute>,
+        id: AttributeId,
         label: String,
         color: String,
         depth: usize,
@@ -16,17 +16,17 @@ enum DimTreeItem {
     /// 同じ親を持つ葉ノードをまとめた行 (id, label, color)
     Leaves {
         depth: usize,
-        nodes: Vec<(Id<Attribute>, String, String)>,
+        nodes: Vec<(AttributeId, String, String)>,
     },
 }
 
-fn descendants_dfs(forest: &AttributeForest<AttributeValue>, root_id: &Id<Attribute>) -> Vec<DimTreeItem> {
-    let mut flat: Vec<(Id<Attribute>, String, String, usize, bool, Id<Attribute>)> = Vec::new();
+fn descendants_dfs(forest: &AttributeForest<AttributeValue>, root_id: &AttributeId) -> Vec<DimTreeItem> {
+    let mut flat: Vec<(AttributeId, String, String, usize, bool, AttributeId)> = Vec::new();
     fn dfs(
         forest: &AttributeForest<AttributeValue>,
-        parent_id: &Id<Attribute>,
+        parent_id: &AttributeId,
         depth: usize,
-        flat: &mut Vec<(Id<Attribute>, String, String, usize, bool, Id<Attribute>)>,
+        flat: &mut Vec<(AttributeId, String, String, usize, bool, AttributeId)>,
     ) {
         for n in forest.children_of(parent_id) {
             let has_children = !forest.children_of(&n.id).is_empty();
@@ -90,12 +90,12 @@ fn descendants_dfs(forest: &AttributeForest<AttributeValue>, root_id: &Id<Attrib
 #[component]
 pub fn EntityForm(
     bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>,
-    editing: RwSignal<Option<Entity<EntityValue>>>,
+    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
 ) -> impl IntoView {
     let form_label = create_rw_signal(String::new());
     let form_url = create_rw_signal(String::new());
     let form_freq = create_rw_signal(1u32);
-    let form_dims = create_rw_signal(HashMap::<Id<Attribute>, Id<Attribute>>::new());
+    let form_dims = create_rw_signal(HashMap::<AttributeId, AttributeId>::new());
 
     let label_ref = create_node_ref::<Input>();
     let url_ref = create_node_ref::<Input>();

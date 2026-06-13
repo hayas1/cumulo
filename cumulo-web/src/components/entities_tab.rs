@@ -1,6 +1,6 @@
 use crate::platform::{AttributeValue, EntityValue};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Bipartite, Entity};
+use cumulo_model::{Bipartite, Entity};
 
 use icondata as icon;
 use leptos::*;
@@ -20,7 +20,7 @@ fn ask_confirm(
 #[component]
 pub fn EntitiesTab(
     bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>,
-    editing: RwSignal<Option<Entity<EntityValue>>>,
+    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
@@ -38,7 +38,7 @@ pub fn EntitiesTab(
                 class="resource-add-btn"
                 on:click=move |_| {
                     return_to_settings.set(true);
-                    editing.set(Some(Entity::<EntityValue>::default()));
+                    editing.set(Some(Entity::<EntityValue, AttributeValue>::default()));
                     settings_open.set(false);
                 }
             >

@@ -1,6 +1,6 @@
 use crate::platform::{AttributeValue, EntityValue};
-use cumulo_model::io::ExportData;
-use cumulo_model::model::Bipartite;
+use cumulo_model::ExportData;
+use cumulo_model::Bipartite;
 use gloo_storage::{LocalStorage, Storage as GlooStorage};
 
 const STORAGE_KEY: &str = "cumulo_store";

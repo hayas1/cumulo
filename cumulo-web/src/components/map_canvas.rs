@@ -1,14 +1,14 @@
 use crate::map_bridge;
-use crate::platform::{AttributeValue, EntityValue};
-use cumulo_model::model::{Attribute, Bipartite, Entity, Id};
+use crate::platform::{AttributeId, AttributeValue, EntityId, EntityValue};
+use cumulo_model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
-    zoom_dim: RwSignal<Id<Attribute>>,
-    selected_entity: RwSignal<Option<Id<Entity>>>,
+    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
+    zoom_dim: RwSignal<AttributeId>,
+    selected_entity: RwSignal<Option<EntityId>>,
     zoom_level: RwSignal<u32>,
 ) -> impl IntoView {
     // ── Effect 1: D3初期化（一度だけ。シグナル依存なし）──────────────────────

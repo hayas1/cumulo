@@ -2,8 +2,8 @@ use super::attributes_tab::AttributesTab;
 use super::entities_tab::EntitiesTab;
 use crate::platform::{AttributeValue, EntityValue, Platform};
 use crate::storage::AppStorage;
-use cumulo_model::io::ExportData;
-use cumulo_model::model::{Bipartite, Entity};
+use cumulo_model::ExportData;
+use cumulo_model::{Bipartite, Entity};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -15,7 +15,7 @@ pub fn SettingsModal(
     bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
-    editing: RwSignal<Option<Entity<EntityValue>>>,
+    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
     let active_tab = create_rw_signal("data".to_string());

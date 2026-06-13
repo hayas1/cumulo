@@ -1,6 +1,6 @@
-use crate::platform::{AttributeValue, EntityValue, Platform};
+use crate::platform::{AttributeId, AttributeValue, EntityValue, Platform};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Attribute, Bipartite, Id};
+use cumulo_model::{Attribute, Bipartite};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -14,29 +14,29 @@ use wasm_bindgen::JsCast;
 struct DimTabActions(RwSignal<Bipartite<EntityValue, AttributeValue>>);
 
 impl DimTabActions {
-    fn reparent(self, dragged: Id<Attribute>, new_parent: Option<Id<Attribute>>) {
+    fn reparent(self, dragged: AttributeId, new_parent: Option<AttributeId>) {
         self.0.update(|s| s.attributes.reparent(&dragged, new_parent));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn move_relative(self, dragged: Id<Attribute>, target: Id<Attribute>, after: bool) {
+    fn move_relative(self, dragged: AttributeId, target: AttributeId, after: bool) {
         self.0.update(|s| s.attributes.move_relative(&dragged, &target, after));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn delete_promote(self, node_id: Id<Attribute>) {
+    fn delete_promote(self, node_id: AttributeId) {
         self.0.update(|s| s.attributes.delete_promote(&node_id));
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn delete_subtree(self, node_id: Id<Attribute>) {
+    fn delete_subtree(self, node_id: AttributeId) {
         self.0.update(|s| s.attributes.delete_subtree(&node_id));
         AppStorage::save(&self.0.get_untracked());
     }
 
     fn commit_node_edit(
         self,
-        editing_id: RwSignal<Option<Id<Attribute>>>,
+        editing_id: RwSignal<Option<AttributeId>>,
         id_ref: NodeRef<Input>,
         label_ref: NodeRef<Input>,
         color_ref: NodeRef<Input>,
@@ -114,15 +114,15 @@ impl UiHelper {
 
 #[component]
 pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>) -> impl IntoView {
-    let editing_id = create_rw_signal(Option::<Id<Attribute>>::None);
+    let editing_id = create_rw_signal(Option::<AttributeId>::None);
     let id_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();
     let color_ref = create_node_ref::<Input>();
     let preview_color = create_rw_signal(String::new());
 
-    let collapsed = create_rw_signal(HashSet::<Id<Attribute>>::new());
-    let dragging = create_rw_signal(Option::<Id<Attribute>>::None);
-    let drag_over = create_rw_signal(Option::<(Id<Attribute>, u8)>::None);
+    let collapsed = create_rw_signal(HashSet::<AttributeId>::new());
+    let dragging = create_rw_signal(Option::<AttributeId>::None);
+    let drag_over = create_rw_signal(Option::<(AttributeId, u8)>::None);
 
     let confirm = ConfirmState {
         msg: create_rw_signal(None),
@@ -130,7 +130,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
     };
     let acts = DimTabActions(bipartite);
 
-    let delete_target = create_rw_signal(Option::<(Id<Attribute>, bool)>::None);
+    let delete_target = create_rw_signal(Option::<(AttributeId, bool)>::None);
 
     create_effect(move |_| {
         let Some(eid) = editing_id.get() else {
@@ -178,7 +178,7 @@ pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>
                         let root_id_add = root.id.clone();
 
                         let order = s.attributes.dfs_order(&root.id, &collapsed_set);
-                        let sentinel: Id<Attribute> = format!("\x00root:{}", root.id).into();
+                        let sentinel: AttributeId = format!("\x00root:{}", root.id).into();
 
                         let is_root_editing = current_editing.as_deref() == Some(root.id.as_str());
 

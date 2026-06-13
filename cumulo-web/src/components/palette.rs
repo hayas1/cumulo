@@ -1,12 +1,12 @@
-use crate::platform::{AttributeValue, EntityValue};
-use cumulo_model::model::{Attribute, Bipartite, Id};
-use cumulo_model::query::Query;
+use crate::platform::{AttributeId, AttributeValue, EntityValue};
+use cumulo_model::Bipartite;
+use cumulo_model::Query;
 use leptos::*;
 
 #[component]
 pub fn Palette(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
+    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());
     let focused_index = create_rw_signal(Option::<usize>::None);
@@ -31,7 +31,7 @@ pub fn Palette(
         avail
     });
 
-    let commit_tag = move |k: Id<Attribute>, v: Id<Attribute>| {
+    let commit_tag = move |k: AttributeId, v: AttributeId| {
         selected_tags.update(|t| {
             t.retain(|(tk, _)| tk != &k);
             t.push((k, v));

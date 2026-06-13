@@ -3,9 +3,9 @@ use super::{
     facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, entity_form::EntityForm,
     settings_modal::SettingsModal,
 };
-use crate::platform::{AttributeValue, EntityValue};
+use crate::platform::{AttributeId, AttributeValue, EntityId, EntityValue};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Attribute, Bipartite, Entity, Id};
+use cumulo_model::{Bipartite, Entity};
 
 use icondata as icon;
 use leptos::*;
@@ -15,8 +15,8 @@ use leptos_router::*;
 #[component]
 pub fn App() -> impl IntoView {
     let bipartite = create_rw_signal::<Bipartite<EntityValue, AttributeValue>>(AppStorage::load());
-    let selected_tags = create_rw_signal(Vec::<(Id<Attribute>, Id<Attribute>)>::new());
-    let editing = create_rw_signal(Option::<Entity<EntityValue>>::None);
+    let selected_tags = create_rw_signal(Vec::<(AttributeId, AttributeId)>::new());
+    let editing = create_rw_signal(Option::<Entity<EntityValue, AttributeValue>>::None);
     let settings_open = create_rw_signal(false);
     let import_toast = create_rw_signal(Option::<String>::None);
     let return_to_settings = create_rw_signal(false);
@@ -83,10 +83,10 @@ pub fn App() -> impl IntoView {
 #[component]
 fn MapView(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
-    editing: RwSignal<Option<Entity<EntityValue>>>,
+    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
+    editing: RwSignal<Option<Entity<EntityValue, AttributeValue>>>,
 ) -> impl IntoView {
-    let selected_entity_id = create_rw_signal(Option::<Id<Entity>>::None);
+    let selected_entity_id = create_rw_signal(Option::<EntityId>::None);
     let zoom_level = create_rw_signal(0u32);
     // ズーム軸＝ディメンション。既定は一番上の facet（最初のディメンション）。
     let zoom_dim = create_rw_signal({

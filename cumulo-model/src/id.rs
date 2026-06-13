@@ -5,9 +5,23 @@ use serde::{Deserialize, Serialize};
 /// エンティティや属性の ID を表すファントム型付き newtype。
 /// T はマーカーとして機能し、異なる種類の ID の混在をコンパイル時に防ぐ。
 /// `fn() -> T` を使うことで T: Send + Sync なしに Id<T>: Send + Sync となる。
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Clone/Debug は derive ではなく手動実装 — derive は T: Clone/Debug 境界を生成するが、
+/// T は phantom marker なので T のトレイト境界を Id<T> に波及させるべきではないため。
+#[derive(Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Id<T>(pub String, #[serde(skip)] PhantomData<fn() -> T>);
+
+impl<T> Clone for Id<T> {
+    fn clone(&self) -> Self {
+        Id(self.0.clone(), PhantomData)
+    }
+}
+
+impl<T> std::fmt::Debug for Id<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Id").field(&self.0).finish()
+    }
+}
 
 impl<T> Id<T> {
     pub fn as_str(&self) -> &str {

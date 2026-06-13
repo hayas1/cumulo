@@ -1,4 +1,4 @@
-use cumulo_model::model::{Attribute, Entity, Id};
+use cumulo_model::{Attribute, Entity, Id};
 use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::{JsCast, JsValue};
@@ -20,17 +20,20 @@ pub struct AttributeValue {
     pub color: String,
 }
 
+pub type AttributeId = Id<Attribute<AttributeValue>>;
+pub type EntityId = Id<Entity<EntityValue, AttributeValue>>;
+
 /// ブラウザ固有の副作用（ID 生成、色生成、ダウンロード、URL 開放）をまとめる。
 /// js_sys / web_sys を使うため core クレートには含めない。
 pub struct Platform;
 
 impl Platform {
-    pub fn new_node_id() -> Id<Attribute> {
+    pub fn new_node_id() -> AttributeId {
         let n = (js_sys::Math::random() * 1e15) as u64;
         format!("node{n:x}").into()
     }
 
-    pub fn new_entity_id() -> Id<Entity> {
+    pub fn new_entity_id() -> EntityId {
         let n = (js_sys::Math::random() * 1e15) as u64;
         format!("r{n:x}").into()
     }

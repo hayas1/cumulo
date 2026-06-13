@@ -1,19 +1,19 @@
-use crate::platform::{AttributeValue, EntityValue};
-use cumulo_model::model::{Attribute, Bipartite, Id};
+use crate::platform::{AttributeId, AttributeValue, EntityValue};
+use cumulo_model::Bipartite;
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
 pub fn FacetSidebar(
     bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
-    selected_tags: RwSignal<Vec<(Id<Attribute>, Id<Attribute>)>>,
+    selected_tags: RwSignal<Vec<(AttributeId, AttributeId)>>,
     /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
     #[prop(optional)]
-    zoom_dim: Option<RwSignal<Id<Attribute>>>,
+    zoom_dim: Option<RwSignal<AttributeId>>,
 ) -> impl IntoView {
     // 折りたたまれているパネルの根id を管理（ノード単位ではなくパネル単位）
-    let collapsed = create_rw_signal(HashSet::<Id<Attribute>>::new());
+    let collapsed = create_rw_signal(HashSet::<AttributeId>::new());
 
     view! {
         <aside class="facet-sidebar">
@@ -31,7 +31,7 @@ pub fn FacetSidebar(
                             .collect();
                         let base = s.filter_entities(&tags_minus);
 
-                        let mut counts: HashMap<Id<Attribute>, usize> = HashMap::new();
+                        let mut counts: HashMap<AttributeId, usize> = HashMap::new();
                         for r in &base {
                             if let Some(leaf_id) = r.attribute(&root.id) {
                                 *counts.entry(leaf_id.clone()).or_default() += 1;
@@ -52,7 +52,7 @@ pub fn FacetSidebar(
                             .find(|(k, _)| k == &root.id)
                             .map(|(_, v)| v.clone());
 
-                        let mut ordered: Vec<(Id<Attribute>, String, usize, usize)> = Vec::new();
+                        let mut ordered: Vec<(AttributeId, String, usize, usize)> = Vec::new();
                         s.attributes.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
                         if ordered.is_empty() {
