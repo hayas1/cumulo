@@ -1,6 +1,6 @@
-use crate::platform::{DimValue, ResourceValue};
+use crate::platform::{AttributeValue, EntityValue};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Bipartite, Resource};
+use cumulo_model::model::{Bipartite, Entity};
 
 use icondata as icon;
 use leptos::*;
@@ -18,9 +18,9 @@ fn ask_confirm(
 }
 
 #[component]
-pub fn ResourcesTab(
-    bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>,
-    editing: RwSignal<Option<Resource<ResourceValue>>>,
+pub fn EntitiesTab(
+    bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>,
+    editing: RwSignal<Option<Entity<EntityValue>>>,
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
@@ -38,7 +38,7 @@ pub fn ResourcesTab(
                 class="resource-add-btn"
                 on:click=move |_| {
                     return_to_settings.set(true);
-                    editing.set(Some(Resource::<ResourceValue>::default()));
+                    editing.set(Some(Entity::<EntityValue>::default()));
                     settings_open.set(false);
                 }
             >
@@ -48,19 +48,19 @@ pub fn ResourcesTab(
             {move || {
                 let s = bipartite.get();
 
-                if s.resources.is_empty() {
+                if s.entities.is_empty() {
                     return view! {
                         <p class="resource-tab-empty">"リソースがありません"</p>
                     }
                     .into_view();
                 }
 
-                s.resources
+                s.entities
                     .iter()
                     .map(|r| {
                         let r_id = r.id.clone();
                         let r_edit = r.clone();
-                        let display = r.display_label(&s.dimensions);
+                        let display = r.display_label(&s.attributes);
                         view! {
                             <div class="resource-row">
                                 <span class="resource-row-name">{display}</span>
@@ -84,7 +84,7 @@ pub fn ResourcesTab(
                                                 "このリソースを削除しますか？",
                                                 move || {
                                                     bipartite.update(|s| {
-                                                        s.resources.retain(|r| r.id != id)
+                                                        s.entities.retain(|r| r.id != id)
                                                     });
                                                     AppStorage::save(&bipartite.get_untracked());
                                                 },

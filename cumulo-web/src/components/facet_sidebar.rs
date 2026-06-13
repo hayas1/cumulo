@@ -1,11 +1,11 @@
-use crate::platform::{DimValue, ResourceValue};
+use crate::platform::{AttributeValue, EntityValue};
 use cumulo_model::model::Bipartite;
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
 pub fn FacetSidebar(
-    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
+    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
@@ -21,7 +21,7 @@ pub fn FacetSidebar(
                 let s = bipartite.get();
                 let tags = selected_tags.get();
 
-                s.dimensions.roots()
+                s.attributes.roots()
                     .into_iter()
                     .filter_map(|root| {
                         let tags_minus: Vec<_> = tags
@@ -29,13 +29,13 @@ pub fn FacetSidebar(
                             .filter(|(k, _)| k != &root.id)
                             .cloned()
                             .collect();
-                        let base = s.filter_resources(&tags_minus);
+                        let base = s.filter_entities(&tags_minus);
 
                         let mut counts: HashMap<String, usize> = HashMap::new();
                         for r in &base {
-                            if let Some(leaf_id) = r.dimension(&root.id) {
+                            if let Some(leaf_id) = r.attribute(&root.id) {
                                 *counts.entry(leaf_id.to_string()).or_default() += 1;
-                                for anc in s.dimensions.ancestry(leaf_id) {
+                                for anc in s.attributes.ancestry(leaf_id) {
                                     if anc != leaf_id {
                                         *counts.entry(anc).or_default() += 1;
                                     }
@@ -53,7 +53,7 @@ pub fn FacetSidebar(
                             .map(|(_, v)| v.clone());
 
                         let mut ordered: Vec<(String, String, usize, usize)> = Vec::new();
-                        s.dimensions.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
+                        s.attributes.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
                         if ordered.is_empty() {
                             return None;

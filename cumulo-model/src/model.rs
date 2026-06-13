@@ -8,36 +8,36 @@ use serde::{Deserialize, Serialize};
 pub struct NoValue {}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct Resource<V = NoValue> {
+pub struct Entity<V = NoValue> {
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     /// キーは軸の根id。値はその軸内のノードid。
-    pub dimensions: HashMap<String, String>,
+    pub attributes: HashMap<String, String>,
     #[serde(flatten)]
     pub value: V,
 }
 
-impl<V: Default> Default for Resource<V> {
+impl<V: Default> Default for Entity<V> {
     fn default() -> Self {
-        Resource {
+        Entity {
             id: String::new(),
             label: None,
-            dimensions: HashMap::new(),
+            attributes: HashMap::new(),
             value: V::default(),
         }
     }
 }
 
-impl<V> Resource<V> {
-    pub fn display_label<A: Clone>(&self, forest: &DimensionForest<A>) -> String {
+impl<V> Entity<V> {
+    pub fn display_label<A: Clone>(&self, forest: &AttributeForest<A>) -> String {
         if let Some(l) = &self.label {
             if !l.is_empty() {
                 return l.clone();
             }
         }
         let mut parts: Vec<String> = self
-            .dimensions
+            .attributes
             .values()
             .filter_map(|v| forest.node(v))
             .map(|n| {
@@ -56,21 +56,21 @@ impl<V> Resource<V> {
         }
     }
 
-    pub fn dimension(&self, root_id: &str) -> Option<&str> {
-        self.dimensions.get(root_id).map(String::as_str)
+    pub fn attribute(&self, root_id: &str) -> Option<&str> {
+        self.attributes.get(root_id).map(String::as_str)
     }
 }
 
 /// parent が None のノードが軸の根（＝属性キー）となる。
 /// リソースの value は { 根id → ノードid } で表現する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DimensionNode<A = NoValue> {
+pub struct AttributeNode<A = NoValue> {
     pub id: String,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
     /// `A = NoValue` のとき flatten は何も追加しない。
-    /// web 層は `A = DimValue { color }` を指定して color を同じ JSON レベルに展開する。
+    /// web 層は `A = AttributeValue { color }` を指定して color を同じ JSON レベルに展開する。
     #[serde(flatten)]
     pub value: A,
 }
@@ -78,27 +78,27 @@ pub struct DimensionNode<A = NoValue> {
 /// parent リンクで森を構成する。parent が None のノードが軸の根となる。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 #[serde(transparent)]
-pub struct DimensionForest<A = NoValue>(pub Vec<DimensionNode<A>>);
+pub struct AttributeForest<A = NoValue>(pub Vec<AttributeNode<A>>);
 
-impl<A> std::ops::Deref for DimensionForest<A> {
-    type Target = Vec<DimensionNode<A>>;
+impl<A> std::ops::Deref for AttributeForest<A> {
+    type Target = Vec<AttributeNode<A>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<A> std::ops::DerefMut for DimensionForest<A> {
+impl<A> std::ops::DerefMut for AttributeForest<A> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<A> DimensionForest<A> {
-    pub fn roots(&self) -> Vec<&DimensionNode<A>> {
+impl<A> AttributeForest<A> {
+    pub fn roots(&self) -> Vec<&AttributeNode<A>> {
         self.iter().filter(|n| n.parent.is_none()).collect()
     }
 
-    pub fn children_of(&self, parent_id: &str) -> Vec<&DimensionNode<A>> {
+    pub fn children_of(&self, parent_id: &str) -> Vec<&AttributeNode<A>> {
         self.iter()
             .filter(|n| n.parent.as_deref() == Some(parent_id))
             .collect()
@@ -149,7 +149,7 @@ impl<A> DimensionForest<A> {
         }
     }
 
-    pub fn node(&self, id: &str) -> Option<&DimensionNode<A>> {
+    pub fn node(&self, id: &str) -> Option<&AttributeNode<A>> {
         self.iter().find(|n| n.id == id)
     }
 
@@ -296,11 +296,11 @@ impl<A> DimensionForest<A> {
     }
 
     /// (node, depth, has_children, parent_id) のフラットリストを DFS 順で返す。
-    /// resource_form の葉グルーピングなど呼び出し側が parent_id を使いたいケース向け。
+    /// entity_form の葉グルーピングなど呼び出し側が parent_id を使いたいケース向け。
     pub fn subtree_flat<'a>(
         &'a self,
         root_id: &'a str,
-    ) -> Vec<(&'a DimensionNode<A>, usize, bool, &'a str)> {
+    ) -> Vec<(&'a AttributeNode<A>, usize, bool, &'a str)> {
         let mut out = Vec::new();
         self.subtree_flat_rec(root_id, 0, &mut out);
         out
@@ -310,7 +310,7 @@ impl<A> DimensionForest<A> {
         &'a self,
         parent_id: &'a str,
         depth: usize,
-        out: &mut Vec<(&'a DimensionNode<A>, usize, bool, &'a str)>,
+        out: &mut Vec<(&'a AttributeNode<A>, usize, bool, &'a str)>,
     ) {
         for child in self.children_of(parent_id) {
             let has_children = !self.children_of(&child.id).is_empty();
@@ -322,16 +322,16 @@ impl<A> DimensionForest<A> {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Bipartite<RV = NoValue, DV = NoValue> {
-    pub resources: Vec<Resource<RV>>,
-    pub dimensions: DimensionForest<DV>,
+    pub entities: Vec<Entity<RV>>,
+    pub attributes: AttributeForest<DV>,
 }
 
 impl<RV, DV> Bipartite<RV, DV> {
-    pub fn filter_resources<'a>(
+    pub fn filter_entities<'a>(
         &'a self,
         selected_tags: &[(String, String)],
-    ) -> Vec<&'a Resource<RV>> {
-        self.resources
+    ) -> Vec<&'a Entity<RV>> {
+        self.entities
             .iter()
             .filter(|r| {
                 selected_tags
@@ -341,18 +341,18 @@ impl<RV, DV> Bipartite<RV, DV> {
             .collect()
     }
 
-    fn tag_matches(&self, r: &Resource<RV>, k: &str, v: &str) -> bool {
-        let Some(rv) = r.dimensions.get(k) else {
+    fn tag_matches(&self, r: &Entity<RV>, k: &str, v: &str) -> bool {
+        let Some(rv) = r.attributes.get(k) else {
             return false;
         };
         if rv == v {
             return true;
         }
-        self.dimensions.ancestry(rv).iter().any(|a| a == v)
+        self.attributes.ancestry(rv).iter().any(|a| a == v)
     }
 
     pub fn available_tags(&self, selected: &[(String, String)]) -> Vec<(String, String)> {
-        let filtered = self.filter_resources(selected);
+        let filtered = self.filter_entities(selected);
         let selected_set: HashSet<(&str, &str)> = selected
             .iter()
             .map(|(k, v)| (k.as_str(), v.as_str()))
@@ -360,11 +360,11 @@ impl<RV, DV> Bipartite<RV, DV> {
 
         let mut tags: HashSet<(String, String)> = HashSet::new();
         for r in &filtered {
-            for (k, v) in &r.dimensions {
+            for (k, v) in &r.attributes {
                 if !selected_set.contains(&(k.as_str(), v.as_str())) {
                     tags.insert((k.clone(), v.clone()));
                 }
-                for anc in self.dimensions.ancestry(v) {
+                for anc in self.attributes.ancestry(v) {
                     if !selected_set.contains(&(k.as_str(), anc.as_str())) {
                         tags.insert((k.clone(), anc));
                     }
@@ -382,17 +382,17 @@ impl<RV, DV> Bipartite<RV, DV> {
 pub(crate) mod tests {
     use super::*;
 
-    pub fn test_forest() -> DimensionForest {
+    pub fn test_forest() -> AttributeForest {
         // platform > cloud > gcp > bigquery / bigtable
         //                  > aws > s3
-        DimensionForest(vec![
-            DimensionNode { id: "platform".into(), label: "Platform".into(), parent: None, value: NoValue {} },
-            DimensionNode { id: "cloud".into(), label: "Cloud".into(), parent: Some("platform".into()), value: NoValue {} },
-            DimensionNode { id: "gcp".into(), label: "GCP".into(), parent: Some("cloud".into()), value: NoValue {} },
-            DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("gcp".into()), value: NoValue {} },
-            DimensionNode { id: "bigtable".into(), label: "Bigtable".into(), parent: Some("gcp".into()), value: NoValue {} },
-            DimensionNode { id: "aws".into(), label: "AWS".into(), parent: Some("cloud".into()), value: NoValue {} },
-            DimensionNode { id: "s3".into(), label: "S3".into(), parent: Some("aws".into()), value: NoValue {} },
+        AttributeForest(vec![
+            AttributeNode { id: "platform".into(), label: "Platform".into(), parent: None, value: NoValue {} },
+            AttributeNode { id: "cloud".into(), label: "Cloud".into(), parent: Some("platform".into()), value: NoValue {} },
+            AttributeNode { id: "gcp".into(), label: "GCP".into(), parent: Some("cloud".into()), value: NoValue {} },
+            AttributeNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("gcp".into()), value: NoValue {} },
+            AttributeNode { id: "bigtable".into(), label: "Bigtable".into(), parent: Some("gcp".into()), value: NoValue {} },
+            AttributeNode { id: "aws".into(), label: "AWS".into(), parent: Some("cloud".into()), value: NoValue {} },
+            AttributeNode { id: "s3".into(), label: "S3".into(), parent: Some("aws".into()), value: NoValue {} },
         ])
     }
 
@@ -428,14 +428,14 @@ pub(crate) mod tests {
         use std::collections::HashMap;
         let f = test_forest();
         let bipartite = Bipartite {
-            dimensions: f,
-            resources: vec![
-                Resource { id: "a".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigquery".into())]), value: NoValue {} },
-                Resource { id: "b".into(), label: None, dimensions: HashMap::from([("platform".into(), "s3".into())]), value: NoValue {} },
-                Resource { id: "c".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigtable".into())]), value: NoValue {} },
+            attributes: f,
+            entities: vec![
+                Entity { id: "a".into(), label: None, attributes: HashMap::from([("platform".into(), "bigquery".into())]), value: NoValue {} },
+                Entity { id: "b".into(), label: None, attributes: HashMap::from([("platform".into(), "s3".into())]), value: NoValue {} },
+                Entity { id: "c".into(), label: None, attributes: HashMap::from([("platform".into(), "bigtable".into())]), value: NoValue {} },
             ],
         };
-        let got = bipartite.filter_resources(&[("platform".into(), "gcp".into())]);
+        let got = bipartite.filter_entities(&[("platform".into(), "gcp".into())]);
         let ids: Vec<&str> = got.iter().map(|r| r.id.as_str()).collect();
         assert!(ids.contains(&"a"));
         assert!(ids.contains(&"c"));

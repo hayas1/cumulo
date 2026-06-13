@@ -41,25 +41,25 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{DimensionForest, DimensionNode, NoValue, Resource};
+    use crate::model::{AttributeForest, AttributeNode, NoValue, Entity};
     use std::collections::HashMap;
 
     fn make_bipartite() -> Bipartite {
         Bipartite {
-            resources: vec![Resource {
+            entities: vec![Entity {
                 id: "r1".into(),
                 label: Some("BigQuery (prod)".into()),
-                dimensions: HashMap::from([
+                attributes: HashMap::from([
                     ("platform".into(), "bigquery".into()),
                     ("env".into(), "prod".into()),
                 ]),
                 value: NoValue {},
             }],
-            dimensions: DimensionForest(vec![
-                DimensionNode { id: "platform".into(), label: "プラットフォーム".into(), parent: None, value: NoValue {} },
-                DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("platform".into()), value: NoValue {} },
-                DimensionNode { id: "env".into(), label: "環境".into(), parent: None, value: NoValue {} },
-                DimensionNode { id: "prod".into(), label: "prod".into(), parent: Some("env".into()), value: NoValue {} },
+            attributes: AttributeForest(vec![
+                AttributeNode { id: "platform".into(), label: "プラットフォーム".into(), parent: None, value: NoValue {} },
+                AttributeNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("platform".into()), value: NoValue {} },
+                AttributeNode { id: "env".into(), label: "環境".into(), parent: None, value: NoValue {} },
+                AttributeNode { id: "prod".into(), label: "prod".into(), parent: Some("env".into()), value: NoValue {} },
             ]),
         }
     }

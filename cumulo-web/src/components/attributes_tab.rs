@@ -1,6 +1,6 @@
-use crate::platform::{DimValue, ResourceValue, Platform};
+use crate::platform::{AttributeValue, EntityValue, Platform};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Bipartite, DimensionNode};
+use cumulo_model::model::{Bipartite, AttributeNode};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -11,26 +11,26 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(RwSignal<Bipartite<ResourceValue, DimValue>>);
+struct DimTabActions(RwSignal<Bipartite<EntityValue, AttributeValue>>);
 
 impl DimTabActions {
     fn reparent(self, dragged: String, new_parent: Option<String>) {
-        self.0.update(|s| s.dimensions.reparent(&dragged, new_parent));
+        self.0.update(|s| s.attributes.reparent(&dragged, new_parent));
         AppStorage::save(&self.0.get_untracked());
     }
 
     fn move_relative(self, dragged: String, target: String, after: bool) {
-        self.0.update(|s| s.dimensions.move_relative(&dragged, &target, after));
+        self.0.update(|s| s.attributes.move_relative(&dragged, &target, after));
         AppStorage::save(&self.0.get_untracked());
     }
 
     fn delete_promote(self, node_id: String) {
-        self.0.update(|s| s.dimensions.delete_promote(&node_id));
+        self.0.update(|s| s.attributes.delete_promote(&node_id));
         AppStorage::save(&self.0.get_untracked());
     }
 
     fn delete_subtree(self, node_id: String) {
-        self.0.update(|s| s.dimensions.delete_subtree(&node_id));
+        self.0.update(|s| s.attributes.delete_subtree(&node_id));
         AppStorage::save(&self.0.get_untracked());
     }
 
@@ -51,8 +51,8 @@ impl DimTabActions {
             return;
         }
         self.0.update(|s| {
-            s.dimensions
-                .rename_node(&old_id, &new_id, &new_label, DimValue { color: new_color })
+            s.attributes
+                .rename_node(&old_id, &new_id, &new_label, AttributeValue { color: new_color })
         });
         AppStorage::save(&self.0.get_untracked());
         editing_id.set(None);
@@ -113,7 +113,7 @@ impl UiHelper {
 }
 
 #[component]
-pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) -> impl IntoView {
+pub fn AttributesTab(bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>) -> impl IntoView {
     let editing_id = create_rw_signal(Option::<String>::None);
     let id_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();
@@ -138,7 +138,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
             return;
         };
         let s = bipartite.get_untracked();
-        let Some(n) = s.dimensions.iter().find(|n| n.id == eid) else {
+        let Some(n) = s.attributes.iter().find(|n| n.id == eid) else {
             return;
         };
         preview_color.set(n.value.color.clone());
@@ -161,8 +161,8 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
                 let current_editing = editing_id.get();
                 let is_dragging = dragging.get().is_some();
 
-                let root_nodes: Vec<DimensionNode<DimValue>> = s
-                    .dimensions
+                let root_nodes: Vec<AttributeNode<AttributeValue>> = s
+                    .attributes
                     .iter()
                     .filter(|n| n.parent.is_none())
                     .cloned()
@@ -177,7 +177,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
                         let root_id_del = root.id.clone();
                         let root_id_add = root.id.clone();
 
-                        let order = s.dimensions.dfs_order(&root.id, &collapsed_set);
+                        let order = s.attributes.dfs_order(&root.id, &collapsed_set);
                         let sentinel = format!("\x00root:{}", root.id);
 
                         let is_root_editing = current_editing.as_deref() == Some(root.id.as_str());
@@ -189,7 +189,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
                                     if let Some(ref eid) = editing_id.get() {
                                         *eid == root_id_active
                                             || bipartite.with(|s| {
-                                                s.dimensions.root_of(eid)
+                                                s.attributes.root_of(eid)
                                                     .map(|r| r == root_id_active)
                                                     .unwrap_or(false)
                                             })
@@ -239,13 +239,13 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
                                                         editing_id.set(None);
                                                         bipartite.update(|s| {
                                                             if let Some(n) = s
-                                                                .dimensions
+                                                                .attributes
                                                                 .iter()
                                                                 .find(|n| n.id == rid_cancel)
                                                             {
                                                                 if n.label.is_empty() && n.id.starts_with("node") {
                                                                     let id = n.id.clone();
-                                                                    s.dimensions.retain(|n| n.id != id);
+                                                                    s.attributes.retain(|n| n.id != id);
                                                                 }
                                                             }
                                                         });
@@ -348,7 +348,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
                                         .map(|(node_id, depth, has_children)| {
                                             let row_ref = create_node_ref::<Div>();
                                             let n = s
-                                                .dimensions
+                                                .attributes
                                                 .iter()
                                                 .find(|n| n.id == node_id)
                                                 .cloned()
@@ -508,10 +508,10 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
                                                             let new_id = Platform::new_node_id();
                                                             let new_id2 = new_id.clone();
                                                             bipartite.update(|s| {
-                                                                s.dimensions.push(DimensionNode {
+                                                                s.attributes.push(AttributeNode {
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
-                                                                    value: DimValue {
+                                                                    value: AttributeValue {
                                                                         color: Platform::random_color(),
                                                                     },
                                                                     parent: Some(parent.clone()),
@@ -629,10 +629,10 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
                                             let new_id = Platform::new_node_id();
                                             let new_id2 = new_id.clone();
                                             bipartite.update(|s| {
-                                                s.dimensions.push(DimensionNode {
+                                                s.attributes.push(AttributeNode {
                                                     id: new_id.clone(),
                                                     label: String::new(),
-                                                    value: DimValue {
+                                                    value: AttributeValue {
                                                         color: Platform::random_color(),
                                                     },
                                                     parent: Some(root_id_add.clone()),
@@ -658,10 +658,10 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) ->
                     let new_id = Platform::new_node_id();
                     let new_id2 = new_id.clone();
                     bipartite.update(|s| {
-                        s.dimensions.push(DimensionNode {
+                        s.attributes.push(AttributeNode {
                             id: new_id.clone(),
                             label: String::new(),
-                            value: DimValue { color: "#8899AA".to_string() },
+                            value: AttributeValue { color: "#8899AA".to_string() },
                             parent: None,
                         });
                     });

@@ -1,11 +1,11 @@
 use super::{
     controls::Controls, detail_panel::DetailPanel, facet_sidebar::FacetSidebar,
-    facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, resource_form::ResourceForm,
+    facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, entity_form::EntityForm,
     settings_modal::SettingsModal,
 };
-use crate::platform::{DimValue, ResourceValue};
+use crate::platform::{AttributeValue, EntityValue};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Bipartite, Resource};
+use cumulo_model::model::{Bipartite, Entity};
 
 use icondata as icon;
 use leptos::*;
@@ -14,9 +14,9 @@ use leptos_router::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let bipartite = create_rw_signal::<Bipartite<ResourceValue, DimValue>>(AppStorage::load());
+    let bipartite = create_rw_signal::<Bipartite<EntityValue, AttributeValue>>(AppStorage::load());
     let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
-    let editing = create_rw_signal(Option::<Resource<ResourceValue>>::None);
+    let editing = create_rw_signal(Option::<Entity<EntityValue>>::None);
     let settings_open = create_rw_signal(false);
     let import_toast = create_rw_signal(Option::<String>::None);
     let return_to_settings = create_rw_signal(false);
@@ -62,7 +62,7 @@ pub fn App() -> impl IntoView {
                 </Routes>
             </div>
 
-            <ResourceForm bipartite=bipartite editing=editing />
+            <EntityForm bipartite=bipartite editing=editing />
             <SettingsModal bipartite=bipartite open=settings_open import_toast=import_toast editing=editing return_to_settings=return_to_settings />
 
             {move || import_toast.get().map(|msg| view! {
@@ -82,16 +82,16 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn MapView(
-    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
+    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
-    editing: RwSignal<Option<Resource<ResourceValue>>>,
+    editing: RwSignal<Option<Entity<EntityValue>>>,
 ) -> impl IntoView {
-    let selected_resource_id = create_rw_signal(Option::<String>::None);
+    let selected_entity_id = create_rw_signal(Option::<String>::None);
     let zoom_level = create_rw_signal(0u32);
     // ズーム軸＝ディメンション。既定は一番上の facet（最初のディメンション）。
     let zoom_dim = create_rw_signal({
         let s = bipartite.get_untracked();
-        s.dimensions
+        s.attributes
             .first()
             .map(|d| d.id.clone())
             .unwrap_or_default()
@@ -111,10 +111,10 @@ fn MapView(
                     bipartite=bipartite
                     selected_tags=selected_tags
                     zoom_dim=zoom_dim
-                    selected_resource=selected_resource_id
+                    selected_entity=selected_entity_id
                     zoom_level=zoom_level
                 />
-                <DetailPanel bipartite=bipartite selected_id=selected_resource_id editing=editing />
+                <DetailPanel bipartite=bipartite selected_id=selected_entity_id editing=editing />
             </div>
         </div>
     }

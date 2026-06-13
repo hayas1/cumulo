@@ -1,22 +1,22 @@
 use crate::map_bridge;
-use crate::platform::{DimValue, ResourceValue};
+use crate::platform::{AttributeValue, EntityValue};
 use cumulo_model::model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
-    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
+    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_dim: RwSignal<String>,
-    selected_resource: RwSignal<Option<String>>,
+    selected_entity: RwSignal<Option<String>>,
     zoom_level: RwSignal<u32>,
 ) -> impl IntoView {
     // ── Effect 1: D3初期化（一度だけ。シグナル依存なし）──────────────────────
     create_effect(move |_| {
         map_bridge::init_map("main-svg");
 
-        map_bridge::on_resource_select(move |id| {
-            selected_resource.set(Some(id));
+        map_bridge::on_entity_select(move |id| {
+            selected_entity.set(Some(id));
         });
 
         map_bridge::on_zoom_level_change(move |level| {
@@ -40,17 +40,17 @@ pub fn MapCanvas(
 
     // ── Effect 2: リソースデータ更新 ─────────────────────────────────────────
     create_effect(move |_| {
-        let resources = &bipartite.get().resources;
+        let resources = &bipartite.get().entities;
         if let Ok(json) = serde_json::to_string(resources) {
-            map_bridge::update_resources(&json);
+            map_bridge::update_entities(&json);
         }
     });
 
     // ── Effect 3b: ディメンション（カラー定義含む）更新 ──────────────────────
     create_effect(move |_| {
-        let dimensions = bipartite.get().dimensions;
+        let dimensions = bipartite.get().attributes;
         if let Ok(json) = serde_json::to_string(&dimensions) {
-            map_bridge::update_dimensions(&json);
+            map_bridge::update_attributes(&json);
         }
     });
 

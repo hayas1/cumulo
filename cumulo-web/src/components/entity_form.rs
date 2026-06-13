@@ -1,6 +1,6 @@
-use crate::platform::{DimValue, ResourceValue, Platform};
+use crate::platform::{AttributeValue, EntityValue, Platform};
 use crate::storage::AppStorage;
-use cumulo_model::model::{Bipartite, DimensionForest, Resource};
+use cumulo_model::model::{Bipartite, AttributeForest, Entity};
 
 use leptos::html::Input;
 use leptos::*;
@@ -20,10 +20,10 @@ enum DimTreeItem {
     },
 }
 
-fn descendants_dfs(forest: &DimensionForest<DimValue>, root_id: &str) -> Vec<DimTreeItem> {
+fn descendants_dfs(forest: &AttributeForest<AttributeValue>, root_id: &str) -> Vec<DimTreeItem> {
     let mut flat: Vec<(String, String, String, usize, bool, String)> = Vec::new();
     fn dfs(
-        forest: &DimensionForest<DimValue>,
+        forest: &AttributeForest<AttributeValue>,
         parent_id: &str,
         depth: usize,
         flat: &mut Vec<(String, String, String, usize, bool, String)>,
@@ -88,9 +88,9 @@ fn descendants_dfs(forest: &DimensionForest<DimValue>, root_id: &str) -> Vec<Dim
 }
 
 #[component]
-pub fn ResourceForm(
-    bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>,
-    editing: RwSignal<Option<Resource<ResourceValue>>>,
+pub fn EntityForm(
+    bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>,
+    editing: RwSignal<Option<Entity<EntityValue>>>,
 ) -> impl IntoView {
     let form_label = create_rw_signal(String::new());
     let form_url = create_rw_signal(String::new());
@@ -107,7 +107,7 @@ pub fn ResourceForm(
         form_label.set(r.label.clone().unwrap_or_default());
         form_url.set(r.value.console_url.clone());
         form_freq.set(r.value.freq.max(1));
-        form_dims.set(r.dimensions.clone());
+        form_dims.set(r.attributes.clone());
 
         if let Some(el) = label_ref.get() {
             el.set_value(&r.label.unwrap_or_default());
@@ -132,15 +132,15 @@ pub fn ResourceForm(
             .unwrap_or_else(Platform::new_resource_id);
 
         let lbl = form_label.get_untracked();
-        let r = Resource {
+        let r = Entity {
             id: id.clone(),
             label: if lbl.trim().is_empty() {
                 None
             } else {
                 Some(lbl)
             },
-            dimensions: form_dims.get_untracked(),
-            value: ResourceValue {
+            attributes: form_dims.get_untracked(),
+            value: EntityValue {
                 console_url: form_url.get_untracked(),
                 freq: form_freq.get_untracked(),
                 created_at: None,
@@ -148,10 +148,10 @@ pub fn ResourceForm(
         };
 
         bipartite.update(|s| {
-            if let Some(pos) = s.resources.iter().position(|x| x.id == id) {
-                s.resources[pos] = r;
+            if let Some(pos) = s.entities.iter().position(|x| x.id == id) {
+                s.entities[pos] = r;
             } else {
-                s.resources.push(r);
+                s.entities.push(r);
             }
         });
         AppStorage::save(&bipartite.get_untracked());
@@ -207,7 +207,7 @@ pub fn ResourceForm(
                     <label class="form-label">"ディメンション"</label>
                     {move || {
                         let s = bipartite.get();
-                        s.dimensions.roots()
+                        s.attributes.roots()
                             .into_iter()
                             .map(|root| {
                                 let root_id = root.id.clone();
@@ -216,7 +216,7 @@ pub fn ResourceForm(
                                 } else {
                                     root.label.clone()
                                 };
-                                let chips = descendants_dfs(&s.dimensions, &root.id);
+                                let chips = descendants_dfs(&s.attributes, &root.id);
                                 view! {
                                     <div class="form-dim-row">
                                         <span class="form-dim-label">{root_label}</span>

@@ -1,22 +1,22 @@
 use crate::map_bridge;
-use crate::platform::{DimValue, ResourceValue};
-use cumulo_model::model::{Bipartite, Resource};
+use crate::platform::{AttributeValue, EntityValue};
+use cumulo_model::model::{Bipartite, Entity};
 use leptos::*;
 
 #[component]
 pub fn Controls(
-    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
+    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_level: ReadSignal<u32>,
-    editing: RwSignal<Option<Resource<ResourceValue>>>,
+    editing: RwSignal<Option<Entity<EntityValue>>>,
 ) -> impl IntoView {
-    let resource_count = create_memo(move |_| {
+    let entity_count = create_memo(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();
-        s.filter_resources(&tags).len()
+        s.filter_entities(&tags).len()
     });
 
-    let total_count = create_memo(move |_| bipartite.get().resources.len());
+    let total_count = create_memo(move |_| bipartite.get().entities.len());
 
     view! {
         <div class="controls-bar">
@@ -24,7 +24,7 @@ pub fn Controls(
             <div class="controls-right">
                 <button
                     class="add-resource-btn"
-                    on:click=move |_| editing.set(Some(Resource::default()))
+                    on:click=move |_| editing.set(Some(Entity::default()))
                 >
                     "+ 追加"
                 </button>
@@ -32,7 +32,7 @@ pub fn Controls(
                     "Lv." {move || zoom_level.get()}
                 </span>
                 <span class="resource-count">
-                    {move || resource_count.get()}
+                    {move || entity_count.get()}
                     " / "
                     {move || total_count.get()}
                     " 件"

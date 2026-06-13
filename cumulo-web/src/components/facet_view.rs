@@ -1,20 +1,20 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::platform::{DimValue, ResourceValue, Platform};
-use cumulo_model::model::{Bipartite, Resource};
+use crate::platform::{AttributeValue, EntityValue, Platform};
+use cumulo_model::model::{Bipartite, Entity};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
-    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
+    bipartite: ReadSignal<Bipartite<EntityValue, AttributeValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
-    editing: RwSignal<Option<Resource<ResourceValue>>>,
+    editing: RwSignal<Option<Entity<EntityValue>>>,
 ) -> impl IntoView {
     let filtered_ids = create_memo(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();
-        s.filter_resources(&tags)
+        s.filter_entities(&tags)
             .into_iter()
             .map(|r| r.id.clone())
             .collect::<Vec<_>>()
@@ -30,14 +30,14 @@ pub fn FacetView(
                         let s = bipartite.get();
                         let ids = filtered_ids.get();
 
-                        let resources: Vec<_> = s
-                            .resources
+                        let entities: Vec<_> = s
+                            .entities
                             .iter()
                             .filter(|r| ids.contains(&r.id))
                             .cloned()
                             .collect();
 
-                        if resources.is_empty() {
+                        if entities.is_empty() {
                             return view! {
                                 <div class="facet-empty">
                                     "マッチするリソースがありません"
@@ -48,21 +48,21 @@ pub fn FacetView(
 
                         view! {
                             <div class="results-header-row">
-                                <span class="results-count">{resources.len()} " 件"</span>
+                                <span class="results-count">{entities.len()} " 件"</span>
                                 <button
                                     class="add-resource-btn"
-                                    on:click=move |_| editing.set(Some(Resource::<ResourceValue>::default()))
+                                    on:click=move |_| editing.set(Some(Entity::<EntityValue>::default()))
                                 >
                                     "+ 追加"
                                 </button>
                             </div>
                             <div class="results-list">
-                                {resources
+                                {entities
                                     .into_iter()
                                     .map(|r| {
                                         let url = r.value.console_url.clone();
 
-                                        let mut dims_sorted: Vec<_> = r.dimensions.iter()
+                                        let mut dims_sorted: Vec<_> = r.attributes.iter()
                                             .map(|(k, v)| (k.clone(), v.clone()))
                                             .collect();
                                         dims_sorted.sort_by_key(|(k, _)| k.clone());
@@ -70,10 +70,10 @@ pub fn FacetView(
                                         let chips: Vec<(String, String, String)> = dims_sorted
                                             .iter()
                                             .map(|(k, v)| {
-                                                let color = s.dimensions.node(v)
+                                                let color = s.attributes.node(v)
                                                     .map(|n| n.value.color.clone())
                                                     .unwrap_or_default();
-                                                let label = s.dimensions.node(v)
+                                                let label = s.attributes.node(v)
                                                     .map(|n| n.label.clone())
                                                     .unwrap_or_else(|| v.clone());
                                                 (k.clone(), label, color)
@@ -88,7 +88,7 @@ pub fn FacetView(
                                                         class="result-name result-name-link"
                                                         on:click=move |_| Platform::open_url(&url)
                                                     >
-                                                        {r.display_label(&s.dimensions)}
+                                                        {r.display_label(&s.attributes)}
                                                     </span>
                                                     <div class="result-card-actions">
                                                         <button

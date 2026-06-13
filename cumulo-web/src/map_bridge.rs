@@ -40,8 +40,8 @@ pub fn init_map(canvas_id: &str) {
     call1("cumuloInitMap", canvas_id);
 }
 
-pub fn update_resources(json: &str) {
-    call1("cumuloUpdateResources", json);
+pub fn update_entities(json: &str) {
+    call1("cumuloUpdateEntitys", json);
 }
 
 pub fn update_filter(json: &str) {
@@ -52,7 +52,7 @@ pub fn update_zoom_dim(json: &str) {
     call1("cumuloUpdateZoomDim", json);
 }
 
-pub fn update_dimensions(json: &str) {
+pub fn update_attributes(json: &str) {
     call1("cumuloUpdateDimensions", json);
 }
 
@@ -72,12 +72,12 @@ pub fn zoom_out() {
 
 /// D3がリソースを選択したときに呼ばれるコールバックを登録する。
 /// Closure は意図的にリークさせてアプリのライフタイム全体で有効にする。
-pub fn on_resource_select(callback: impl Fn(String) + 'static) {
+pub fn on_entity_select(callback: impl Fn(String) + 'static) {
     let closure = Closure::wrap(Box::new(callback) as Box<dyn Fn(String)>);
     if let Some(obj) = callbacks_obj() {
         let _ = Reflect::set(
             &obj,
-            &JsValue::from_str("onResourceSelect"),
+            &JsValue::from_str("onEntitySelect"),
             closure.as_ref(),
         );
     }

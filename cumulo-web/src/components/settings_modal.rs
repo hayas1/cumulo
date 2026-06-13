@@ -1,9 +1,9 @@
-use super::dimensions_tab::DimensionsTab;
-use super::resources_tab::ResourcesTab;
-use crate::platform::{DimValue, ResourceValue, Platform};
+use super::attributes_tab::AttributesTab;
+use super::entities_tab::EntitiesTab;
+use crate::platform::{AttributeValue, EntityValue, Platform};
 use crate::storage::AppStorage;
 use cumulo_model::io::ExportData;
-use cumulo_model::model::{Bipartite, Resource};
+use cumulo_model::model::{Bipartite, Entity};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -12,10 +12,10 @@ use wasm_bindgen_futures::JsFuture;
 
 #[component]
 pub fn SettingsModal(
-    bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>,
+    bipartite: RwSignal<Bipartite<EntityValue, AttributeValue>>,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
-    editing: RwSignal<Option<Resource<ResourceValue>>>,
+    editing: RwSignal<Option<Entity<EntityValue>>>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
     let active_tab = create_rw_signal("data".to_string());
@@ -64,8 +64,8 @@ pub fn SettingsModal(
                                 Ok(imported) => {
                                     let msg = format!(
                                         "インポート完了: リソース {}件、ディメンション {}件",
-                                        imported.resources.len(),
-                                        imported.dimensions.len(),
+                                        imported.entities.len(),
+                                        imported.attributes.len(),
                                     );
                                     bipartite.set(imported);
                                     AppStorage::save(&bipartite.get_untracked());
@@ -135,10 +135,10 @@ pub fn SettingsModal(
                             let tab = active_tab.get();
                             match tab.as_str() {
                                 "dim" => view! {
-                                    <DimensionsTab bipartite=bipartite />
+                                    <AttributesTab bipartite=bipartite />
                                 }.into_view(),
                                 "resource" => view! {
-                                    <ResourcesTab bipartite=bipartite editing=editing settings_open=open return_to_settings=return_to_settings />
+                                    <EntitiesTab bipartite=bipartite editing=editing settings_open=open return_to_settings=return_to_settings />
                                 }.into_view(),
                                 "data" => view! {
                                     <div class="settings-section">

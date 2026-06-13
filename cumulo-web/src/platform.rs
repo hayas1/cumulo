@@ -3,19 +3,19 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-/// Web 層が Resource に付与する値。
+/// Web 層が Entity に付与する値。
 /// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct ResourceValue {
+pub struct EntityValue {
     pub console_url: String,
     pub created_at: Option<String>,
     pub freq: u32,
 }
 
-/// Web 層が DimensionNode に付与するビジュアル属性。
+/// Web 層が AttributeNode に付与するビジュアル属性。
 /// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct DimValue {
+pub struct AttributeValue {
     pub color: String,
 }
 
