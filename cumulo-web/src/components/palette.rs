@@ -1,6 +1,5 @@
 use crate::platform::{AttributeId, AttributeValue, EntityValue};
 use cumulo_model::Bipartite;
-use cumulo_model::Query;
 use leptos::*;
 
 #[component]
@@ -14,21 +13,17 @@ pub fn Palette(
 
     let suggestions = create_memo(move |_| {
         let s = bipartite.get();
-        let tags = selected_tags.get();
         let input = input_text.get();
 
-        let mut avail = s.available_tags(&tags);
-
-        if !input.is_empty() {
-            let lower = input.to_lowercase();
-            let q = Query::new(&lower);
-            avail.retain(|(k, v)| {
-                q.matches(&k.to_lowercase()) || q.matches(&v.to_lowercase())
-            });
-        }
-
-        avail.truncate(10);
-        avail
+        let mut result: Vec<(AttributeId, AttributeId)> = s
+            .attribute_view()
+            .query(&input)
+            .view
+            .into_iter()
+            .filter_map(|attr| Some((s.attributes.root_of(&attr.id)?, attr.id.clone())))
+            .collect();
+        result.truncate(10);
+        result
     });
 
     let commit_tag = move |k: AttributeId, v: AttributeId| {
@@ -143,8 +138,10 @@ pub fn Palette(
                                     .into_iter()
                                     .enumerate()
                                     .map(|(i, (k, v))| {
-                                        let k2 = k.clone();
-                                        let v2 = v.clone();
+                                        let key = k.clone();
+                                        let val = v.clone();
+                                        let key2 = key.clone();
+                                        let val2 = val.clone();
                                         let is_focused_item = fi == Some(i);
                                         view! {
                                             <button
@@ -156,12 +153,12 @@ pub fn Palette(
                                                 // mousedown で prevent_default → blur を防いで確定
                                                 on:mousedown=move |ev| {
                                                     ev.prevent_default();
-                                                    commit_tag(k2.clone(), v2.clone());
+                                                    commit_tag(key2.clone(), val2.clone());
                                                 }
                                             >
-                                                <span class="sug-key">{k.to_string()}</span>
+                                                <span class="sug-key">{key.to_string()}</span>
                                                 <span class="sug-sep">":"</span>
-                                                <span class="sug-val">{v.to_string()}</span>
+                                                <span class="sug-val">{val.to_string()}</span>
                                             </button>
                                         }
                                     })
@@ -193,18 +190,20 @@ pub fn Palette(
                             .get()
                             .into_iter()
                             .map(|(k, v)| {
-                                let k2 = k.clone();
-                                let v2 = v.clone();
+                                let key = k.clone();
+                                let val = v.clone();
+                                let key2 = key.clone();
+                                let val2 = val.clone();
                                 view! {
                                     <button
                                         class="suggestion-btn"
                                         on:click=move |_| {
-                                            commit_tag(k2.clone(), v2.clone());
+                                            commit_tag(key2.clone(), val2.clone());
                                         }
                                     >
-                                        <span class="sug-key">{k.to_string()}</span>
+                                        <span class="sug-key">{key.to_string()}</span>
                                         ":"
-                                        <span class="sug-val">{v.to_string()}</span>
+                                        <span class="sug-val">{val.to_string()}</span>
                                     </button>
                                 }
                             })
