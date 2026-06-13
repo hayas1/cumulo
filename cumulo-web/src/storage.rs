@@ -4,8 +4,6 @@ use gloo_storage::{LocalStorage, Storage as GlooStorage};
 
 const STORAGE_KEY: &str = "cumulo_store";
 
-static DEFAULT_JSON: &str = include_str!("config/default.json");
-
 pub trait AppStoreExt {
     fn save_to_storage(&self);
     fn load_from_storage() -> Self;
@@ -40,6 +38,6 @@ impl AppStoreExt for cumulo_model::model::AppStore<DimAttrs> {
     }
 
     fn load_default() -> Self {
-        ExportData::<DimAttrs>::parse(DEFAULT_JSON).expect("default.json is invalid")
+        ExportData::<DimAttrs>::parse(cumulo_model::DEFAULT_JSON).expect("default.json is invalid")
     }
 }
