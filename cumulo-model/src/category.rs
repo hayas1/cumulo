@@ -6,56 +6,56 @@ use crate::id::Id;
 
 /// parent が None のノードが軸の根（＝カテゴリキー）となる。
 /// リソースの categories は { 根id → ノードid } で表現する。
-/// `#[serde(bound)]` でデシリアライズ境界を明示し、flatten が生成する A: Default 境界を除去する。
+/// `#[serde(bound)]` でデシリアライズ境界を明示し、flatten が生成する CA: Default 境界を除去する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(bound(serialize = "A: Serialize", deserialize = "A: Deserialize<'de>"))]
-pub struct Category<A> {
-    pub id: Id<Category<A>>,
+#[serde(bound(serialize = "CA: Serialize", deserialize = "CA: Deserialize<'de>"))]
+pub struct Category<CA> {
+    pub id: Id<Category<CA>>,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent: Option<Id<Category<A>>>,
-    /// web 層は `A = CategoryAttribute { color }` を指定して color を同じ JSON レベルに展開する。
+    pub parent: Option<Id<Category<CA>>>,
+    /// web 層は `CA = CategoryAttribute { color }` を指定して color を同じ JSON レベルに展開する。
     #[serde(flatten)]
-    pub attribute: A,
+    pub attribute: CA,
 }
 
 /// parent リンクで森を構成する。parent が None のノードが軸の根となる。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(transparent)]
-pub struct Taxonomy<A>(pub Vec<Category<A>>);
+pub struct Taxonomy<CA>(pub Vec<Category<CA>>);
 
-impl<A> Default for Taxonomy<A> {
+impl<CA> Default for Taxonomy<CA> {
     fn default() -> Self {
         Taxonomy(Vec::new())
     }
 }
 
-impl<A> std::ops::Deref for Taxonomy<A> {
-    type Target = Vec<Category<A>>;
+impl<CA> std::ops::Deref for Taxonomy<CA> {
+    type Target = Vec<Category<CA>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<A> std::ops::DerefMut for Taxonomy<A> {
+impl<CA> std::ops::DerefMut for Taxonomy<CA> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<A> Taxonomy<A> {
-    pub fn roots(&self) -> Vec<&Category<A>> {
+impl<CA> Taxonomy<CA> {
+    pub fn roots(&self) -> Vec<&Category<CA>> {
         self.iter().filter(|n| n.parent.is_none()).collect()
     }
 
-    pub fn children_of(&self, parent_id: &Id<Category<A>>) -> Vec<&Category<A>> {
+    pub fn children_of(&self, parent_id: &Id<Category<CA>>) -> Vec<&Category<CA>> {
         self.iter()
             .filter(|n| n.parent.as_ref() == Some(parent_id))
             .collect()
     }
 
     /// 軸の根 (parent==None) の id は含めない（根はキーであり値ではない）。
-    pub fn ancestry(&self, id: &Id<Category<A>>) -> Vec<Id<Category<A>>> {
+    pub fn ancestry(&self, id: &Id<Category<CA>>) -> Vec<Id<Category<CA>>> {
         let mut chain = Vec::new();
         let mut cur = Some(id.clone());
         while let Some(c) = cur {
@@ -73,7 +73,7 @@ impl<A> Taxonomy<A> {
         chain
     }
 
-    pub fn root_of(&self, id: &Id<Category<A>>) -> Option<Id<Category<A>>> {
+    pub fn root_of(&self, id: &Id<Category<CA>>) -> Option<Id<Category<CA>>> {
         let mut cur = id.clone();
         let mut seen = HashSet::new();
         loop {
@@ -99,11 +99,11 @@ impl<A> Taxonomy<A> {
         }
     }
 
-    pub fn node(&self, id: &Id<Category<A>>) -> Option<&Category<A>> {
+    pub fn node(&self, id: &Id<Category<CA>>) -> Option<&Category<CA>> {
         self.iter().find(|n| &n.id == id)
     }
 
-    pub fn ancestry_contains(&self, start: &Id<Category<A>>, target: &Id<Category<A>>) -> bool {
+    pub fn ancestry_contains(&self, start: &Id<Category<CA>>, target: &Id<Category<CA>>) -> bool {
         let mut cur = Some(start.clone());
         let mut seen = HashSet::new();
         while let Some(c) = cur {
@@ -121,13 +121,13 @@ impl<A> Taxonomy<A> {
         false
     }
 
-    pub fn collect_descendants(&self, root: &Id<Category<A>>) -> HashSet<Id<Category<A>>> {
+    pub fn collect_descendants(&self, root: &Id<Category<CA>>) -> HashSet<Id<Category<CA>>> {
         let mut out = HashSet::new();
         self.collect_descendants_rec(root, &mut out);
         out
     }
 
-    fn collect_descendants_rec(&self, id: &Id<Category<A>>, out: &mut HashSet<Id<Category<A>>>) {
+    fn collect_descendants_rec(&self, id: &Id<Category<CA>>, out: &mut HashSet<Id<Category<CA>>>) {
         if !out.insert(id.clone()) {
             return;
         }
@@ -138,9 +138,9 @@ impl<A> Taxonomy<A> {
 
     pub fn dfs_order(
         &self,
-        root_id: &Id<Category<A>>,
-        collapsed: &HashSet<Id<Category<A>>>,
-    ) -> Vec<(Id<Category<A>>, usize, bool)> {
+        root_id: &Id<Category<CA>>,
+        collapsed: &HashSet<Id<Category<CA>>>,
+    ) -> Vec<(Id<Category<CA>>, usize, bool)> {
         let mut out = Vec::new();
         self.dfs_order_rec(root_id, 0, collapsed, &mut out);
         out
@@ -148,10 +148,10 @@ impl<A> Taxonomy<A> {
 
     fn dfs_order_rec(
         &self,
-        parent_id: &Id<Category<A>>,
+        parent_id: &Id<Category<CA>>,
         depth: usize,
-        collapsed: &HashSet<Id<Category<A>>>,
-        out: &mut Vec<(Id<Category<A>>, usize, bool)>,
+        collapsed: &HashSet<Id<Category<CA>>>,
+        out: &mut Vec<(Id<Category<CA>>, usize, bool)>,
     ) {
         for child in self.children_of(parent_id) {
             let has_children = !self.children_of(&child.id).is_empty();
@@ -165,10 +165,10 @@ impl<A> Taxonomy<A> {
     /// 深さ優先で子孫を列挙し、counts > 0 のノードのみ (id, label, depth, count) を out に追加する。
     pub fn dfs_collect_counts(
         &self,
-        parent_id: &Id<Category<A>>,
+        parent_id: &Id<Category<CA>>,
         depth: usize,
-        counts: &HashMap<Id<Category<A>>, usize>,
-        out: &mut Vec<(Id<Category<A>>, String, usize, usize)>,
+        counts: &HashMap<Id<Category<CA>>, usize>,
+        out: &mut Vec<(Id<Category<CA>>, String, usize, usize)>,
     ) {
         for child in self.children_of(parent_id) {
             let cnt = counts.get(child.id.as_str()).copied().unwrap_or(0);
@@ -180,7 +180,7 @@ impl<A> Taxonomy<A> {
         }
     }
 
-    pub fn reparent(&mut self, dragged: &Id<Category<A>>, new_parent: Option<Id<Category<A>>>) {
+    pub fn reparent(&mut self, dragged: &Id<Category<CA>>, new_parent: Option<Id<Category<CA>>>) {
         if let Some(np) = &new_parent {
             if np == dragged || self.ancestry_contains(np, dragged) {
                 return;
@@ -193,8 +193,8 @@ impl<A> Taxonomy<A> {
 
     pub fn move_relative(
         &mut self,
-        dragged: &Id<Category<A>>,
-        target: &Id<Category<A>>,
+        dragged: &Id<Category<CA>>,
+        target: &Id<Category<CA>>,
         after: bool,
     ) {
         if dragged == target {
@@ -223,7 +223,7 @@ impl<A> Taxonomy<A> {
         self.insert(insert_at.min(len), node);
     }
 
-    pub fn delete_promote(&mut self, node_id: &Id<Category<A>>) {
+    pub fn delete_promote(&mut self, node_id: &Id<Category<CA>>) {
         let parent = self
             .iter()
             .find(|n| &n.id == node_id)
@@ -236,17 +236,17 @@ impl<A> Taxonomy<A> {
         self.retain(|n| &n.id != node_id);
     }
 
-    pub fn delete_subtree(&mut self, node_id: &Id<Category<A>>) {
+    pub fn delete_subtree(&mut self, node_id: &Id<Category<CA>>) {
         let doomed = self.collect_descendants(node_id);
         self.retain(|n| !doomed.contains(n.id.as_str()));
     }
 
     pub fn rename_node(
         &mut self,
-        old_id: &Id<Category<A>>,
-        new_id: Id<Category<A>>,
+        old_id: &Id<Category<CA>>,
+        new_id: Id<Category<CA>>,
         label: &str,
-        attribute: A,
+        attribute: CA,
     ) {
         if old_id != &new_id {
             for other in self.iter_mut() {
@@ -264,8 +264,8 @@ impl<A> Taxonomy<A> {
 
     pub fn subtree_flat<'a>(
         &'a self,
-        root_id: &'a Id<Category<A>>,
-    ) -> Vec<(&'a Category<A>, usize, bool, &'a Id<Category<A>>)> {
+        root_id: &'a Id<Category<CA>>,
+    ) -> Vec<(&'a Category<CA>, usize, bool, &'a Id<Category<CA>>)> {
         let mut out = Vec::new();
         self.subtree_flat_rec(root_id, 0, &mut out);
         out
@@ -273,9 +273,9 @@ impl<A> Taxonomy<A> {
 
     fn subtree_flat_rec<'a>(
         &'a self,
-        parent_id: &'a Id<Category<A>>,
+        parent_id: &'a Id<Category<CA>>,
         depth: usize,
-        out: &mut Vec<(&'a Category<A>, usize, bool, &'a Id<Category<A>>)>,
+        out: &mut Vec<(&'a Category<CA>, usize, bool, &'a Id<Category<CA>>)>,
     ) {
         for child in self.children_of(parent_id) {
             let has_children = !self.children_of(&child.id).is_empty();

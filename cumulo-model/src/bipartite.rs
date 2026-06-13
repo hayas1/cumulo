@@ -5,16 +5,16 @@ use crate::id::Id;
 use crate::resource::{Catalog, Resource};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
-pub struct Bipartite<RV, DV> {
-    pub catalog: Catalog<RV, DV>,
-    pub taxonomy: Taxonomy<DV>,
+pub struct Bipartite<RA, CA> {
+    pub catalog: Catalog<RA, CA>,
+    pub taxonomy: Taxonomy<CA>,
 }
 
-impl<RV, DV: Clone + PartialEq> Bipartite<RV, DV> {
+impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
     pub fn filter_resources<'a>(
         &'a self,
-        selected_tags: &[(Id<Category<DV>>, Id<Category<DV>>)],
-    ) -> Vec<&'a Resource<RV, DV>> {
+        selected_tags: &[(Id<Category<CA>>, Id<Category<CA>>)],
+    ) -> Vec<&'a Resource<RA, CA>> {
         self.catalog
             .iter()
             .filter(|r| selected_tags.iter().all(|(k, v)| self.tag_matches(r, k, v)))
@@ -23,9 +23,9 @@ impl<RV, DV: Clone + PartialEq> Bipartite<RV, DV> {
 
     fn tag_matches(
         &self,
-        r: &Resource<RV, DV>,
-        k: &Id<Category<DV>>,
-        v: &Id<Category<DV>>,
+        r: &Resource<RA, CA>,
+        k: &Id<Category<CA>>,
+        v: &Id<Category<CA>>,
     ) -> bool {
         let Some(rv) = r.categories.get(k.as_str()) else {
             return false;
@@ -37,7 +37,7 @@ impl<RV, DV: Clone + PartialEq> Bipartite<RV, DV> {
     }
 
     /// カテゴリフォレストの non-root ノード（選択可能なカテゴリ値）へのビューを返す。
-    pub fn category_view(&self) -> CategoryView<'_, RV, DV> {
+    pub fn category_view(&self) -> CategoryView<'_, RA, CA> {
         let view = self
             .taxonomy
             .iter()
@@ -53,19 +53,19 @@ impl<RV, DV: Clone + PartialEq> Bipartite<RV, DV> {
 const CURRENT_VERSION: u32 = 1;
 
 #[derive(Serialize, Deserialize)]
-pub struct ExportData<RV, DV> {
+pub struct ExportData<RA, CA> {
     pub cumulo_version: u32,
     pub exported_at: String,
     #[serde(rename = "store")]
-    pub bipartite: Bipartite<RV, DV>,
+    pub bipartite: Bipartite<RA, CA>,
 }
 
-impl<RV, DV> ExportData<RV, DV>
+impl<RA, CA> ExportData<RA, CA>
 where
-    RV: Serialize + DeserializeOwned,
-    DV: Serialize + DeserializeOwned,
+    RA: Serialize + DeserializeOwned,
+    CA: Serialize + DeserializeOwned,
 {
-    pub fn new(bipartite: Bipartite<RV, DV>, exported_at: impl Into<String>) -> Self {
+    pub fn new(bipartite: Bipartite<RA, CA>, exported_at: impl Into<String>) -> Self {
         ExportData {
             cumulo_version: CURRENT_VERSION,
             exported_at: exported_at.into(),
@@ -77,8 +77,8 @@ where
         serde_json::to_string_pretty(self).unwrap_or_default()
     }
 
-    pub fn parse(json: &str) -> Result<Bipartite<RV, DV>, String> {
-        let data: ExportData<RV, DV> =
+    pub fn parse(json: &str) -> Result<Bipartite<RA, CA>, String> {
+        let data: ExportData<RA, CA> =
             serde_json::from_str(json).map_err(|e| format!("JSON parse error: {e}"))?;
         match data.cumulo_version {
             1 => Ok(data.bipartite),
@@ -88,12 +88,12 @@ where
 }
 
 /// Bipartite のカテゴリフォレストに対するフィルタ可能なビュー。
-pub struct CategoryView<'a, RV, DV> {
-    pub bipartite: &'a Bipartite<RV, DV>,
-    pub view: Vec<&'a Category<DV>>,
+pub struct CategoryView<'a, RA, CA> {
+    pub bipartite: &'a Bipartite<RA, CA>,
+    pub view: Vec<&'a Category<CA>>,
 }
 
-impl<'a, RV, DV> CategoryView<'a, RV, DV> {
+impl<'a, RA, CA> CategoryView<'a, RA, CA> {
     /// id または label に対してサブシーケンス照合でフィルタする。大文字小文字は区別しない。
     pub fn query(self, q: &str) -> Self {
         if q.is_empty() {
