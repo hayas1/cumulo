@@ -1,5 +1,5 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::platform::{DimValue, Platform};
+use crate::platform::{DimValue, ResourceValue, Platform};
 use cumulo_model::model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
@@ -7,9 +7,9 @@ use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
-    bipartite: ReadSignal<Bipartite<DimValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
-    editing: RwSignal<Option<Resource>>,
+    editing: RwSignal<Option<Resource<ResourceValue>>>,
 ) -> impl IntoView {
     let filtered_ids = create_memo(move |_| {
         let s = bipartite.get();
@@ -51,7 +51,7 @@ pub fn FacetView(
                                 <span class="results-count">{resources.len()} " 件"</span>
                                 <button
                                     class="add-resource-btn"
-                                    on:click=move |_| editing.set(Some(Resource::default()))
+                                    on:click=move |_| editing.set(Some(Resource::<ResourceValue>::default()))
                                 >
                                     "+ 追加"
                                 </button>
@@ -60,7 +60,7 @@ pub fn FacetView(
                                 {resources
                                     .into_iter()
                                     .map(|r| {
-                                        let url = r.console_url.clone();
+                                        let url = r.value.console_url.clone();
 
                                         let mut dims_sorted: Vec<_> = r.dimensions.iter()
                                             .map(|(k, v)| (k.clone(), v.clone()))

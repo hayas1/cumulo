@@ -1,4 +1,4 @@
-use crate::platform::{DimValue, Platform};
+use crate::platform::{DimValue, ResourceValue, Platform};
 use crate::storage::AppStorage;
 use cumulo_model::model::{Bipartite, DimensionForest, Resource};
 
@@ -89,8 +89,8 @@ fn descendants_dfs(forest: &DimensionForest<DimValue>, root_id: &str) -> Vec<Dim
 
 #[component]
 pub fn ResourceForm(
-    bipartite: RwSignal<Bipartite<DimValue>>,
-    editing: RwSignal<Option<Resource>>,
+    bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>,
+    editing: RwSignal<Option<Resource<ResourceValue>>>,
 ) -> impl IntoView {
     let form_label = create_rw_signal(String::new());
     let form_url = create_rw_signal(String::new());
@@ -105,18 +105,18 @@ pub fn ResourceForm(
         let Some(r) = editing.get() else { return };
 
         form_label.set(r.label.clone().unwrap_or_default());
-        form_url.set(r.console_url.clone());
-        form_freq.set(r.freq.max(1));
+        form_url.set(r.value.console_url.clone());
+        form_freq.set(r.value.freq.max(1));
         form_dims.set(r.dimensions.clone());
 
         if let Some(el) = label_ref.get() {
             el.set_value(&r.label.unwrap_or_default());
         }
         if let Some(el) = url_ref.get() {
-            el.set_value(&r.console_url);
+            el.set_value(&r.value.console_url);
         }
         if let Some(el) = freq_ref.get() {
-            el.set_value(&r.freq.max(1).to_string());
+            el.set_value(&r.value.freq.max(1).to_string());
         }
     });
 
@@ -139,10 +139,12 @@ pub fn ResourceForm(
             } else {
                 Some(lbl)
             },
-            console_url: form_url.get_untracked(),
-            freq: form_freq.get_untracked(),
             dimensions: form_dims.get_untracked(),
-            created_at: None,
+            value: ResourceValue {
+                console_url: form_url.get_untracked(),
+                freq: form_freq.get_untracked(),
+                created_at: None,
+            },
         };
 
         bipartite.update(|s| {

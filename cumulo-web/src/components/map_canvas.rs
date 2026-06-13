@@ -1,11 +1,11 @@
 use crate::map_bridge;
-use crate::platform::DimValue;
+use crate::platform::{DimValue, ResourceValue};
 use cumulo_model::model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
-    bipartite: ReadSignal<Bipartite<DimValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_dim: RwSignal<String>,
     selected_resource: RwSignal<Option<String>>,

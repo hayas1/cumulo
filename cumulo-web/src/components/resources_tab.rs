@@ -1,4 +1,4 @@
-use crate::platform::DimValue;
+use crate::platform::{DimValue, ResourceValue};
 use crate::storage::AppStorage;
 use cumulo_model::model::{Bipartite, Resource};
 
@@ -19,8 +19,8 @@ fn ask_confirm(
 
 #[component]
 pub fn ResourcesTab(
-    bipartite: RwSignal<Bipartite<DimValue>>,
-    editing: RwSignal<Option<Resource>>,
+    bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>,
+    editing: RwSignal<Option<Resource<ResourceValue>>>,
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
@@ -38,7 +38,7 @@ pub fn ResourcesTab(
                 class="resource-add-btn"
                 on:click=move |_| {
                     return_to_settings.set(true);
-                    editing.set(Some(Resource::default()));
+                    editing.set(Some(Resource::<ResourceValue>::default()));
                     settings_open.set(false);
                 }
             >

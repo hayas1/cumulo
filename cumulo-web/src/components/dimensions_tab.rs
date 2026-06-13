@@ -1,4 +1,4 @@
-use crate::platform::{DimValue, Platform};
+use crate::platform::{DimValue, ResourceValue, Platform};
 use crate::storage::AppStorage;
 use cumulo_model::model::{Bipartite, DimensionNode};
 
@@ -11,7 +11,7 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(RwSignal<Bipartite<DimValue>>);
+struct DimTabActions(RwSignal<Bipartite<ResourceValue, DimValue>>);
 
 impl DimTabActions {
     fn reparent(self, dragged: String, new_parent: Option<String>) {
@@ -113,7 +113,7 @@ impl UiHelper {
 }
 
 #[component]
-pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimValue>>) -> impl IntoView {
+pub fn DimensionsTab(bipartite: RwSignal<Bipartite<ResourceValue, DimValue>>) -> impl IntoView {
     let editing_id = create_rw_signal(Option::<String>::None);
     let id_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();

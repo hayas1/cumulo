@@ -8,32 +8,28 @@ use serde::{Deserialize, Serialize};
 pub struct NoValue {}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct Resource {
+pub struct Resource<V = NoValue> {
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     /// キーは軸の根id。値はその軸内のノードid。
     pub dimensions: HashMap<String, String>,
-    pub console_url: String,
-    pub created_at: Option<String>,
-    /// アクセス頻度（表示サイズに使用）
-    pub freq: u32,
+    #[serde(flatten)]
+    pub value: V,
 }
 
-impl Default for Resource {
+impl<V: Default> Default for Resource<V> {
     fn default() -> Self {
         Resource {
             id: String::new(),
             label: None,
             dimensions: HashMap::new(),
-            console_url: String::new(),
-            created_at: None,
-            freq: 1,
+            value: V::default(),
         }
     }
 }
 
-impl Resource {
+impl<V> Resource<V> {
     pub fn display_label<A: Clone>(&self, forest: &DimensionForest<A>) -> String {
         if let Some(l) = &self.label {
             if !l.is_empty() {
@@ -325,16 +321,16 @@ impl<A> DimensionForest<A> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
-pub struct Bipartite<A = NoValue> {
-    pub resources: Vec<Resource>,
-    pub dimensions: DimensionForest<A>,
+pub struct Bipartite<RV = NoValue, DV = NoValue> {
+    pub resources: Vec<Resource<RV>>,
+    pub dimensions: DimensionForest<DV>,
 }
 
-impl<A> Bipartite<A> {
+impl<RV, DV> Bipartite<RV, DV> {
     pub fn filter_resources<'a>(
         &'a self,
         selected_tags: &[(String, String)],
-    ) -> Vec<&'a Resource> {
+    ) -> Vec<&'a Resource<RV>> {
         self.resources
             .iter()
             .filter(|r| {
@@ -345,7 +341,7 @@ impl<A> Bipartite<A> {
             .collect()
     }
 
-    fn tag_matches(&self, r: &Resource, k: &str, v: &str) -> bool {
+    fn tag_matches(&self, r: &Resource<RV>, k: &str, v: &str) -> bool {
         let Some(rv) = r.dimensions.get(k) else {
             return false;
         };
@@ -434,9 +430,9 @@ pub(crate) mod tests {
         let bipartite = Bipartite {
             dimensions: f,
             resources: vec![
-                Resource { id: "a".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigquery".into())]), console_url: String::new(), created_at: None, freq: 1 },
-                Resource { id: "b".into(), label: None, dimensions: HashMap::from([("platform".into(), "s3".into())]), console_url: String::new(), created_at: None, freq: 1 },
-                Resource { id: "c".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigtable".into())]), console_url: String::new(), created_at: None, freq: 1 },
+                Resource { id: "a".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigquery".into())]), value: NoValue {} },
+                Resource { id: "b".into(), label: None, dimensions: HashMap::from([("platform".into(), "s3".into())]), value: NoValue {} },
+                Resource { id: "c".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigtable".into())]), value: NoValue {} },
             ],
         };
         let got = bipartite.filter_resources(&[("platform".into(), "gcp".into())]);

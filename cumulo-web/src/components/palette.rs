@@ -1,11 +1,11 @@
-use crate::platform::DimValue;
+use crate::platform::{DimValue, ResourceValue};
 use cumulo_model::model::Bipartite;
 use cumulo_model::query::Query;
 use leptos::*;
 
 #[component]
 pub fn Palette(
-    bipartite: ReadSignal<Bipartite<DimValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());

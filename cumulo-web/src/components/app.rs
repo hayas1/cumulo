@@ -3,7 +3,7 @@ use super::{
     facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, resource_form::ResourceForm,
     settings_modal::SettingsModal,
 };
-use crate::platform::DimValue;
+use crate::platform::{DimValue, ResourceValue};
 use crate::storage::AppStorage;
 use cumulo_model::model::{Bipartite, Resource};
 
@@ -14,9 +14,9 @@ use leptos_router::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let bipartite = create_rw_signal::<Bipartite<DimValue>>(AppStorage::load());
+    let bipartite = create_rw_signal::<Bipartite<ResourceValue, DimValue>>(AppStorage::load());
     let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
-    let editing = create_rw_signal(Option::<Resource>::None);
+    let editing = create_rw_signal(Option::<Resource<ResourceValue>>::None);
     let settings_open = create_rw_signal(false);
     let import_toast = create_rw_signal(Option::<String>::None);
     let return_to_settings = create_rw_signal(false);
@@ -82,9 +82,9 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn MapView(
-    bipartite: ReadSignal<Bipartite<DimValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
-    editing: RwSignal<Option<Resource>>,
+    editing: RwSignal<Option<Resource<ResourceValue>>>,
 ) -> impl IntoView {
     let selected_resource_id = create_rw_signal(Option::<String>::None);
     let zoom_level = create_rw_signal(0u32);

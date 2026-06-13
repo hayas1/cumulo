@@ -1,4 +1,4 @@
-use crate::platform::{DimValue, Platform};
+use crate::platform::{DimValue, ResourceValue, Platform};
 use cumulo_model::model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
@@ -6,9 +6,9 @@ use leptos_icons::Icon;
 
 #[component]
 pub fn DetailPanel(
-    bipartite: ReadSignal<Bipartite<DimValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceValue, DimValue>>,
     selected_id: RwSignal<Option<String>>,
-    editing: RwSignal<Option<Resource>>,
+    editing: RwSignal<Option<Resource<ResourceValue>>>,
 ) -> impl IntoView {
     let resource = create_memo(move |_| {
         let id = selected_id.get()?;
@@ -23,8 +23,8 @@ pub fn DetailPanel(
                     resource
                         .get()
                         .map(|r| {
-                            let url = r.console_url.clone();
-                            let freq = r.freq;
+                            let url = r.value.console_url.clone();
+                            let freq = r.value.freq;
                             let r_for_edit = r.clone();
                             let s = bipartite.get();
                             let display = r.display_label(&s.dimensions);

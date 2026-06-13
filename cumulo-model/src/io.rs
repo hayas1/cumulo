@@ -4,15 +4,19 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 const CURRENT_VERSION: u32 = 1;
 
 #[derive(Serialize, Deserialize)]
-pub struct ExportData<A = crate::model::NoValue> {
+pub struct ExportData<RV = crate::model::NoValue, DV = crate::model::NoValue> {
     pub cumulo_version: u32,
     pub exported_at: String,
     #[serde(rename = "store")]
-    pub bipartite: Bipartite<A>,
+    pub bipartite: Bipartite<RV, DV>,
 }
 
-impl<A: Serialize + DeserializeOwned> ExportData<A> {
-    pub fn new(bipartite: Bipartite<A>, exported_at: impl Into<String>) -> Self {
+impl<RV, DV> ExportData<RV, DV>
+where
+    RV: Serialize + DeserializeOwned,
+    DV: Serialize + DeserializeOwned,
+{
+    pub fn new(bipartite: Bipartite<RV, DV>, exported_at: impl Into<String>) -> Self {
         ExportData {
             cumulo_version: CURRENT_VERSION,
             exported_at: exported_at.into(),
@@ -24,8 +28,8 @@ impl<A: Serialize + DeserializeOwned> ExportData<A> {
         serde_json::to_string_pretty(self).unwrap_or_default()
     }
 
-    pub fn parse(json: &str) -> Result<Bipartite<A>, String> {
-        let data: ExportData<A> =
+    pub fn parse(json: &str) -> Result<Bipartite<RV, DV>, String> {
+        let data: ExportData<RV, DV> =
             serde_json::from_str(json).map_err(|e| format!("JSON parse error: {e}"))?;
         match data.cumulo_version {
             1 => Ok(data.bipartite),
@@ -40,7 +44,7 @@ mod tests {
     use crate::model::{DimensionForest, DimensionNode, NoValue, Resource};
     use std::collections::HashMap;
 
-    fn make_space() -> Bipartite {
+    fn make_bipartite() -> Bipartite {
         Bipartite {
             resources: vec![Resource {
                 id: "r1".into(),
@@ -49,9 +53,7 @@ mod tests {
                     ("platform".into(), "bigquery".into()),
                     ("env".into(), "prod".into()),
                 ]),
-                console_url: "https://console.cloud.google.com/bigquery".into(),
-                freq: 5,
-                created_at: None,
+                value: NoValue {},
             }],
             dimensions: DimensionForest(vec![
                 DimensionNode { id: "platform".into(), label: "プラットフォーム".into(), parent: None, value: NoValue {} },
@@ -64,7 +66,7 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        let bipartite = make_space();
+        let bipartite = make_bipartite();
         let json = serde_json::to_string(&ExportData {
             cumulo_version: 1,
             exported_at: "2026-06-10T00:00:00.000Z".into(),
