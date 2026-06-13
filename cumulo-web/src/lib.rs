@@ -1,6 +1,5 @@
 mod components;
 mod map_bridge;
-mod model;
 mod platform;
 mod storage;
 

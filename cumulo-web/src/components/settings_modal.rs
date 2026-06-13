@@ -1,7 +1,9 @@
 use super::dimensions_tab::DimensionsTab;
 use super::resources_tab::ResourcesTab;
-use crate::model::{AppStore, AppStoreExt, ExportData, Resource};
-use crate::platform::Platform;
+use crate::platform::{DimAttrs, Platform};
+use crate::storage::AppStoreExt;
+use cumulo_model::io::ExportData;
+use cumulo_model::model::{AppStore, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -10,7 +12,7 @@ use wasm_bindgen_futures::JsFuture;
 
 #[component]
 pub fn SettingsModal(
-    store: RwSignal<AppStore>,
+    store: RwSignal<AppStore<DimAttrs>>,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
     editing: RwSignal<Option<Resource>>,

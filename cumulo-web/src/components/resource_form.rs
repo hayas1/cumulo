@@ -1,5 +1,6 @@
-use crate::model::{AppStore, AppStoreExt, DimensionForest, Resource};
-use crate::platform::Platform;
+use crate::platform::{DimAttrs, Platform};
+use crate::storage::AppStoreExt;
+use cumulo_model::model::{AppStore, DimensionForest, Resource};
 
 use leptos::html::Input;
 use leptos::*;
@@ -19,10 +20,10 @@ enum DimTreeItem {
     },
 }
 
-fn descendants_dfs(forest: &DimensionForest, root_id: &str) -> Vec<DimTreeItem> {
+fn descendants_dfs(forest: &DimensionForest<DimAttrs>, root_id: &str) -> Vec<DimTreeItem> {
     let mut flat: Vec<(String, String, String, usize, bool, String)> = Vec::new();
     fn dfs(
-        forest: &DimensionForest,
+        forest: &DimensionForest<DimAttrs>,
         parent_id: &str,
         depth: usize,
         flat: &mut Vec<(String, String, String, usize, bool, String)>,
@@ -88,7 +89,7 @@ fn descendants_dfs(forest: &DimensionForest, root_id: &str) -> Vec<DimTreeItem> 
 
 #[component]
 pub fn ResourceForm(
-    store: RwSignal<AppStore>,
+    store: RwSignal<AppStore<DimAttrs>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let form_label = create_rw_signal(String::new());

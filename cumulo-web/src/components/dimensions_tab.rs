@@ -1,5 +1,6 @@
-use crate::model::{AppStore, AppStoreExt, DimAttrs, DimensionNode};
-use crate::platform::Platform;
+use crate::platform::{DimAttrs, Platform};
+use crate::storage::AppStoreExt;
+use cumulo_model::model::{AppStore, DimensionNode};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -10,7 +11,7 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(RwSignal<AppStore>);
+struct DimTabActions(RwSignal<AppStore<DimAttrs>>);
 
 impl DimTabActions {
     fn reparent(self, dragged: String, new_parent: Option<String>) {
@@ -112,7 +113,7 @@ impl UiHelper {
 }
 
 #[component]
-pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
+pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
     let editing_id = create_rw_signal(Option::<String>::None);
     let id_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();
@@ -160,7 +161,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                 let current_editing = editing_id.get();
                 let is_dragging = dragging.get().is_some();
 
-                let root_nodes: Vec<DimensionNode> = s
+                let root_nodes: Vec<DimensionNode<DimAttrs>> = s
                     .dimensions
                     .iter()
                     .filter(|n| n.parent.is_none())

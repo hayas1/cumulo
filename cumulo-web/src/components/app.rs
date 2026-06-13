@@ -3,7 +3,9 @@ use super::{
     facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, resource_form::ResourceForm,
     settings_modal::SettingsModal,
 };
-use crate::model::{AppStore, AppStoreExt, Resource};
+use crate::platform::DimAttrs;
+use crate::storage::AppStoreExt;
+use cumulo_model::model::{AppStore, Resource};
 
 use icondata as icon;
 use leptos::*;
@@ -12,7 +14,7 @@ use leptos_router::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let store = create_rw_signal::<AppStore>(AppStore::load_from_storage());
+    let store = create_rw_signal::<AppStore<DimAttrs>>(AppStore::load_from_storage());
     let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
     let editing = create_rw_signal(Option::<Resource>::None);
     let settings_open = create_rw_signal(false);
@@ -80,7 +82,7 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn MapView(
-    store: ReadSignal<AppStore>,
+    store: ReadSignal<AppStore<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {

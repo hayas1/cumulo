@@ -1,13 +1,13 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::model::{AppStore, Resource};
-use crate::platform::Platform;
+use crate::platform::{DimAttrs, Platform};
+use cumulo_model::model::{AppStore, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
-    store: ReadSignal<AppStore>,
+    store: ReadSignal<AppStore<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {

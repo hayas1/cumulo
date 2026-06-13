@@ -1,10 +1,11 @@
-use crate::model::AppStore;
+use crate::platform::DimAttrs;
+use cumulo_model::model::AppStore;
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
 pub fn FacetSidebar(
-    store: ReadSignal<AppStore>,
+    store: ReadSignal<AppStore<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。

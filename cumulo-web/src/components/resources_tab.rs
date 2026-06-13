@@ -1,4 +1,6 @@
-use crate::model::{AppStore, AppStoreExt, Resource};
+use crate::platform::DimAttrs;
+use crate::storage::AppStoreExt;
+use cumulo_model::model::{AppStore, Resource};
 
 use icondata as icon;
 use leptos::*;
@@ -17,7 +19,7 @@ fn ask_confirm(
 
 #[component]
 pub fn ResourcesTab(
-    store: RwSignal<AppStore>,
+    store: RwSignal<AppStore<DimAttrs>>,
     editing: RwSignal<Option<Resource>>,
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,

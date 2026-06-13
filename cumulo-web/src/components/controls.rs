@@ -1,10 +1,11 @@
 use crate::map_bridge;
-use crate::model::{AppStore, Resource};
+use crate::platform::DimAttrs;
+use cumulo_model::model::{AppStore, Resource};
 use leptos::*;
 
 #[component]
 pub fn Controls(
-    store: ReadSignal<AppStore>,
+    store: ReadSignal<AppStore<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_level: ReadSignal<u32>,
     editing: RwSignal<Option<Resource>>,

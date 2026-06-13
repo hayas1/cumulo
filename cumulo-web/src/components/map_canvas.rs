@@ -1,10 +1,11 @@
 use crate::map_bridge;
-use crate::model::AppStore;
+use crate::platform::DimAttrs;
+use cumulo_model::model::AppStore;
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
-    store: ReadSignal<AppStore>,
+    store: ReadSignal<AppStore<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_dim: RwSignal<String>,
     selected_resource: RwSignal<Option<String>>,

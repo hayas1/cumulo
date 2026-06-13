@@ -1,9 +1,11 @@
-use crate::model::{AppStore, Query};
+use crate::platform::DimAttrs;
+use cumulo_model::model::AppStore;
+use cumulo_model::query::Query;
 use leptos::*;
 
 #[component]
 pub fn Palette(
-    store: ReadSignal<AppStore>,
+    store: ReadSignal<AppStore<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());
