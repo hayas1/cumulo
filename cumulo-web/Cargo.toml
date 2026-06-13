@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-cumulo-model = { path = "../cumulo-model" }
+cumulo-model = { path = "../cumulo-model", features = ["demo"] }
 leptos = { version = "0.6", features = ["csr"] }
 leptos_router = { version = "0.6", features = ["csr"] }
 serde = { version = "1", features = ["derive"] }

@@ -324,7 +324,7 @@ impl<A> DimensionForest<A> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct AppStore<A = NoAttrs> {
     pub resources: Vec<Resource>,
     pub dimensions: DimensionForest<A>,
