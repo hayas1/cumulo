@@ -70,7 +70,7 @@ window.cumuloUpdateFilter = function (selectedJson) {
       filteredIds = new Set(
         resources
           .filter(r => selected.every(([k, v]) => {
-            const rv = r.dimensions && r.dimensions[k];
+            const rv = r.categories && r.categories[k];
             if (rv == null) return false;
             // 階層dimは祖先一致も許容（GCP を選ぶと BigQuery もマッチ）
             return ancestryIn(k, rv).includes(v);
@@ -126,7 +126,7 @@ function nodeLabel(id) {
 // リソースの表示名を返す。label がなければ dimensions 値のラベルで代替。
 function resourceLabel(r) {
   if (r.label) return r.label;
-  const parts = Object.values(r.dimensions || {})
+  const parts = Object.values(r.categories || {})
     .map(v => nodeLabel(v))
     .sort();
   return parts.length > 0 ? parts.join(' / ') : '(名前なし)';
@@ -136,7 +136,7 @@ function resourceLabel(r) {
 // 例: platform で BigQuery → [Cloud, GCP, BigQuery]。フラットdimなら [value]。
 function zoomPath(r) {
   if (!zoomDim) return null;
-  const leaf = r.dimensions && r.dimensions[zoomDim];
+  const leaf = r.categories && r.categories[zoomDim];
   if (leaf == null) return ['その他'];
   return ancestryIn(zoomDim, leaf).reverse();
 }
@@ -520,7 +520,7 @@ function drawResourceNode(parentG, node, rx, ry) {
   const hasChildren = node.children.length > 0;
 
   // ノードカラーは葉（zoomDim の値）で決定
-  const color = clusterColor(r.dimensions && r.dimensions[zoomDim]);
+  const color = clusterColor(r.categories && r.categories[zoomDim]);
 
   // クリック時に選択するリソース ID をクロージャで直接キャプチャ
   const resourceId = r.id;

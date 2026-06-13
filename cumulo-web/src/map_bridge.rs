@@ -41,7 +41,7 @@ pub fn init_map(canvas_id: &str) {
 }
 
 pub fn update_entities(json: &str) {
-    call1("cumuloUpdateEntitys", json);
+    call1("cumuloUpdateResources", json);
 }
 
 pub fn update_filter(json: &str) {
@@ -75,7 +75,7 @@ pub fn zoom_out() {
 pub fn on_entity_select(callback: impl Fn(String) + 'static) {
     let closure = Closure::wrap(Box::new(callback) as Box<dyn Fn(String)>);
     if let Some(obj) = callbacks_obj() {
-        let _ = Reflect::set(&obj, &JsValue::from_str("onEntitySelect"), closure.as_ref());
+        let _ = Reflect::set(&obj, &JsValue::from_str("onResourceSelect"), closure.as_ref());
     }
     closure.forget();
 }
