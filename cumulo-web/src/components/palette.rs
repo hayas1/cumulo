@@ -1,10 +1,10 @@
-use crate::platform::{CategoryId, CategoryValue, ResourceValue};
+use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute};
 use cumulo_model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn Palette(
-    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());

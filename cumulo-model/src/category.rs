@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::id::Id;
 
 /// parent が None のノードが軸の根（＝カテゴリキー）となる。
-/// リソースの value は { 根id → ノードid } で表現する。
+/// リソースの categories は { 根id → ノードid } で表現する。
 /// `#[serde(bound)]` でデシリアライズ境界を明示し、flatten が生成する A: Default 境界を除去する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(bound(serialize = "A: Serialize", deserialize = "A: Deserialize<'de>"))]
@@ -14,9 +14,9 @@ pub struct Category<A> {
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<Id<Category<A>>>,
-    /// web 層は `A = CategoryValue { color }` を指定して color を同じ JSON レベルに展開する。
+    /// web 層は `A = CategoryAttribute { color }` を指定して color を同じ JSON レベルに展開する。
     #[serde(flatten)]
-    pub value: A,
+    pub attribute: A,
 }
 
 /// parent リンクで森を構成する。parent が None のノードが軸の根となる。
@@ -246,7 +246,7 @@ impl<A> Taxonomy<A> {
         old_id: &Id<Category<A>>,
         new_id: Id<Category<A>>,
         label: &str,
-        value: A,
+        attribute: A,
     ) {
         if old_id != &new_id {
             for other in self.iter_mut() {
@@ -258,7 +258,7 @@ impl<A> Taxonomy<A> {
         if let Some(n) = self.iter_mut().find(|n| &n.id == old_id) {
             n.id = new_id;
             n.label = label.to_string();
-            n.value = value;
+            n.attribute = attribute;
         }
     }
 
@@ -297,43 +297,43 @@ pub(crate) mod tests {
                 id: "platform".into(),
                 label: "Platform".into(),
                 parent: None,
-                value: (),
+                attribute: (),
             },
             Category {
                 id: "cloud".into(),
                 label: "Cloud".into(),
                 parent: Some("platform".into()),
-                value: (),
+                attribute: (),
             },
             Category {
                 id: "gcp".into(),
                 label: "GCP".into(),
                 parent: Some("cloud".into()),
-                value: (),
+                attribute: (),
             },
             Category {
                 id: "bigquery".into(),
                 label: "BigQuery".into(),
                 parent: Some("gcp".into()),
-                value: (),
+                attribute: (),
             },
             Category {
                 id: "bigtable".into(),
                 label: "Bigtable".into(),
                 parent: Some("gcp".into()),
-                value: (),
+                attribute: (),
             },
             Category {
                 id: "aws".into(),
                 label: "AWS".into(),
                 parent: Some("cloud".into()),
-                value: (),
+                attribute: (),
             },
             Category {
                 id: "s3".into(),
                 label: "S3".into(),
                 parent: Some("aws".into()),
-                value: (),
+                attribute: (),
             },
         ])
     }

@@ -1,6 +1,6 @@
 use super::attributes_tab::AttributesTab;
 use super::entities_tab::EntitiesTab;
-use crate::platform::{CategoryValue, Platform, ResourceValue};
+use crate::platform::{CategoryAttribute, Platform, ResourceAttribute};
 use crate::storage::AppStorage;
 use cumulo_model::ExportData;
 use cumulo_model::{Bipartite, Resource};
@@ -12,10 +12,10 @@ use wasm_bindgen_futures::JsFuture;
 
 #[component]
 pub fn SettingsModal(
-    bipartite: RwSignal<Bipartite<ResourceValue, CategoryValue>>,
+    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
-    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
+    editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
     let active_tab = create_rw_signal("data".to_string());

@@ -1,5 +1,5 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::platform::{CategoryId, CategoryValue, Platform, ResourceValue};
+use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
@@ -7,9 +7,9 @@ use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
-    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
-    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
+    editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let filtered_ids = create_memo(move |_| {
         let s = bipartite.get();
@@ -51,7 +51,7 @@ pub fn FacetView(
                                 <span class="results-count">{entities.len()} " 件"</span>
                                 <button
                                     class="add-resource-btn"
-                                    on:click=move |_| editing.set(Some(Resource::<ResourceValue, CategoryValue>::default()))
+                                    on:click=move |_| editing.set(Some(Resource::<ResourceAttribute, CategoryAttribute>::default()))
                                 >
                                     "+ 追加"
                                 </button>
@@ -60,7 +60,7 @@ pub fn FacetView(
                                 {entities
                                     .into_iter()
                                     .map(|r| {
-                                        let url = r.value.console_url.clone();
+                                        let url = r.attribute.console_url.clone();
 
                                         let mut dims_sorted: Vec<_> = r.categories.iter()
                                             .map(|(k, v)| (k.clone(), v.clone()))
@@ -71,7 +71,7 @@ pub fn FacetView(
                                             .iter()
                                             .map(|(k, v)| {
                                                 let color = s.taxonomy.node(v)
-                                                    .map(|n| n.value.color.clone())
+                                                    .map(|n| n.attribute.color.clone())
                                                     .unwrap_or_default();
                                                 let label = s.taxonomy.node(v)
                                                     .map(|n| n.label.clone())

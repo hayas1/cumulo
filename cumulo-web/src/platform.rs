@@ -7,7 +7,7 @@ use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 /// Web 層が Resource に付与する値。
 /// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct ResourceValue {
+pub struct ResourceAttribute {
     pub console_url: String,
     pub created_at: Option<String>,
     pub freq: u32,
@@ -16,12 +16,12 @@ pub struct ResourceValue {
 /// Web 層が Category に付与するビジュアル属性。
 /// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct CategoryValue {
+pub struct CategoryAttribute {
     pub color: String,
 }
 
-pub type CategoryId = Id<Category<CategoryValue>>;
-pub type ResourceId = Id<Resource<ResourceValue, CategoryValue>>;
+pub type CategoryId = Id<Category<CategoryAttribute>>;
+pub type ResourceId = Id<Resource<ResourceAttribute, CategoryAttribute>>;
 
 /// ブラウザ固有の副作用（ID 生成、色生成、ダウンロード、URL 開放）をまとめる。
 /// js_sys / web_sys を使うため core クレートには含めない。

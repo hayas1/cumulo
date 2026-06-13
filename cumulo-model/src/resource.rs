@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::category::{Category, Taxonomy};
 use crate::id::Id;
 
-/// `#[serde(bound)]` で境界を明示し、flatten が value: V から生成する V: Default 境界を除去する。
+/// `#[serde(bound)]` で境界を明示し、flatten が attribute: V から生成する V: Default 境界を除去する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(bound(
     serialize = "V: Serialize, A: Serialize",
@@ -21,7 +21,7 @@ pub struct Resource<V, A> {
     /// キーは軸の根id。値はその軸内のノードid。
     pub categories: HashMap<Id<Category<A>>, Id<Category<A>>>,
     #[serde(flatten)]
-    pub value: V,
+    pub attribute: V,
 }
 
 impl<V: Default, A> Default for Resource<V, A> {
@@ -31,7 +31,7 @@ impl<V: Default, A> Default for Resource<V, A> {
             label: None,
             parent: None,
             categories: HashMap::new(),
-            value: V::default(),
+            attribute: V::default(),
         }
     }
 }

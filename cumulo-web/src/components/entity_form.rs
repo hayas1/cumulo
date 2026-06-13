@@ -1,4 +1,4 @@
-use crate::platform::{CategoryId, CategoryValue, Platform, ResourceValue};
+use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Resource, Taxonomy};
 
@@ -20,10 +20,10 @@ enum DimTreeItem {
     },
 }
 
-fn descendants_dfs(forest: &Taxonomy<CategoryValue>, root_id: &CategoryId) -> Vec<DimTreeItem> {
+fn descendants_dfs(forest: &Taxonomy<CategoryAttribute>, root_id: &CategoryId) -> Vec<DimTreeItem> {
     let mut flat: Vec<(CategoryId, String, String, usize, bool, CategoryId)> = Vec::new();
     fn dfs(
-        forest: &Taxonomy<CategoryValue>,
+        forest: &Taxonomy<CategoryAttribute>,
         parent_id: &CategoryId,
         depth: usize,
         flat: &mut Vec<(CategoryId, String, String, usize, bool, CategoryId)>,
@@ -33,7 +33,7 @@ fn descendants_dfs(forest: &Taxonomy<CategoryValue>, root_id: &CategoryId) -> Ve
             flat.push((
                 n.id.clone(),
                 n.label.clone(),
-                n.value.color.clone(),
+                n.attribute.color.clone(),
                 depth,
                 has_children,
                 parent_id.clone(),
@@ -89,8 +89,8 @@ fn descendants_dfs(forest: &Taxonomy<CategoryValue>, root_id: &CategoryId) -> Ve
 
 #[component]
 pub fn EntityForm(
-    bipartite: RwSignal<Bipartite<ResourceValue, CategoryValue>>,
-    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
+    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let form_label = create_rw_signal(String::new());
     let form_url = create_rw_signal(String::new());
@@ -105,18 +105,18 @@ pub fn EntityForm(
         let Some(r) = editing.get() else { return };
 
         form_label.set(r.label.clone().unwrap_or_default());
-        form_url.set(r.value.console_url.clone());
-        form_freq.set(r.value.freq.max(1));
+        form_url.set(r.attribute.console_url.clone());
+        form_freq.set(r.attribute.freq.max(1));
         form_dims.set(r.categories.clone());
 
         if let Some(el) = label_ref.get() {
             el.set_value(&r.label.unwrap_or_default());
         }
         if let Some(el) = url_ref.get() {
-            el.set_value(&r.value.console_url);
+            el.set_value(&r.attribute.console_url);
         }
         if let Some(el) = freq_ref.get() {
-            el.set_value(&r.value.freq.max(1).to_string());
+            el.set_value(&r.attribute.freq.max(1).to_string());
         }
     });
 
@@ -141,7 +141,7 @@ pub fn EntityForm(
             },
             parent: None,
             categories: form_dims.get_untracked(),
-            value: ResourceValue {
+            attribute: ResourceAttribute {
                 console_url: form_url.get_untracked(),
                 freq: form_freq.get_untracked(),
                 created_at: None,

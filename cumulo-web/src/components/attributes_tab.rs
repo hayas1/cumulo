@@ -1,4 +1,4 @@
-use crate::platform::{CategoryId, CategoryValue, Platform, ResourceValue};
+use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Category};
 
@@ -11,7 +11,7 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(RwSignal<Bipartite<ResourceValue, CategoryValue>>);
+struct DimTabActions(RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>);
 
 impl DimTabActions {
     fn reparent(self, dragged: CategoryId, new_parent: Option<CategoryId>) {
@@ -65,7 +65,7 @@ impl DimTabActions {
                 &old_id,
                 new_id.into(),
                 &new_label,
-                CategoryValue { color: new_color },
+                CategoryAttribute { color: new_color },
             )
         });
         AppStorage::save(&self.0.get_untracked());
@@ -128,7 +128,7 @@ impl UiHelper {
 
 #[component]
 pub fn AttributesTab(
-    bipartite: RwSignal<Bipartite<ResourceValue, CategoryValue>>,
+    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
 ) -> impl IntoView {
     let editing_id = create_rw_signal(Option::<CategoryId>::None);
     let id_ref = create_node_ref::<Input>();
@@ -157,7 +157,7 @@ pub fn AttributesTab(
         let Some(n) = s.taxonomy.iter().find(|n| n.id == eid) else {
             return;
         };
-        preview_color.set(n.value.color.clone());
+        preview_color.set(n.attribute.color.clone());
         if let Some(el) = id_ref.get() {
             el.set_value(&n.id);
         }
@@ -165,7 +165,7 @@ pub fn AttributesTab(
             el.set_value(&n.label);
         }
         if let Some(el) = color_ref.get() {
-            el.set_value(&n.value.color);
+            el.set_value(&n.attribute.color);
         }
     });
 
@@ -177,7 +177,7 @@ pub fn AttributesTab(
                 let current_editing = editing_id.get();
                 let is_dragging = dragging.get().is_some();
 
-                let root_nodes: Vec<Category<CategoryValue>> = s
+                let root_nodes: Vec<Category<CategoryAttribute>> = s
                     .taxonomy
                     .iter()
                     .filter(|n| n.parent.is_none())
@@ -369,7 +369,7 @@ pub fn AttributesTab(
                                                 .find(|n| n.id == node_id)
                                                 .cloned()
                                                 .unwrap();
-                                            let node_color = n.value.color.clone();
+                                            let node_color = n.attribute.color.clone();
                                             let node_label_text = if n.label.is_empty() {
                                                 n.id.to_string()
                                             } else {
@@ -527,7 +527,7 @@ pub fn AttributesTab(
                                                                 s.taxonomy.push(Category {
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
-                                                                    value: CategoryValue {
+                                                                    attribute: CategoryAttribute {
                                                                         color: Platform::random_color(),
                                                                     },
                                                                     parent: Some(parent.clone()),
@@ -648,7 +648,7 @@ pub fn AttributesTab(
                                                 s.taxonomy.push(Category {
                                                     id: new_id.clone(),
                                                     label: String::new(),
-                                                    value: CategoryValue {
+                                                    attribute: CategoryAttribute {
                                                         color: Platform::random_color(),
                                                     },
                                                     parent: Some(root_id_add.clone()),
@@ -677,7 +677,7 @@ pub fn AttributesTab(
                         s.taxonomy.push(Category {
                             id: new_id.clone(),
                             label: String::new(),
-                            value: CategoryValue { color: "#8899AA".to_string() },
+                            attribute: CategoryAttribute { color: "#8899AA".to_string() },
                             parent: None,
                         });
                     });

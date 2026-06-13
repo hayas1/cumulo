@@ -1,11 +1,11 @@
 use crate::map_bridge;
-use crate::platform::{CategoryId, CategoryValue, ResourceId, ResourceValue};
+use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute, ResourceId};
 use cumulo_model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
-    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
     zoom_dim: RwSignal<CategoryId>,
     selected_entity: RwSignal<Option<ResourceId>>,

@@ -1,4 +1,4 @@
-use crate::platform::{CategoryValue, ResourceValue};
+use crate::platform::{CategoryAttribute, ResourceAttribute};
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Resource};
 
@@ -19,8 +19,8 @@ fn ask_confirm(
 
 #[component]
 pub fn EntitiesTab(
-    bipartite: RwSignal<Bipartite<ResourceValue, CategoryValue>>,
-    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
+    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
@@ -38,7 +38,7 @@ pub fn EntitiesTab(
                 class="resource-add-btn"
                 on:click=move |_| {
                     return_to_settings.set(true);
-                    editing.set(Some(Resource::<ResourceValue, CategoryValue>::default()));
+                    editing.set(Some(Resource::<ResourceAttribute, CategoryAttribute>::default()));
                     settings_open.set(false);
                 }
             >

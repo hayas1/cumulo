@@ -4,7 +4,7 @@ pub const CLOUD: &str = include_str!("cloud.json");
 mod tests {
     use crate::ExportData;
 
-    // value 型は web 層にあるので、ここでは serde_json::Value で flatten を受けてスキーマ整合のみ検証する。
+    // attribute 型は web 層にあるので、ここでは serde_json::Value で flatten を受けてスキーマ整合のみ検証する。
     // store 内のキー名（catalog / taxonomy）のドリフトをここで捕まえる。
     #[test]
     fn cloud_demo_parses_into_catalog_and_taxonomy() {

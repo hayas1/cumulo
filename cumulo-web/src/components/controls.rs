@@ -1,14 +1,14 @@
 use crate::map_bridge;
-use crate::platform::{CategoryId, CategoryValue, ResourceValue};
+use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute};
 use cumulo_model::{Bipartite, Resource};
 use leptos::*;
 
 #[component]
 pub fn Controls(
-    bipartite: ReadSignal<Bipartite<ResourceValue, CategoryValue>>,
+    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
     zoom_level: ReadSignal<u32>,
-    editing: RwSignal<Option<Resource<ResourceValue, CategoryValue>>>,
+    editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let entity_count = create_memo(move |_| {
         let s = bipartite.get();
