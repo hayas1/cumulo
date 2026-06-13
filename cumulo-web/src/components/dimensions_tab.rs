@@ -1,4 +1,5 @@
-use crate::model::{AppStore, DimensionNode};
+use crate::model::{AppStore, AppStoreExt, DimAttrs, DimensionNode};
+use crate::platform::Platform;
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -48,7 +49,10 @@ impl DimTabActions {
         if new_id.trim().is_empty() {
             return;
         }
-        self.0.update(|s| s.dimensions.rename_node(&old_id, &new_id, &new_label, &new_color));
+        self.0.update(|s| {
+            s.dimensions
+                .rename_node(&old_id, &new_id, &new_label, DimAttrs { color: new_color })
+        });
         self.0.get_untracked().save_to_storage();
         editing_id.set(None);
     }
@@ -136,7 +140,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
         let Some(n) = s.dimensions.iter().find(|n| n.id == eid) else {
             return;
         };
-        preview_color.set(n.color.clone());
+        preview_color.set(n.attrs.color.clone());
         if let Some(el) = id_ref.get() {
             el.set_value(&n.id);
         }
@@ -144,7 +148,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
             el.set_value(&n.label);
         }
         if let Some(el) = color_ref.get() {
-            el.set_value(&n.color);
+            el.set_value(&n.attrs.color);
         }
     });
 
@@ -348,7 +352,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                 .find(|n| n.id == node_id)
                                                 .cloned()
                                                 .unwrap();
-                                            let node_color = n.color.clone();
+                                            let node_color = n.attrs.color.clone();
                                             let node_label_text = if n.label.is_empty() {
                                                 n.id.clone()
                                             } else {
@@ -428,7 +432,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                         <button
                                                             class="chip-editor-randomize"
                                                             on:click=move |_| {
-                                                                let color = DimensionNode::random_color();
+                                                                let color = Platform::random_color();
                                                                 if let Some(el) = color_ref.get_untracked()
                                                                 {
                                                                     el.set_value(&color);
@@ -500,13 +504,15 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                                                 acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                                             }
                                                             let parent = nid_add.clone();
-                                                            let new_id = DimensionNode::new_id();
+                                                            let new_id = Platform::new_node_id();
                                                             let new_id2 = new_id.clone();
                                                             store.update(|s| {
                                                                 s.dimensions.push(DimensionNode {
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
-                                                                    color: DimensionNode::random_color(),
+                                                                    attrs: DimAttrs {
+                                                                        color: Platform::random_color(),
+                                                                    },
                                                                     parent: Some(parent.clone()),
                                                                 });
                                                             });
@@ -619,13 +625,15 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                                             if editing_id.get_untracked().is_some() {
                                                 acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                             }
-                                            let new_id = DimensionNode::new_id();
+                                            let new_id = Platform::new_node_id();
                                             let new_id2 = new_id.clone();
                                             store.update(|s| {
                                                 s.dimensions.push(DimensionNode {
                                                     id: new_id.clone(),
                                                     label: String::new(),
-                                                    color: DimensionNode::random_color(),
+                                                    attrs: DimAttrs {
+                                                        color: Platform::random_color(),
+                                                    },
                                                     parent: Some(root_id_add.clone()),
                                                 });
                                             });
@@ -646,13 +654,13 @@ pub fn DimensionsTab(store: RwSignal<AppStore>) -> impl IntoView {
                 class="dim-add-btn"
                 on:click=move |_| {
                     acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
-                    let new_id = DimensionNode::new_id();
+                    let new_id = Platform::new_node_id();
                     let new_id2 = new_id.clone();
                     store.update(|s| {
                         s.dimensions.push(DimensionNode {
                             id: new_id.clone(),
                             label: String::new(),
-                            color: "#8899AA".to_string(),
+                            attrs: DimAttrs { color: "#8899AA".to_string() },
                             parent: None,
                         });
                     });

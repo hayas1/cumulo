@@ -1,4 +1,3 @@
-use crate::logic::facet::{filter_resources, resolve_dimension};
 use crate::model::AppStore;
 use leptos::*;
 use std::collections::{HashMap, HashSet};
@@ -29,13 +28,13 @@ pub fn FacetSidebar(
                             .filter(|(k, _)| k != &root.id)
                             .cloned()
                             .collect();
-                        let base = filter_resources(&s.resources, &tags_minus, &s.dimensions);
+                        let base = s.filter_resources(&tags_minus);
 
                         let mut counts: HashMap<String, usize> = HashMap::new();
                         for r in &base {
-                            if let Some(leaf_id) = resolve_dimension(r, &root.id) {
-                                *counts.entry(leaf_id.clone()).or_default() += 1;
-                                for anc in s.dimensions.ancestry(&leaf_id) {
+                            if let Some(leaf_id) = r.dimension(&root.id) {
+                                *counts.entry(leaf_id.to_string()).or_default() += 1;
+                                for anc in s.dimensions.ancestry(leaf_id) {
                                     if anc != leaf_id {
                                         *counts.entry(anc).or_default() += 1;
                                     }

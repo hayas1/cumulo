@@ -1,7 +1,7 @@
 use super::dimensions_tab::DimensionsTab;
 use super::resources_tab::ResourcesTab;
-use crate::io::{trigger_download, ExportData};
-use crate::model::{AppStore, Resource};
+use crate::model::{AppStore, AppStoreExt, ExportData, Resource};
+use crate::platform::Platform;
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -22,15 +22,12 @@ pub fn SettingsModal(
 
     let do_export = move || {
         let s = store.get_untracked();
-        let json = ExportData::from_store(&s).to_json();
-        let date = js_sys::Date::new_0()
-            .to_iso_string()
-            .as_string()
-            .unwrap_or_default()
+        let json = ExportData::new(s, Platform::now_iso()).to_json();
+        let date = Platform::now_iso()
             .chars()
             .take(10)
             .collect::<String>();
-        trigger_download(&format!("cumulo-{date}.json"), &json);
+        Platform::trigger_download(&format!("cumulo-{date}.json"), &json);
     };
 
     let on_export = move |_| do_export();

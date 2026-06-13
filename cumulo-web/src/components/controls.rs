@@ -1,4 +1,3 @@
-use crate::logic::facet::filter_resources;
 use crate::map_bridge;
 use crate::model::{AppStore, Resource};
 use leptos::*;
@@ -13,7 +12,7 @@ pub fn Controls(
     let resource_count = create_memo(move |_| {
         let s = store.get();
         let tags = selected_tags.get();
-        filter_resources(&s.resources, &tags, &s.dimensions).len()
+        s.filter_resources(&tags).len()
     });
 
     let total_count = create_memo(move |_| store.get().resources.len());

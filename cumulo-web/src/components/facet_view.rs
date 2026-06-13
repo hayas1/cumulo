@@ -1,7 +1,6 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::logic::facet::filter_resources;
 use crate::model::{AppStore, Resource};
-use crate::web::open_url;
+use crate::platform::Platform;
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -15,7 +14,7 @@ pub fn FacetView(
     let filtered_ids = create_memo(move |_| {
         let s = store.get();
         let tags = selected_tags.get();
-        filter_resources(&s.resources, &tags, &s.dimensions)
+        s.filter_resources(&tags)
             .into_iter()
             .map(|r| r.id.clone())
             .collect::<Vec<_>>()
@@ -72,7 +71,7 @@ pub fn FacetView(
                                             .iter()
                                             .map(|(k, v)| {
                                                 let color = s.dimensions.node(v)
-                                                    .map(|n| n.color.clone())
+                                                    .map(|n| n.attrs.color.clone())
                                                     .unwrap_or_default();
                                                 let label = s.dimensions.node(v)
                                                     .map(|n| n.label.clone())
@@ -87,7 +86,7 @@ pub fn FacetView(
                                                 <div class="result-card-header">
                                                     <span
                                                         class="result-name result-name-link"
-                                                        on:click=move |_| open_url(&url)
+                                                        on:click=move |_| Platform::open_url(&url)
                                                     >
                                                         {r.display_label(&s.dimensions)}
                                                     </span>

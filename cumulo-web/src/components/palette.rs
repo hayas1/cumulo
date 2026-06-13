@@ -1,50 +1,5 @@
-use crate::logic::facet::available_tags;
-use crate::model::AppStore;
+use crate::model::{AppStore, Query};
 use leptos::*;
-
-fn subsequence_match(query: &str, target: &str) -> bool {
-    let mut target_iter = target.chars();
-    for qc in query.chars() {
-        if !target_iter.any(|tc| tc == qc) {
-            return false;
-        }
-    }
-    true
-}
-
-#[cfg(test)]
-mod tests {
-    use super::subsequence_match;
-
-    #[test]
-    fn abbreviation_matches() {
-        assert!(subsequence_match("bq", "bigquery"));
-        assert!(subsequence_match("gcs", "google-cloud-storage"));
-    }
-
-    #[test]
-    fn substring_matches() {
-        assert!(subsequence_match("big", "bigquery"));
-        assert!(subsequence_match("query", "bigquery"));
-    }
-
-    #[test]
-    fn no_match_when_char_missing() {
-        assert!(!subsequence_match("bq", "bigtable"));
-        assert!(!subsequence_match("bq", "storage"));
-    }
-
-    #[test]
-    fn order_matters() {
-        assert!(!subsequence_match("qb", "bigquery"));
-    }
-
-    #[test]
-    fn empty_query_matches_any() {
-        assert!(subsequence_match("", "bigquery"));
-        assert!(subsequence_match("", ""));
-    }
-}
 
 #[component]
 pub fn Palette(
@@ -60,14 +15,13 @@ pub fn Palette(
         let tags = selected_tags.get();
         let input = input_text.get();
 
-        let mut avail = available_tags(&s.resources, &tags, &s.dimensions);
+        let mut avail = s.available_tags(&tags);
 
         if !input.is_empty() {
             let lower = input.to_lowercase();
+            let q = Query::new(&lower);
             avail.retain(|(k, v)| {
-                let kl = k.to_lowercase();
-                let vl = v.to_lowercase();
-                subsequence_match(&lower, &kl) || subsequence_match(&lower, &vl)
+                q.matches(&k.to_lowercase()) || q.matches(&v.to_lowercase())
             });
         }
 

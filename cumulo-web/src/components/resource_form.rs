@@ -1,13 +1,9 @@
-use crate::model::{AppStore, DimensionForest, Resource};
+use crate::model::{AppStore, AppStoreExt, DimensionForest, Resource};
+use crate::platform::Platform;
 
 use leptos::html::Input;
 use leptos::*;
 use std::collections::HashMap;
-
-fn gen_id() -> String {
-    let n = (js_sys::Math::random() * 1e15) as u64;
-    format!("r{n:x}")
-}
 
 enum DimTreeItem {
     Branch {
@@ -36,7 +32,7 @@ fn descendants_dfs(forest: &DimensionForest, root_id: &str) -> Vec<DimTreeItem> 
             flat.push((
                 n.id.clone(),
                 n.label.clone(),
-                n.color.clone(),
+                n.attrs.color.clone(),
                 depth,
                 has_children,
                 parent_id.to_string(),
@@ -44,7 +40,7 @@ fn descendants_dfs(forest: &DimensionForest, root_id: &str) -> Vec<DimTreeItem> 
             dfs(forest, &n.id, depth + 1, flat);
         }
     }
-    dfs(&forest, root_id, 0, &mut flat);
+    dfs(forest, root_id, 0, &mut flat);
 
     // 連続する同一親の葉ノードをまとめる
     let mut result = Vec::new();
@@ -132,7 +128,7 @@ pub fn ResourceForm(
                     .filter(|r| !r.id.is_empty())
                     .map(|r| r.id.clone())
             })
-            .unwrap_or_else(gen_id);
+            .unwrap_or_else(Platform::new_resource_id);
 
         let lbl = form_label.get_untracked();
         let r = Resource {

@@ -1,4 +1,4 @@
-use crate::model::{AppStore, Resource};
+use crate::model::{AppStore, AppStoreExt, Resource};
 
 use icondata as icon;
 use leptos::*;

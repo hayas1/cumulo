@@ -3,7 +3,7 @@ use super::{
     facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, resource_form::ResourceForm,
     settings_modal::SettingsModal,
 };
-use crate::model::{AppStore, Resource};
+use crate::model::{AppStore, AppStoreExt, Resource};
 
 use icondata as icon;
 use leptos::*;

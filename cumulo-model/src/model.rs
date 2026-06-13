@@ -2,6 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+/// UI などが追加するビジュアル属性を持たない既定値。
+/// `#[serde(flatten)]` で展開されるので JSON に余分なフィールドは追加されない。
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct NoAttrs {}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Resource {
     pub id: String,
@@ -29,7 +34,7 @@ impl Default for Resource {
 }
 
 impl Resource {
-    pub fn display_label(&self, forest: &DimensionForest) -> String {
+    pub fn display_label<A: Clone>(&self, forest: &DimensionForest<A>) -> String {
         if let Some(l) = &self.label {
             if !l.is_empty() {
                 return l.clone();
@@ -54,44 +59,50 @@ impl Resource {
             parts.join(" / ")
         }
     }
+
+    pub fn dimension(&self, root_id: &str) -> Option<&str> {
+        self.dimensions.get(root_id).map(String::as_str)
+    }
 }
 
 /// parent が None のノードが軸の根（＝属性キー）となる。
 /// リソースの attrs は { 根id → ノードid } で表現する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DimensionNode {
+pub struct DimensionNode<A = NoAttrs> {
     pub id: String,
     pub label: String,
-    /// color は必須（UI で常に表示する）
-    pub color: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
+    /// `A = NoAttrs` のとき flatten は何も追加しない。
+    /// web 層は `A = DimAttrs { color }` を指定して color を同じ JSON レベルに展開する。
+    #[serde(flatten)]
+    pub attrs: A,
 }
 
 /// parent リンクで森を構成する。parent が None のノードが軸の根となる。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 #[serde(transparent)]
-pub struct DimensionForest(pub Vec<DimensionNode>);
+pub struct DimensionForest<A = NoAttrs>(pub Vec<DimensionNode<A>>);
 
-impl std::ops::Deref for DimensionForest {
-    type Target = Vec<DimensionNode>;
+impl<A> std::ops::Deref for DimensionForest<A> {
+    type Target = Vec<DimensionNode<A>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl std::ops::DerefMut for DimensionForest {
+impl<A> std::ops::DerefMut for DimensionForest<A> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl DimensionForest {
-    pub fn roots(&self) -> Vec<&DimensionNode> {
+impl<A> DimensionForest<A> {
+    pub fn roots(&self) -> Vec<&DimensionNode<A>> {
         self.iter().filter(|n| n.parent.is_none()).collect()
     }
 
-    pub fn children_of(&self, parent_id: &str) -> Vec<&DimensionNode> {
+    pub fn children_of(&self, parent_id: &str) -> Vec<&DimensionNode<A>> {
         self.iter()
             .filter(|n| n.parent.as_deref() == Some(parent_id))
             .collect()
@@ -142,7 +153,7 @@ impl DimensionForest {
         }
     }
 
-    pub fn node(&self, id: &str) -> Option<&DimensionNode> {
+    pub fn node(&self, id: &str) -> Option<&DimensionNode<A>> {
         self.iter().find(|n| n.id == id)
     }
 
@@ -246,14 +257,20 @@ impl DimensionForest {
         };
         let mut node = self.remove(dpos);
         node.parent = new_parent;
-        let tpos = self.iter().position(|n| n.id == target).unwrap_or(self.len());
+        let tpos = self
+            .iter()
+            .position(|n| n.id == target)
+            .unwrap_or(self.len());
         let insert_at = if after { tpos + 1 } else { tpos };
         let len = self.len();
         self.insert(insert_at.min(len), node);
     }
 
     pub fn delete_promote(&mut self, node_id: &str) {
-        let parent = self.iter().find(|n| n.id == node_id).and_then(|n| n.parent.clone());
+        let parent = self
+            .iter()
+            .find(|n| n.id == node_id)
+            .and_then(|n| n.parent.clone());
         for child in self.iter_mut() {
             if child.parent.as_deref() == Some(node_id) {
                 child.parent = parent.clone();
@@ -267,7 +284,7 @@ impl DimensionForest {
         self.retain(|n| !doomed.contains(&n.id));
     }
 
-    pub fn rename_node(&mut self, old_id: &str, new_id: &str, label: &str, color: &str) {
+    pub fn rename_node(&mut self, old_id: &str, new_id: &str, label: &str, attrs: A) {
         if old_id != new_id {
             for other in self.iter_mut() {
                 if other.parent.as_deref() == Some(old_id) {
@@ -278,15 +295,91 @@ impl DimensionForest {
         if let Some(n) = self.iter_mut().find(|n| n.id == old_id) {
             n.id = new_id.to_string();
             n.label = label.to_string();
-            n.color = color.to_string();
+            n.attrs = attrs;
+        }
+    }
+
+    /// (node, depth, has_children, parent_id) のフラットリストを DFS 順で返す。
+    /// resource_form の葉グルーピングなど呼び出し側が parent_id を使いたいケース向け。
+    pub fn subtree_flat<'a>(
+        &'a self,
+        root_id: &'a str,
+    ) -> Vec<(&'a DimensionNode<A>, usize, bool, &'a str)> {
+        let mut out = Vec::new();
+        self.subtree_flat_rec(root_id, 0, &mut out);
+        out
+    }
+
+    fn subtree_flat_rec<'a>(
+        &'a self,
+        parent_id: &'a str,
+        depth: usize,
+        out: &mut Vec<(&'a DimensionNode<A>, usize, bool, &'a str)>,
+    ) {
+        for child in self.children_of(parent_id) {
+            let has_children = !self.children_of(&child.id).is_empty();
+            out.push((child, depth, has_children, parent_id));
+            self.subtree_flat_rec(&child.id, depth + 1, out);
         }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct AppStore {
+pub struct AppStore<A = NoAttrs> {
     pub resources: Vec<Resource>,
-    pub dimensions: DimensionForest,
+    pub dimensions: DimensionForest<A>,
+}
+
+impl<A> AppStore<A> {
+    pub fn filter_resources<'a>(
+        &'a self,
+        selected_tags: &[(String, String)],
+    ) -> Vec<&'a Resource> {
+        self.resources
+            .iter()
+            .filter(|r| {
+                selected_tags
+                    .iter()
+                    .all(|(k, v)| self.tag_matches(r, k, v))
+            })
+            .collect()
+    }
+
+    fn tag_matches(&self, r: &Resource, k: &str, v: &str) -> bool {
+        let Some(rv) = r.dimensions.get(k) else {
+            return false;
+        };
+        if rv == v {
+            return true;
+        }
+        self.dimensions.ancestry(rv).iter().any(|a| a == v)
+    }
+
+    pub fn available_tags(&self, selected: &[(String, String)]) -> Vec<(String, String)> {
+        let filtered = self.filter_resources(selected);
+        let selected_set: HashSet<(&str, &str)> = selected
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+
+        let mut tags: HashSet<(String, String)> = HashSet::new();
+        for r in &filtered {
+            for (k, v) in &r.dimensions {
+                if !selected_set.contains(&(k.as_str(), v.as_str())) {
+                    tags.insert((k.clone(), v.clone()));
+                }
+                for anc in self.dimensions.ancestry(v) {
+                    if !selected_set.contains(&(k.as_str(), anc.as_str())) {
+                        tags.insert((k.clone(), anc));
+                    }
+                }
+            }
+        }
+
+        let mut tags_vec: Vec<(String, String)> = tags.into_iter().collect();
+        tags_vec.sort();
+        tags_vec
+    }
 }
 
 #[cfg(test)]
@@ -297,13 +390,13 @@ pub(crate) mod tests {
         // platform > cloud > gcp > bigquery / bigtable
         //                  > aws > s3
         DimensionForest(vec![
-            DimensionNode { id: "platform".into(), label: "Platform".into(), color: "#aaa".into(), parent: None },
-            DimensionNode { id: "cloud".into(), label: "Cloud".into(), color: "#5B8DEF".into(), parent: Some("platform".into()) },
-            DimensionNode { id: "gcp".into(), label: "GCP".into(), color: "#1D9E75".into(), parent: Some("cloud".into()) },
-            DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), color: "#1D9E75".into(), parent: Some("gcp".into()) },
-            DimensionNode { id: "bigtable".into(), label: "Bigtable".into(), color: "#3A9E86".into(), parent: Some("gcp".into()) },
-            DimensionNode { id: "aws".into(), label: "AWS".into(), color: "#F2920C".into(), parent: Some("cloud".into()) },
-            DimensionNode { id: "s3".into(), label: "S3".into(), color: "#F2920C".into(), parent: Some("aws".into()) },
+            DimensionNode { id: "platform".into(), label: "Platform".into(), parent: None, attrs: NoAttrs {} },
+            DimensionNode { id: "cloud".into(), label: "Cloud".into(), parent: Some("platform".into()), attrs: NoAttrs {} },
+            DimensionNode { id: "gcp".into(), label: "GCP".into(), parent: Some("cloud".into()), attrs: NoAttrs {} },
+            DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("gcp".into()), attrs: NoAttrs {} },
+            DimensionNode { id: "bigtable".into(), label: "Bigtable".into(), parent: Some("gcp".into()), attrs: NoAttrs {} },
+            DimensionNode { id: "aws".into(), label: "AWS".into(), parent: Some("cloud".into()), attrs: NoAttrs {} },
+            DimensionNode { id: "s3".into(), label: "S3".into(), parent: Some("aws".into()), attrs: NoAttrs {} },
         ])
     }
 
@@ -332,5 +425,24 @@ pub(crate) mod tests {
         assert!(desc.contains("bigquery"));
         assert!(desc.contains("bigtable"));
         assert!(!desc.contains("s3"));
+    }
+
+    #[test]
+    fn filter_selects_by_ancestry() {
+        use std::collections::HashMap;
+        let f = test_forest();
+        let store = AppStore {
+            dimensions: f,
+            resources: vec![
+                Resource { id: "a".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigquery".into())]), console_url: String::new(), created_at: None, freq: 1 },
+                Resource { id: "b".into(), label: None, dimensions: HashMap::from([("platform".into(), "s3".into())]), console_url: String::new(), created_at: None, freq: 1 },
+                Resource { id: "c".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigtable".into())]), console_url: String::new(), created_at: None, freq: 1 },
+            ],
+        };
+        let got = store.filter_resources(&[("platform".into(), "gcp".into())]);
+        let ids: Vec<&str> = got.iter().map(|r| r.id.as_str()).collect();
+        assert!(ids.contains(&"a"));
+        assert!(ids.contains(&"c"));
+        assert!(!ids.contains(&"b"));
     }
 }

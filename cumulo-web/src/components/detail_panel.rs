@@ -1,5 +1,5 @@
 use crate::model::{AppStore, Resource};
-use crate::web::open_url;
+use crate::platform::Platform;
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -47,7 +47,7 @@ pub fn DetailPanel(
                                 <div class="detail-header">
                                     <div
                                         class="detail-name detail-name-link"
-                                        on:click=move |_| open_url(&url)
+                                        on:click=move |_| Platform::open_url(&url)
                                     >
                                         {display}
                                     </div>
