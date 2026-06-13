@@ -1,6 +1,6 @@
 use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
 use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Category};
+use cumulo_model::{Bipartite, Category, Forest};
 
 use icondata as icon;
 use leptos::html::{Div, Input};

@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::forest::{Forest, ForestNode};
 use crate::id::Id;
 
 /// parent が None のノードが軸の根（＝カテゴリキー）となる。
@@ -17,6 +18,15 @@ pub struct Category<CA> {
     /// web 層は `CA = CategoryAttribute { color }` を指定して color を同じ JSON レベルに展開する。
     #[serde(flatten)]
     pub attribute: CA,
+}
+
+impl<CA> ForestNode for Category<CA> {
+    fn id(&self) -> &Id<Self> {
+        &self.id
+    }
+    fn parent(&self) -> Option<&Id<Self>> {
+        self.parent.as_ref()
+    }
 }
 
 /// parent リンクで森を構成する。parent が None のノードが軸の根となる。
@@ -43,99 +53,14 @@ impl<CA> std::ops::DerefMut for Taxonomy<CA> {
     }
 }
 
+impl<CA> Forest for Taxonomy<CA> {
+    type Node = Category<CA>;
+    fn nodes(&self) -> &[Category<CA>] {
+        &self.0
+    }
+}
+
 impl<CA> Taxonomy<CA> {
-    pub fn roots(&self) -> Vec<&Category<CA>> {
-        self.iter().filter(|n| n.parent.is_none()).collect()
-    }
-
-    pub fn children_of(&self, parent_id: &Id<Category<CA>>) -> Vec<&Category<CA>> {
-        self.iter()
-            .filter(|n| n.parent.as_ref() == Some(parent_id))
-            .collect()
-    }
-
-    /// 軸の根 (parent==None) の id は含めない（根はキーであり値ではない）。
-    pub fn ancestry(&self, id: &Id<Category<CA>>) -> Vec<Id<Category<CA>>> {
-        let mut chain = Vec::new();
-        let mut cur = Some(id.clone());
-        while let Some(c) = cur {
-            if chain.contains(&c) {
-                break;
-            }
-            let found = self.iter().find(|n| n.id == c);
-            let parent = found.and_then(|n| n.parent.clone());
-            if parent.is_none() {
-                break;
-            }
-            chain.push(c);
-            cur = parent;
-        }
-        chain
-    }
-
-    pub fn root_of(&self, id: &Id<Category<CA>>) -> Option<Id<Category<CA>>> {
-        let mut cur = id.clone();
-        let mut seen = HashSet::new();
-        loop {
-            if !seen.insert(cur.clone()) {
-                return None;
-            }
-            match self.iter().find(|n| n.id == cur) {
-                None => return None,
-                Some(n) => match &n.parent {
-                    None => return None,
-                    Some(p) => {
-                        if self
-                            .iter()
-                            .find(|n| &n.id == p)
-                            .is_some_and(|n| n.parent.is_none())
-                        {
-                            return Some(p.clone());
-                        }
-                        cur = p.clone();
-                    }
-                },
-            }
-        }
-    }
-
-    pub fn node(&self, id: &Id<Category<CA>>) -> Option<&Category<CA>> {
-        self.iter().find(|n| &n.id == id)
-    }
-
-    pub fn ancestry_contains(&self, start: &Id<Category<CA>>, target: &Id<Category<CA>>) -> bool {
-        let mut cur = Some(start.clone());
-        let mut seen = HashSet::new();
-        while let Some(c) = cur {
-            if &c == target {
-                return true;
-            }
-            if !seen.insert(c.clone()) {
-                break;
-            }
-            cur = self
-                .iter()
-                .find(|n| n.id == c)
-                .and_then(|n| n.parent.clone());
-        }
-        false
-    }
-
-    pub fn collect_descendants(&self, root: &Id<Category<CA>>) -> HashSet<Id<Category<CA>>> {
-        let mut out = HashSet::new();
-        self.collect_descendants_rec(root, &mut out);
-        out
-    }
-
-    fn collect_descendants_rec(&self, id: &Id<Category<CA>>, out: &mut HashSet<Id<Category<CA>>>) {
-        if !out.insert(id.clone()) {
-            return;
-        }
-        for child in self.children_of(id) {
-            self.collect_descendants_rec(&child.id, out);
-        }
-    }
-
     pub fn dfs_order(
         &self,
         root_id: &Id<Category<CA>>,

@@ -1,6 +1,7 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
+use crate::forest::Forest;
 use crate::id::Id;
 use crate::resource::{Catalog, Resource};
 

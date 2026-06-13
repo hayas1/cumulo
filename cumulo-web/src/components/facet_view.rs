@@ -1,6 +1,6 @@
 use super::facet_sidebar::FacetSidebar;
 use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
-use cumulo_model::{Bipartite, Resource};
+use cumulo_model::{Bipartite, Forest, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;

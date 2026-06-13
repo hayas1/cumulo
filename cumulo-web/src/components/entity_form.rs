@@ -1,6 +1,6 @@
 use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
 use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Resource, Taxonomy};
+use cumulo_model::{Bipartite, Forest, Resource, Taxonomy};
 
 use leptos::html::Input;
 use leptos::*;

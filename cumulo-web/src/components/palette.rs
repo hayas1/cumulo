@@ -1,5 +1,5 @@
 use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute};
-use cumulo_model::Bipartite;
+use cumulo_model::{Bipartite, Forest};
 use leptos::*;
 
 #[component]

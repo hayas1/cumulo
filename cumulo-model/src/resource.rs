@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
+use crate::forest::{Forest, ForestNode};
 use crate::id::Id;
 
 /// `#[serde(bound)]` で境界を明示し、flatten が attribute: RA から生成する RA: Default 境界を除去する。
@@ -68,6 +69,15 @@ impl<RA, CA: Clone> Resource<RA, CA> {
     }
 }
 
+impl<RA, CA> ForestNode for Resource<RA, CA> {
+    fn id(&self) -> &Id<Self> {
+        &self.id
+    }
+    fn parent(&self) -> Option<&Id<Self>> {
+        self.parent.as_ref()
+    }
+}
+
 /// parent リンクで森を構成する resource の is-a 森（Taxonomy と対称）。
 /// parent が None のリソースが根となる。今はガワで、編集系は今後 Taxonomy から移植する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -93,40 +103,10 @@ impl<RA, CA> std::ops::DerefMut for Catalog<RA, CA> {
     }
 }
 
-impl<RA, CA> Catalog<RA, CA> {
-    pub fn roots(&self) -> Vec<&Resource<RA, CA>> {
-        self.iter().filter(|n| n.parent.is_none()).collect()
-    }
-
-    pub fn children_of(&self, parent_id: &Id<Resource<RA, CA>>) -> Vec<&Resource<RA, CA>> {
-        self.iter()
-            .filter(|n| n.parent.as_ref() == Some(parent_id))
-            .collect()
-    }
-
-    pub fn node(&self, id: &Id<Resource<RA, CA>>) -> Option<&Resource<RA, CA>> {
-        self.iter().find(|n| &n.id == id)
-    }
-
-    /// 根 (parent==None) の id は含めない（Taxonomy::ancestry と同じ規約）。
-    pub fn ancestry(&self, id: &Id<Resource<RA, CA>>) -> Vec<Id<Resource<RA, CA>>> {
-        let mut chain = Vec::new();
-        let mut cur = Some(id.clone());
-        while let Some(c) = cur {
-            if chain.contains(&c) {
-                break;
-            }
-            let parent = self
-                .iter()
-                .find(|n| n.id == c)
-                .and_then(|n| n.parent.clone());
-            if parent.is_none() {
-                break;
-            }
-            chain.push(c);
-            cur = parent;
-        }
-        chain
+impl<RA, CA> Forest for Catalog<RA, CA> {
+    type Node = Resource<RA, CA>;
+    fn nodes(&self) -> &[Resource<RA, CA>] {
+        &self.0
     }
 }
 
