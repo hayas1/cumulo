@@ -2,6 +2,8 @@ use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 
+use crate::error::IdError;
+
 /// エンティティや属性の ID を表すファントム型付き newtype。
 /// T はマーカーとして機能し、異なる種類の ID の混在をコンパイル時に防ぐ。
 /// `fn() -> T` を使うことで T: Send + Sync なしに Id<T>: Send + Sync となる。
@@ -27,11 +29,20 @@ impl<T> Id<T> {
     pub fn as_str(&self) -> &str {
         &self.0
     }
-}
 
-impl<T> Default for Id<T> {
-    fn default() -> Self {
-        Id(String::new(), PhantomData)
+    /// id 単体としての妥当性を検証する。空文字列はノードのルックアップを壊すため不正。
+    pub fn validate(&self) -> Result<(), IdError> {
+        if self.0.is_empty() {
+            return Err(IdError::Empty);
+        }
+        Ok(())
+    }
+
+    /// バリデーションをスキップして Id を構築する。
+    /// 空 id を含む入力（インポート JSON など）の境界テストにのみ使用する。
+    #[cfg(test)]
+    pub(crate) fn new_unchecked(s: impl Into<String>) -> Self {
+        Id(s.into(), PhantomData)
     }
 }
 
@@ -61,15 +72,20 @@ impl<T> Ord for Id<T> {
     }
 }
 
-impl<T> From<String> for Id<T> {
-    fn from(s: String) -> Self {
-        Id(s, PhantomData)
+impl<T> TryFrom<String> for Id<T> {
+    type Error = IdError;
+    // 妥当性ルールは validate() に一本化する（空判定を各所で重複させない）
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        let id = Id(s, PhantomData);
+        id.validate()?;
+        Ok(id)
     }
 }
 
-impl<T> From<&str> for Id<T> {
-    fn from(s: &str) -> Self {
-        Id(s.to_string(), PhantomData)
+impl<T> TryFrom<&str> for Id<T> {
+    type Error = IdError;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Id::try_from(s.to_string())
     }
 }
 
@@ -89,5 +105,30 @@ impl<T> std::ops::Deref for Id<T> {
 impl<T> std::borrow::Borrow<str> for Id<T> {
     fn borrow(&self) -> &str {
         &self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_from_empty_str_is_err() {
+        assert_eq!(Id::<()>::try_from(""), Err(IdError::Empty));
+    }
+
+    #[test]
+    fn try_from_non_empty_str_is_ok() {
+        assert!(Id::<()>::try_from("x").is_ok());
+    }
+
+    #[test]
+    fn try_from_empty_string_is_err() {
+        assert_eq!(Id::<()>::try_from(String::new()), Err(IdError::Empty));
+    }
+
+    #[test]
+    fn try_from_non_empty_string_is_ok() {
+        assert!(Id::<()>::try_from("hello".to_string()).is_ok());
     }
 }

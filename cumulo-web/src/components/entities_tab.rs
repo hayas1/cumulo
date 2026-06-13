@@ -1,4 +1,4 @@
-use crate::platform::{CategoryAttribute, ResourceAttribute};
+use crate::platform::{CategoryAttribute, Platform, ResourceAttribute};
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Resource};
 
@@ -38,7 +38,7 @@ pub fn EntitiesTab(
                 class="resource-add-btn"
                 on:click=move |_| {
                     return_to_settings.set(true);
-                    editing.set(Some(Resource::<ResourceAttribute, CategoryAttribute>::default()));
+                    editing.set(Some(Platform::new_resource()));
                     settings_open.set(false);
                 }
             >

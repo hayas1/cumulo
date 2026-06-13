@@ -25,17 +25,6 @@ pub struct Resource<RA, CA> {
     pub attribute: RA,
 }
 
-impl<RA: Default, CA> Default for Resource<RA, CA> {
-    fn default() -> Self {
-        Resource {
-            id: Id::<Resource<RA, CA>>::default(),
-            label: None,
-            parent: None,
-            categories: HashMap::new(),
-            attribute: RA::default(),
-        }
-    }
-}
 
 impl<RA, CA: Clone> Resource<RA, CA> {
     pub fn display_label(&self, forest: &Taxonomy<CA>) -> String {
@@ -114,24 +103,34 @@ impl<RA, CA> Forest for Catalog<RA, CA> {
 mod tests {
     use super::*;
 
+    fn id(s: &str) -> Id<Resource<(), ()>> {
+        s.try_into().unwrap()
+    }
+
     fn test_catalog() -> Catalog<(), ()> {
         // gcp > bigquery
         //     > bigtable
         Catalog(vec![
             Resource {
-                id: "gcp".into(),
+                id: id("gcp"),
+                label: None,
                 parent: None,
-                ..Default::default()
+                categories: HashMap::new(),
+                attribute: (),
             },
             Resource {
-                id: "bigquery".into(),
-                parent: Some("gcp".into()),
-                ..Default::default()
+                id: id("bigquery"),
+                label: None,
+                parent: Some(id("gcp")),
+                categories: HashMap::new(),
+                attribute: (),
             },
             Resource {
-                id: "bigtable".into(),
-                parent: Some("gcp".into()),
-                ..Default::default()
+                id: id("bigtable"),
+                label: None,
+                parent: Some(id("gcp")),
+                categories: HashMap::new(),
+                attribute: (),
             },
         ])
     }
@@ -151,7 +150,7 @@ mod tests {
     fn children_of_lists_direct_children() {
         let c = test_catalog();
         let mut kids: Vec<_> = c
-            .children_of(&"gcp".into())
+            .children_of(&id("gcp"))
             .iter()
             .map(|r| r.id.as_str().to_string())
             .collect();
@@ -162,9 +161,9 @@ mod tests {
     #[test]
     fn ancestry_walks_to_root_exclusive() {
         let c = test_catalog();
-        assert_eq!(c.ancestry(&"bigquery".into()), vec!["bigquery".into()]);
+        assert_eq!(c.ancestry(&id("bigquery")), vec![id("bigquery")]);
         assert_eq!(
-            c.ancestry(&"gcp".into()),
+            c.ancestry(&id("gcp")),
             Vec::<Id<Resource<(), ()>>>::new()
         );
     }

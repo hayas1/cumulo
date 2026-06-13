@@ -214,50 +214,54 @@ impl<CA> Taxonomy<CA> {
 pub(crate) mod tests {
     use super::*;
 
+    fn id(s: &str) -> Id<Category<()>> {
+        s.try_into().unwrap()
+    }
+
     pub fn test_forest() -> Taxonomy<()> {
         // platform > cloud > gcp > bigquery / bigtable
         //                  > aws > s3
         Taxonomy(vec![
             Category {
-                id: "platform".into(),
+                id: id("platform"),
                 label: "Platform".into(),
                 parent: None,
                 attribute: (),
             },
             Category {
-                id: "cloud".into(),
+                id: id("cloud"),
                 label: "Cloud".into(),
-                parent: Some("platform".into()),
+                parent: Some(id("platform")),
                 attribute: (),
             },
             Category {
-                id: "gcp".into(),
+                id: id("gcp"),
                 label: "GCP".into(),
-                parent: Some("cloud".into()),
+                parent: Some(id("cloud")),
                 attribute: (),
             },
             Category {
-                id: "bigquery".into(),
+                id: id("bigquery"),
                 label: "BigQuery".into(),
-                parent: Some("gcp".into()),
+                parent: Some(id("gcp")),
                 attribute: (),
             },
             Category {
-                id: "bigtable".into(),
+                id: id("bigtable"),
                 label: "Bigtable".into(),
-                parent: Some("gcp".into()),
+                parent: Some(id("gcp")),
                 attribute: (),
             },
             Category {
-                id: "aws".into(),
+                id: id("aws"),
                 label: "AWS".into(),
-                parent: Some("cloud".into()),
+                parent: Some(id("cloud")),
                 attribute: (),
             },
             Category {
-                id: "s3".into(),
+                id: id("s3"),
                 label: "S3".into(),
-                parent: Some("aws".into()),
+                parent: Some(id("aws")),
                 attribute: (),
             },
         ])
@@ -267,15 +271,15 @@ pub(crate) mod tests {
     fn ancestry_walks_to_root_exclusive() {
         let f = test_forest();
         assert_eq!(
-            f.ancestry(&"bigquery".into()),
-            vec!["bigquery".into(), "gcp".into(), "cloud".into()]
+            f.ancestry(&id("bigquery")),
+            vec![id("bigquery"), id("gcp"), id("cloud")]
         );
         assert_eq!(
-            f.ancestry(&"cloud".into()),
-            vec![Id::<Category<()>>::from("cloud")]
+            f.ancestry(&id("cloud")),
+            vec![id("cloud")]
         );
         assert_eq!(
-            f.ancestry(&"unknown".into()),
+            f.ancestry(&id("unknown")),
             Vec::<Id<Category<()>>>::new()
         );
     }
@@ -283,16 +287,16 @@ pub(crate) mod tests {
     #[test]
     fn ancestry_contains_detects_ancestor() {
         let f = test_forest();
-        assert!(f.ancestry_contains(&"bigquery".into(), &"gcp".into()));
-        assert!(f.ancestry_contains(&"bigquery".into(), &"cloud".into()));
-        assert!(!f.ancestry_contains(&"bigquery".into(), &"s3".into()));
-        assert!(!f.ancestry_contains(&"bigquery".into(), &"bigtable".into()));
+        assert!(f.ancestry_contains(&id("bigquery"), &id("gcp")));
+        assert!(f.ancestry_contains(&id("bigquery"), &id("cloud")));
+        assert!(!f.ancestry_contains(&id("bigquery"), &id("s3")));
+        assert!(!f.ancestry_contains(&id("bigquery"), &id("bigtable")));
     }
 
     #[test]
     fn collect_descendants_includes_self_and_all_children() {
         let f = test_forest();
-        let desc = f.collect_descendants(&"gcp".into());
+        let desc = f.collect_descendants(&id("gcp"));
         assert!(desc.contains("gcp"));
         assert!(desc.contains("bigquery"));
         assert!(desc.contains("bigtable"));

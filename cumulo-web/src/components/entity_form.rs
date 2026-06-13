@@ -120,15 +120,18 @@ pub fn EntityForm(
         }
     });
 
-    let is_new = move || editing.with(|e| e.as_ref().map(|r| r.id.is_empty()).unwrap_or(false));
+    // draft は既にランダム id を持つので、catalog に未登録なら新規と見なす
+    let is_new = move || {
+        editing.with(|e| {
+            e.as_ref()
+                .map(|r| bipartite.with(|s| s.catalog.iter().all(|x| x.id != r.id)))
+                .unwrap_or(false)
+        })
+    };
 
     let save = move || {
         let id = editing
-            .with_untracked(|e| {
-                e.as_ref()
-                    .filter(|r| !r.id.is_empty())
-                    .map(|r| r.id.clone())
-            })
+            .with_untracked(|e| e.as_ref().map(|r| r.id.clone()))
             .unwrap_or_else(Platform::new_resource_id);
 
         let lbl = form_label.get_untracked();

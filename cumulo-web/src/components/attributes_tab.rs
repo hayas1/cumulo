@@ -60,10 +60,11 @@ impl DimTabActions {
         if new_id.trim().is_empty() {
             return;
         }
+        // 直前の trim().is_empty() チェックで空文字列は排除済みなので安全
         self.0.update(|s| {
             s.taxonomy.rename_node(
                 &old_id,
-                new_id.into(),
+                new_id.try_into().unwrap(),
                 &new_label,
                 CategoryAttribute { color: new_color },
             )
@@ -192,7 +193,8 @@ pub fn AttributesTab(
                         let root_id_add = root.id.clone();
 
                         let order = s.taxonomy.dfs_order(&root.id, &collapsed_set);
-                        let sentinel: CategoryId = format!("\x00root:{}", root.id).into();
+                        // "\x00root:" プレフィックスがあるので空文字列にはならない
+                        let sentinel: CategoryId = format!("\x00root:{}", root.id).try_into().unwrap();
 
                         let is_root_editing = current_editing.as_deref() == Some(root.id.as_str());
 

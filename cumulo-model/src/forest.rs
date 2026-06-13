@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::error::{Errors, ForestError};
 use crate::id::Id;
 
 /// is-a 森のノード。自身の id と parent（None なら根）を公開する。
@@ -101,5 +102,169 @@ pub trait Forest {
             }
         }
         out
+    }
+
+    /// 森の構造的整合性を全件検証し、見つかったエラーを集約して返す。
+    /// fail-fast せず全件収集するのは、インポート時に一度で全問題を把握させるため。
+    /// attribute ペイロードの検証はモデル層が型を知らないため対象外。
+    fn validate(&self) -> Errors<ForestError> {
+        let nodes = self.nodes();
+        let mut errors = Vec::new();
+
+        // A2: id 単体の妥当性は Id::validate に委譲する
+        for n in nodes {
+            if let Err(error) = n.id().validate() {
+                errors.push(ForestError::InvalidId {
+                    id: n.id().as_str().to_string(),
+                    error,
+                });
+            }
+        }
+
+        // A1: id 一意性
+        let mut seen_ids = HashSet::new();
+        for n in nodes {
+            let s = n.id().as_str().to_string();
+            if !seen_ids.insert(s.clone()) {
+                errors.push(ForestError::DuplicateId { id: s });
+            }
+        }
+
+        // A3: parent 存在性（dangling parent）
+        let all_ids: HashSet<&str> = nodes.iter().map(|n| n.id().as_str()).collect();
+        for n in nodes {
+            if let Some(p) = n.parent() {
+                if !all_ids.contains(p.as_str()) {
+                    errors.push(ForestError::DanglingParent {
+                        id: n.id().as_str().to_string(),
+                        parent: p.as_str().to_string(),
+                    });
+                }
+            }
+        }
+
+        // A4: 非循環（各ノードから parent を辿り自己祖先を検出）
+        for n in nodes {
+            let start = n.id();
+            let mut cur = n.parent().cloned();
+            let mut visited = HashSet::new();
+            visited.insert(start.as_str().to_string());
+            while let Some(p) = cur {
+                if !visited.insert(p.as_str().to_string()) {
+                    errors.push(ForestError::Cycle {
+                        id: start.as_str().to_string(),
+                    });
+                    break;
+                }
+                cur = self.node(&p).and_then(|pn| pn.parent().cloned());
+            }
+        }
+
+        Errors(errors)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::category::{Category, Taxonomy};
+    use crate::error::{ForestError, IdError};
+    use crate::id::Id;
+
+    use super::Forest;
+
+    fn cat(id: &str, parent: Option<&str>) -> Category<()> {
+        Category {
+            // 空 id のテストケース（A2）のため TryFrom ではなく new_unchecked を使う
+            id: Id::new_unchecked(id),
+            label: id.into(),
+            parent: parent.map(Id::new_unchecked),
+            attribute: (),
+        }
+    }
+
+    // A1: 正常系 — id が重複しなければエラーなし
+    #[test]
+    fn valid_forest_has_no_errors() {
+        let t = Taxonomy(vec![cat("root", None), cat("child", Some("root"))]);
+        assert!(t.validate().is_empty());
+    }
+
+    // A1: id 重複を検出する
+    #[test]
+    fn duplicate_id_is_detected() {
+        let t = Taxonomy(vec![
+            cat("root", None),
+            cat("root", None), // 重複
+        ]);
+        let errs = t.validate();
+        assert!(errs.contains(&ForestError::DuplicateId {
+            id: "root".into()
+        }));
+    }
+
+    // A2: 空 id を InvalidId として検出する（ルールは Id::validate が持つ）
+    #[test]
+    fn empty_id_is_detected() {
+        let t = Taxonomy(vec![cat("", None)]);
+        let errs = t.validate();
+        assert!(errs.contains(&ForestError::InvalidId {
+            id: "".into(),
+            error: IdError::Empty,
+        }));
+    }
+
+    // A3: 存在しない parent を dangling として検出する
+    #[test]
+    fn dangling_parent_is_detected() {
+        let t = Taxonomy(vec![cat("child", Some("ghost"))]);
+        let errs = t.validate();
+        assert!(errs.contains(&ForestError::DanglingParent {
+            id: "child".into(),
+            parent: "ghost".into(),
+        }));
+    }
+
+    // A4: 自己参照（parent が自分自身）でサイクルを検出する
+    #[test]
+    fn self_loop_is_detected_as_cycle() {
+        let t = Taxonomy(vec![cat("a", Some("a"))]);
+        let errs = t.validate();
+        assert!(errs.iter().any(|e| matches!(e, ForestError::Cycle { id } if id == "a")));
+    }
+
+    // A4: 2 ノード間の循環を検出する
+    #[test]
+    fn two_node_cycle_is_detected() {
+        let t = Taxonomy(vec![cat("a", Some("b")), cat("b", Some("a"))]);
+        let errs = t.validate();
+        assert!(errs.iter().any(|e| matches!(e, ForestError::Cycle { .. })));
+    }
+
+    // 空の森は正常（エラーなし）
+    #[test]
+    fn empty_forest_is_valid() {
+        let t: Taxonomy<()> = Taxonomy(vec![]);
+        assert!(t.validate().is_empty());
+    }
+
+    // 複数エラーが同時に収集される（fail-fast しない）
+    #[test]
+    fn multiple_errors_are_collected() {
+        let t = Taxonomy(vec![
+            cat("", None),           // A2: empty id
+            cat("dup", None),        // A1: duplicate (下と)
+            cat("dup", None),        // A1: duplicate
+            cat("x", Some("ghost")), // A3: dangling
+        ]);
+        let errs = t.validate();
+        assert!(errs.contains(&ForestError::InvalidId {
+            id: "".into(),
+            error: IdError::Empty,
+        }));
+        assert!(errs.contains(&ForestError::DuplicateId { id: "dup".into() }));
+        assert!(errs.contains(&ForestError::DanglingParent {
+            id: "x".into(),
+            parent: "ghost".into(),
+        }));
     }
 }

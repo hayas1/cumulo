@@ -30,12 +30,24 @@ pub struct Platform;
 impl Platform {
     pub fn new_node_id() -> CategoryId {
         let n = (js_sys::Math::random() * 1e15) as u64;
-        format!("node{n:x}").into()
+        // "node" プレフィックスを付けるので空文字列にはならない
+        format!("node{n:x}").try_into().unwrap()
     }
 
     pub fn new_resource_id() -> ResourceId {
         let n = (js_sys::Math::random() * 1e15) as u64;
-        format!("r{n:x}").into()
+        // "r" プレフィックスを付けるので空文字列にはならない
+        format!("r{n:x}").try_into().unwrap()
+    }
+
+    pub fn new_resource() -> Resource<ResourceAttribute, CategoryAttribute> {
+        Resource {
+            id: Self::new_resource_id(),
+            label: None,
+            parent: None,
+            categories: std::collections::HashMap::new(),
+            attribute: ResourceAttribute::default(),
+        }
     }
 
     pub fn random_color() -> String {

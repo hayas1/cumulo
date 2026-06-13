@@ -51,7 +51,7 @@ pub fn FacetView(
                                 <span class="results-count">{entities.len()} " 件"</span>
                                 <button
                                     class="add-resource-btn"
-                                    on:click=move |_| editing.set(Some(Resource::<ResourceAttribute, CategoryAttribute>::default()))
+                                    on:click=move |_| editing.set(Some(Platform::new_resource()))
                                 >
                                     "+ 追加"
                                 </button>

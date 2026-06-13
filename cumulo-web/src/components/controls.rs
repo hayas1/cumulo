@@ -1,5 +1,5 @@
 use crate::map_bridge;
-use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute};
+use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Resource};
 use leptos::*;
 
@@ -24,7 +24,7 @@ pub fn Controls(
             <div class="controls-right">
                 <button
                     class="add-resource-btn"
-                    on:click=move |_| editing.set(Some(Resource::default()))
+                    on:click=move |_| editing.set(Some(Platform::new_resource()))
                 >
                     "+ 追加"
                 </button>

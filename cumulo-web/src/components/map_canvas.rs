@@ -15,8 +15,11 @@ pub fn MapCanvas(
     create_effect(move |_| {
         map_bridge::init_map("main-svg");
 
+        // JS からの id は空文字列になり得るため、空なら無視する
         map_bridge::on_entity_select(move |id| {
-            selected_entity.set(Some(id.into()));
+            if let Ok(v) = id.try_into() {
+                selected_entity.set(Some(v));
+            }
         });
 
         map_bridge::on_zoom_level_change(move |level| {
@@ -24,11 +27,17 @@ pub fn MapCanvas(
         });
 
         // クラスタへのズームイン → そのディメンション値を絞り込み軸へ反映（置換）
+        // JS からの axis/value は空文字列になり得るため、どちらかが空なら無視する
         map_bridge::on_cluster_drill(move |axis, value| {
-            selected_tags.update(|t| {
-                t.retain(|(k, _)| k.as_str() != axis);
-                t.push((axis.into(), value.into()));
-            });
+            if let (Ok(k), Ok(v)) = (
+                CategoryId::try_from(axis),
+                CategoryId::try_from(value),
+            ) {
+                selected_tags.update(|t| {
+                    t.retain(|(k2, _)| k2.as_str() != k.as_str());
+                    t.push((k, v));
+                });
+            }
         });
 
         // 全体表示へのズームアウト → 現在のズーム軸の絞り込みだけ解除

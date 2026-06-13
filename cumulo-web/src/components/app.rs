@@ -90,9 +90,13 @@ fn MapView(
     let selected_entity_id = create_rw_signal(Option::<ResourceId>::None);
     let zoom_level = create_rw_signal(0u32);
     // ズーム軸＝ディメンション。既定は一番上の facet（最初のディメンション）。
+    // taxonomy が空の場合は表示対象がないため、使われないダミー id を割り当てる
     let zoom_dim = create_rw_signal({
         let s = bipartite.get_untracked();
-        s.taxonomy.first().map(|d| d.id.clone()).unwrap_or_default()
+        s.taxonomy
+            .first()
+            .map(|d| d.id.clone())
+            .unwrap_or_else(crate::platform::Platform::new_node_id)
     });
 
     view! {
