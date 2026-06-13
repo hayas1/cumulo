@@ -38,6 +38,6 @@ impl AppStoreExt for cumulo_model::model::AppStore<DimAttrs> {
     }
 
     fn load_default() -> Self {
-        ExportData::<DimAttrs>::parse(cumulo_model::DEFAULT_JSON).expect("default.json is invalid")
+        ExportData::<DimAttrs>::parse(cumulo_model::CLOUD_DEMO_JSON).expect("cloud_demo.json is invalid")
     }
 }
