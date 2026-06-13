@@ -1,4 +1,4 @@
-use crate::platform::{DimAttrs, Platform};
+use crate::platform::{DimValue, Platform};
 use crate::storage::AppStorage;
 use cumulo_model::model::{Bipartite, DimensionNode};
 
@@ -11,7 +11,7 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(RwSignal<Bipartite<DimAttrs>>);
+struct DimTabActions(RwSignal<Bipartite<DimValue>>);
 
 impl DimTabActions {
     fn reparent(self, dragged: String, new_parent: Option<String>) {
@@ -52,7 +52,7 @@ impl DimTabActions {
         }
         self.0.update(|s| {
             s.dimensions
-                .rename_node(&old_id, &new_id, &new_label, DimAttrs { color: new_color })
+                .rename_node(&old_id, &new_id, &new_label, DimValue { color: new_color })
         });
         AppStorage::save(&self.0.get_untracked());
         editing_id.set(None);
@@ -113,7 +113,7 @@ impl UiHelper {
 }
 
 #[component]
-pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView {
+pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimValue>>) -> impl IntoView {
     let editing_id = create_rw_signal(Option::<String>::None);
     let id_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();
@@ -141,7 +141,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView 
         let Some(n) = s.dimensions.iter().find(|n| n.id == eid) else {
             return;
         };
-        preview_color.set(n.attrs.color.clone());
+        preview_color.set(n.value.color.clone());
         if let Some(el) = id_ref.get() {
             el.set_value(&n.id);
         }
@@ -149,7 +149,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView 
             el.set_value(&n.label);
         }
         if let Some(el) = color_ref.get() {
-            el.set_value(&n.attrs.color);
+            el.set_value(&n.value.color);
         }
     });
 
@@ -161,7 +161,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView 
                 let current_editing = editing_id.get();
                 let is_dragging = dragging.get().is_some();
 
-                let root_nodes: Vec<DimensionNode<DimAttrs>> = s
+                let root_nodes: Vec<DimensionNode<DimValue>> = s
                     .dimensions
                     .iter()
                     .filter(|n| n.parent.is_none())
@@ -353,7 +353,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView 
                                                 .find(|n| n.id == node_id)
                                                 .cloned()
                                                 .unwrap();
-                                            let node_color = n.attrs.color.clone();
+                                            let node_color = n.value.color.clone();
                                             let node_label_text = if n.label.is_empty() {
                                                 n.id.clone()
                                             } else {
@@ -511,7 +511,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView 
                                                                 s.dimensions.push(DimensionNode {
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
-                                                                    attrs: DimAttrs {
+                                                                    value: DimValue {
                                                                         color: Platform::random_color(),
                                                                     },
                                                                     parent: Some(parent.clone()),
@@ -632,7 +632,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView 
                                                 s.dimensions.push(DimensionNode {
                                                     id: new_id.clone(),
                                                     label: String::new(),
-                                                    attrs: DimAttrs {
+                                                    value: DimValue {
                                                         color: Platform::random_color(),
                                                     },
                                                     parent: Some(root_id_add.clone()),
@@ -661,7 +661,7 @@ pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView 
                         s.dimensions.push(DimensionNode {
                             id: new_id.clone(),
                             label: String::new(),
-                            attrs: DimAttrs { color: "#8899AA".to_string() },
+                            value: DimValue { color: "#8899AA".to_string() },
                             parent: None,
                         });
                     });

@@ -1,4 +1,4 @@
-use crate::platform::{DimAttrs, Platform};
+use crate::platform::{DimValue, Platform};
 use crate::storage::AppStorage;
 use cumulo_model::model::{Bipartite, DimensionForest, Resource};
 
@@ -20,10 +20,10 @@ enum DimTreeItem {
     },
 }
 
-fn descendants_dfs(forest: &DimensionForest<DimAttrs>, root_id: &str) -> Vec<DimTreeItem> {
+fn descendants_dfs(forest: &DimensionForest<DimValue>, root_id: &str) -> Vec<DimTreeItem> {
     let mut flat: Vec<(String, String, String, usize, bool, String)> = Vec::new();
     fn dfs(
-        forest: &DimensionForest<DimAttrs>,
+        forest: &DimensionForest<DimValue>,
         parent_id: &str,
         depth: usize,
         flat: &mut Vec<(String, String, String, usize, bool, String)>,
@@ -33,7 +33,7 @@ fn descendants_dfs(forest: &DimensionForest<DimAttrs>, root_id: &str) -> Vec<Dim
             flat.push((
                 n.id.clone(),
                 n.label.clone(),
-                n.attrs.color.clone(),
+                n.value.color.clone(),
                 depth,
                 has_children,
                 parent_id.to_string(),
@@ -89,7 +89,7 @@ fn descendants_dfs(forest: &DimensionForest<DimAttrs>, root_id: &str) -> Vec<Dim
 
 #[component]
 pub fn ResourceForm(
-    bipartite: RwSignal<Bipartite<DimAttrs>>,
+    bipartite: RwSignal<Bipartite<DimValue>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let form_label = create_rw_signal(String::new());

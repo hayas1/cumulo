@@ -1,6 +1,6 @@
 use super::dimensions_tab::DimensionsTab;
 use super::resources_tab::ResourcesTab;
-use crate::platform::{DimAttrs, Platform};
+use crate::platform::{DimValue, Platform};
 use crate::storage::AppStorage;
 use cumulo_model::io::ExportData;
 use cumulo_model::model::{Bipartite, Resource};
@@ -12,7 +12,7 @@ use wasm_bindgen_futures::JsFuture;
 
 #[component]
 pub fn SettingsModal(
-    bipartite: RwSignal<Bipartite<DimAttrs>>,
+    bipartite: RwSignal<Bipartite<DimValue>>,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
     editing: RwSignal<Option<Resource>>,

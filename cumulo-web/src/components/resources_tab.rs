@@ -1,4 +1,4 @@
-use crate::platform::DimAttrs;
+use crate::platform::DimValue;
 use crate::storage::AppStorage;
 use cumulo_model::model::{Bipartite, Resource};
 
@@ -19,7 +19,7 @@ fn ask_confirm(
 
 #[component]
 pub fn ResourcesTab(
-    bipartite: RwSignal<Bipartite<DimAttrs>>,
+    bipartite: RwSignal<Bipartite<DimValue>>,
     editing: RwSignal<Option<Resource>>,
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,

@@ -1,11 +1,11 @@
 use crate::map_bridge;
-use crate::platform::DimAttrs;
+use crate::platform::DimValue;
 use cumulo_model::model::{Bipartite, Resource};
 use leptos::*;
 
 #[component]
 pub fn Controls(
-    bipartite: ReadSignal<Bipartite<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_level: ReadSignal<u32>,
     editing: RwSignal<Option<Resource>>,

@@ -1,5 +1,5 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::platform::{DimAttrs, Platform};
+use crate::platform::{DimValue, Platform};
 use cumulo_model::model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
@@ -7,7 +7,7 @@ use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
-    bipartite: ReadSignal<Bipartite<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
@@ -71,7 +71,7 @@ pub fn FacetView(
                                             .iter()
                                             .map(|(k, v)| {
                                                 let color = s.dimensions.node(v)
-                                                    .map(|n| n.attrs.color.clone())
+                                                    .map(|n| n.value.color.clone())
                                                     .unwrap_or_default();
                                                 let label = s.dimensions.node(v)
                                                     .map(|n| n.label.clone())
@@ -102,7 +102,7 @@ pub fn FacetView(
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div class="result-attrs">
+                                                <div class="result-value">
                                                     {chips
                                                         .into_iter()
                                                         .map(|(k, label, color)| {

@@ -6,7 +6,7 @@ use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 /// Web 層が DimensionNode に付与するビジュアル属性。
 /// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct DimAttrs {
+pub struct DimValue {
     pub color: String,
 }
 

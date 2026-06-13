@@ -3,7 +3,7 @@ use super::{
     facet_view::FacetView, map_canvas::MapCanvas, palette::Palette, resource_form::ResourceForm,
     settings_modal::SettingsModal,
 };
-use crate::platform::DimAttrs;
+use crate::platform::DimValue;
 use crate::storage::AppStorage;
 use cumulo_model::model::{Bipartite, Resource};
 
@@ -14,7 +14,7 @@ use leptos_router::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let bipartite = create_rw_signal::<Bipartite<DimAttrs>>(AppStorage::load());
+    let bipartite = create_rw_signal::<Bipartite<DimValue>>(AppStorage::load());
     let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
     let editing = create_rw_signal(Option::<Resource>::None);
     let settings_open = create_rw_signal(false);
@@ -82,7 +82,7 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn MapView(
-    bipartite: ReadSignal<Bipartite<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {

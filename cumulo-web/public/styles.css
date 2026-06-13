@@ -1097,7 +1097,7 @@ body {
   margin: 0.6rem 0 0.35rem;
 }
 
-.detail-attrs {
+.detail-value {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -1374,7 +1374,7 @@ body {
 }
 .result-open-btn:hover { background: var(--accent-hover); }
 
-.result-attrs {
+.result-value {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;

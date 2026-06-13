@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// UI などが追加するビジュアル属性を持たない既定値。
 /// `#[serde(flatten)]` で展開されるので JSON に余分なフィールドは追加されない。
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct NoAttrs {}
+pub struct NoValue {}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Resource {
@@ -66,23 +66,23 @@ impl Resource {
 }
 
 /// parent が None のノードが軸の根（＝属性キー）となる。
-/// リソースの attrs は { 根id → ノードid } で表現する。
+/// リソースの value は { 根id → ノードid } で表現する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DimensionNode<A = NoAttrs> {
+pub struct DimensionNode<A = NoValue> {
     pub id: String,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
-    /// `A = NoAttrs` のとき flatten は何も追加しない。
-    /// web 層は `A = DimAttrs { color }` を指定して color を同じ JSON レベルに展開する。
+    /// `A = NoValue` のとき flatten は何も追加しない。
+    /// web 層は `A = DimValue { color }` を指定して color を同じ JSON レベルに展開する。
     #[serde(flatten)]
-    pub attrs: A,
+    pub value: A,
 }
 
 /// parent リンクで森を構成する。parent が None のノードが軸の根となる。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 #[serde(transparent)]
-pub struct DimensionForest<A = NoAttrs>(pub Vec<DimensionNode<A>>);
+pub struct DimensionForest<A = NoValue>(pub Vec<DimensionNode<A>>);
 
 impl<A> std::ops::Deref for DimensionForest<A> {
     type Target = Vec<DimensionNode<A>>;
@@ -284,7 +284,7 @@ impl<A> DimensionForest<A> {
         self.retain(|n| !doomed.contains(&n.id));
     }
 
-    pub fn rename_node(&mut self, old_id: &str, new_id: &str, label: &str, attrs: A) {
+    pub fn rename_node(&mut self, old_id: &str, new_id: &str, label: &str, value: A) {
         if old_id != new_id {
             for other in self.iter_mut() {
                 if other.parent.as_deref() == Some(old_id) {
@@ -295,7 +295,7 @@ impl<A> DimensionForest<A> {
         if let Some(n) = self.iter_mut().find(|n| n.id == old_id) {
             n.id = new_id.to_string();
             n.label = label.to_string();
-            n.attrs = attrs;
+            n.value = value;
         }
     }
 
@@ -325,7 +325,7 @@ impl<A> DimensionForest<A> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
-pub struct Bipartite<A = NoAttrs> {
+pub struct Bipartite<A = NoValue> {
     pub resources: Vec<Resource>,
     pub dimensions: DimensionForest<A>,
 }
@@ -390,13 +390,13 @@ pub(crate) mod tests {
         // platform > cloud > gcp > bigquery / bigtable
         //                  > aws > s3
         DimensionForest(vec![
-            DimensionNode { id: "platform".into(), label: "Platform".into(), parent: None, attrs: NoAttrs {} },
-            DimensionNode { id: "cloud".into(), label: "Cloud".into(), parent: Some("platform".into()), attrs: NoAttrs {} },
-            DimensionNode { id: "gcp".into(), label: "GCP".into(), parent: Some("cloud".into()), attrs: NoAttrs {} },
-            DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("gcp".into()), attrs: NoAttrs {} },
-            DimensionNode { id: "bigtable".into(), label: "Bigtable".into(), parent: Some("gcp".into()), attrs: NoAttrs {} },
-            DimensionNode { id: "aws".into(), label: "AWS".into(), parent: Some("cloud".into()), attrs: NoAttrs {} },
-            DimensionNode { id: "s3".into(), label: "S3".into(), parent: Some("aws".into()), attrs: NoAttrs {} },
+            DimensionNode { id: "platform".into(), label: "Platform".into(), parent: None, value: NoValue {} },
+            DimensionNode { id: "cloud".into(), label: "Cloud".into(), parent: Some("platform".into()), value: NoValue {} },
+            DimensionNode { id: "gcp".into(), label: "GCP".into(), parent: Some("cloud".into()), value: NoValue {} },
+            DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("gcp".into()), value: NoValue {} },
+            DimensionNode { id: "bigtable".into(), label: "Bigtable".into(), parent: Some("gcp".into()), value: NoValue {} },
+            DimensionNode { id: "aws".into(), label: "AWS".into(), parent: Some("cloud".into()), value: NoValue {} },
+            DimensionNode { id: "s3".into(), label: "S3".into(), parent: Some("aws".into()), value: NoValue {} },
         ])
     }
 

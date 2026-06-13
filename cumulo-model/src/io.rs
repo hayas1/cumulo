@@ -4,7 +4,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 const CURRENT_VERSION: u32 = 1;
 
 #[derive(Serialize, Deserialize)]
-pub struct ExportData<A = crate::model::NoAttrs> {
+pub struct ExportData<A = crate::model::NoValue> {
     pub cumulo_version: u32,
     pub exported_at: String,
     #[serde(rename = "store")]
@@ -37,7 +37,7 @@ impl<A: Serialize + DeserializeOwned> ExportData<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{DimensionForest, DimensionNode, NoAttrs, Resource};
+    use crate::model::{DimensionForest, DimensionNode, NoValue, Resource};
     use std::collections::HashMap;
 
     fn make_space() -> Bipartite {
@@ -54,10 +54,10 @@ mod tests {
                 created_at: None,
             }],
             dimensions: DimensionForest(vec![
-                DimensionNode { id: "platform".into(), label: "プラットフォーム".into(), parent: None, attrs: NoAttrs {} },
-                DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("platform".into()), attrs: NoAttrs {} },
-                DimensionNode { id: "env".into(), label: "環境".into(), parent: None, attrs: NoAttrs {} },
-                DimensionNode { id: "prod".into(), label: "prod".into(), parent: Some("env".into()), attrs: NoAttrs {} },
+                DimensionNode { id: "platform".into(), label: "プラットフォーム".into(), parent: None, value: NoValue {} },
+                DimensionNode { id: "bigquery".into(), label: "BigQuery".into(), parent: Some("platform".into()), value: NoValue {} },
+                DimensionNode { id: "env".into(), label: "環境".into(), parent: None, value: NoValue {} },
+                DimensionNode { id: "prod".into(), label: "prod".into(), parent: Some("env".into()), value: NoValue {} },
             ]),
         }
     }
@@ -82,6 +82,6 @@ mod tests {
             "store": { "resources": [], "dimensions": [] }
         })
         .to_string();
-        assert!(ExportData::<NoAttrs>::parse(&json).is_err());
+        assert!(ExportData::<NoValue>::parse(&json).is_err());
     }
 }

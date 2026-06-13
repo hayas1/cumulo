@@ -1,4 +1,4 @@
-use crate::platform::{DimAttrs, Platform};
+use crate::platform::{DimValue, Platform};
 use cumulo_model::model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
@@ -6,7 +6,7 @@ use leptos_icons::Icon;
 
 #[component]
 pub fn DetailPanel(
-    bipartite: ReadSignal<Bipartite<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimValue>>,
     selected_id: RwSignal<Option<String>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
@@ -70,7 +70,7 @@ pub fn DetailPanel(
 
                                 <div class="detail-body">
                                     <div class="detail-section-title">"ディメンション"</div>
-                                    <div class="detail-attrs">
+                                    <div class="detail-value">
                                         {dims_sorted
                                             .into_iter()
                                             .map(|(k, v)| {

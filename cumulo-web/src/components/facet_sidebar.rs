@@ -1,11 +1,11 @@
-use crate::platform::DimAttrs;
+use crate::platform::DimValue;
 use cumulo_model::model::Bipartite;
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
 pub fn FacetSidebar(
-    bipartite: ReadSignal<Bipartite<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimValue>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
