@@ -1,18 +1,18 @@
 use crate::platform::{DimAttrs, Platform};
-use cumulo_model::model::{AppStore, Resource};
+use cumulo_model::model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
 
 #[component]
 pub fn DetailPanel(
-    store: ReadSignal<AppStore<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimAttrs>>,
     selected_id: RwSignal<Option<String>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let resource = create_memo(move |_| {
         let id = selected_id.get()?;
-        let s = store.get();
+        let s = bipartite.get();
         s.resources.iter().find(|r| r.id == id).cloned()
     });
 
@@ -26,7 +26,7 @@ pub fn DetailPanel(
                             let url = r.console_url.clone();
                             let freq = r.freq;
                             let r_for_edit = r.clone();
-                            let s = store.get();
+                            let s = bipartite.get();
                             let display = r.display_label(&s.dimensions);
 
                             let mut dims_sorted: Vec<_> = r.dimensions.into_iter()

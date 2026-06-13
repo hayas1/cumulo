@@ -1,9 +1,9 @@
 use super::dimensions_tab::DimensionsTab;
 use super::resources_tab::ResourcesTab;
 use crate::platform::{DimAttrs, Platform};
-use crate::storage::AppStoreExt;
+use crate::storage::AppStorage;
 use cumulo_model::io::ExportData;
-use cumulo_model::model::{AppStore, Resource};
+use cumulo_model::model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
@@ -12,7 +12,7 @@ use wasm_bindgen_futures::JsFuture;
 
 #[component]
 pub fn SettingsModal(
-    store: RwSignal<AppStore<DimAttrs>>,
+    bipartite: RwSignal<Bipartite<DimAttrs>>,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
     editing: RwSignal<Option<Resource>>,
@@ -23,7 +23,7 @@ pub fn SettingsModal(
     let confirm_clear = create_rw_signal(false);
 
     let do_export = move || {
-        let s = store.get_untracked();
+        let s = bipartite.get_untracked();
         let json = ExportData::new(s, Platform::now_iso()).to_json();
         let date = Platform::now_iso()
             .chars()
@@ -37,8 +37,8 @@ pub fn SettingsModal(
     let on_clear = move |_| {
         // 消去前に必ずエクスポート（強制バックアップ）
         do_export();
-        let fresh = AppStore::clear_storage();
-        store.set(fresh);
+        let fresh = AppStorage::clear();
+        bipartite.set(fresh);
         confirm_clear.set(false);
         open.set(false);
         import_toast.set(Some("ローカルのデータを削除しました".to_string()));
@@ -67,8 +67,8 @@ pub fn SettingsModal(
                                         imported.resources.len(),
                                         imported.dimensions.len(),
                                     );
-                                    store.set(imported);
-                                    store.get_untracked().save_to_storage();
+                                    bipartite.set(imported);
+                                    AppStorage::save(&bipartite.get_untracked());
                                     open.set(false);
                                     import_toast.set(Some(msg));
                                 }
@@ -135,10 +135,10 @@ pub fn SettingsModal(
                             let tab = active_tab.get();
                             match tab.as_str() {
                                 "dim" => view! {
-                                    <DimensionsTab store=store />
+                                    <DimensionsTab bipartite=bipartite />
                                 }.into_view(),
                                 "resource" => view! {
-                                    <ResourcesTab store=store editing=editing settings_open=open return_to_settings=return_to_settings />
+                                    <ResourcesTab bipartite=bipartite editing=editing settings_open=open return_to_settings=return_to_settings />
                                 }.into_view(),
                                 "data" => view! {
                                     <div class="settings-section">

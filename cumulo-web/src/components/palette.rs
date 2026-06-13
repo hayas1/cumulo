@@ -1,11 +1,11 @@
 use crate::platform::DimAttrs;
-use cumulo_model::model::AppStore;
+use cumulo_model::model::Bipartite;
 use cumulo_model::query::Query;
 use leptos::*;
 
 #[component]
 pub fn Palette(
-    store: ReadSignal<AppStore<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());
@@ -13,7 +13,7 @@ pub fn Palette(
     let is_focused = create_rw_signal(false);
 
     let suggestions = create_memo(move |_| {
-        let s = store.get();
+        let s = bipartite.get();
         let tags = selected_tags.get();
         let input = input_text.get();
 

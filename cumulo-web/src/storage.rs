@@ -1,43 +1,37 @@
 use crate::platform::DimAttrs;
 use cumulo_model::io::ExportData;
+use cumulo_model::model::Bipartite;
 use gloo_storage::{LocalStorage, Storage as GlooStorage};
 
 const STORAGE_KEY: &str = "cumulo_store";
 
-pub trait AppStoreExt {
-    fn save_to_storage(&self);
-    fn load_from_storage() -> Self;
-    fn load_default() -> Self;
-    fn clear_storage() -> Self;
-}
+pub struct AppStorage;
 
-impl AppStoreExt for cumulo_model::model::AppStore<DimAttrs> {
-    fn load_from_storage() -> Self {
-        match LocalStorage::get::<Self>(STORAGE_KEY) {
-            Ok(store) => store,
+impl AppStorage {
+    pub fn load() -> Bipartite<DimAttrs> {
+        match LocalStorage::get::<Bipartite<DimAttrs>>(STORAGE_KEY) {
+            Ok(bipartite) => bipartite,
             Err(e) => {
                 web_sys::console::warn_1(
-                    &format!("[cumulo] load_from_storage failed ({e:?}), using defaults").into(),
+                    &format!("[cumulo] load failed ({e:?}), using demo").into(),
                 );
-                Self::load_default()
+                Self::demo()
             }
         }
     }
 
-    fn save_to_storage(&self) {
-        if let Err(e) = LocalStorage::set(STORAGE_KEY, self) {
-            web_sys::console::error_1(
-                &format!("[cumulo] save_to_storage failed: {e:?}").into(),
-            );
+    pub fn save(bipartite: &Bipartite<DimAttrs>) {
+        if let Err(e) = LocalStorage::set(STORAGE_KEY, bipartite) {
+            web_sys::console::error_1(&format!("[cumulo] save failed: {e:?}").into());
         }
     }
 
-    fn clear_storage() -> Self {
+    pub fn clear() -> Bipartite<DimAttrs> {
         LocalStorage::delete(STORAGE_KEY);
-        Self::load_default()
+        Self::demo()
     }
 
-    fn load_default() -> Self {
+    fn demo() -> Bipartite<DimAttrs> {
         ExportData::<DimAttrs>::parse(cumulo_model::demo::CLOUD).expect("invalid demo")
     }
 }

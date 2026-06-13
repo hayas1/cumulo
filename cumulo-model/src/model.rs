@@ -325,12 +325,12 @@ impl<A> DimensionForest<A> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
-pub struct AppStore<A = NoAttrs> {
+pub struct Bipartite<A = NoAttrs> {
     pub resources: Vec<Resource>,
     pub dimensions: DimensionForest<A>,
 }
 
-impl<A> AppStore<A> {
+impl<A> Bipartite<A> {
     pub fn filter_resources<'a>(
         &'a self,
         selected_tags: &[(String, String)],
@@ -431,7 +431,7 @@ pub(crate) mod tests {
     fn filter_selects_by_ancestry() {
         use std::collections::HashMap;
         let f = test_forest();
-        let store = AppStore {
+        let bipartite = Bipartite {
             dimensions: f,
             resources: vec![
                 Resource { id: "a".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigquery".into())]), console_url: String::new(), created_at: None, freq: 1 },
@@ -439,7 +439,7 @@ pub(crate) mod tests {
                 Resource { id: "c".into(), label: None, dimensions: HashMap::from([("platform".into(), "bigtable".into())]), console_url: String::new(), created_at: None, freq: 1 },
             ],
         };
-        let got = store.filter_resources(&[("platform".into(), "gcp".into())]);
+        let got = bipartite.filter_resources(&[("platform".into(), "gcp".into())]);
         let ids: Vec<&str> = got.iter().map(|r| r.id.as_str()).collect();
         assert!(ids.contains(&"a"));
         assert!(ids.contains(&"c"));

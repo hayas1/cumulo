@@ -1,11 +1,11 @@
 use crate::map_bridge;
 use crate::platform::DimAttrs;
-use cumulo_model::model::AppStore;
+use cumulo_model::model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
-    store: ReadSignal<AppStore<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_dim: RwSignal<String>,
     selected_resource: RwSignal<Option<String>>,
@@ -40,7 +40,7 @@ pub fn MapCanvas(
 
     // ── Effect 2: リソースデータ更新 ─────────────────────────────────────────
     create_effect(move |_| {
-        let resources = &store.get().resources;
+        let resources = &bipartite.get().resources;
         if let Ok(json) = serde_json::to_string(resources) {
             map_bridge::update_resources(&json);
         }
@@ -48,7 +48,7 @@ pub fn MapCanvas(
 
     // ── Effect 3b: ディメンション（カラー定義含む）更新 ──────────────────────
     create_effect(move |_| {
-        let dimensions = store.get().dimensions;
+        let dimensions = bipartite.get().dimensions;
         if let Ok(json) = serde_json::to_string(&dimensions) {
             map_bridge::update_dimensions(&json);
         }

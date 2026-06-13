@@ -4,8 +4,8 @@ use super::{
     settings_modal::SettingsModal,
 };
 use crate::platform::DimAttrs;
-use crate::storage::AppStoreExt;
-use cumulo_model::model::{AppStore, Resource};
+use crate::storage::AppStorage;
+use cumulo_model::model::{Bipartite, Resource};
 
 use icondata as icon;
 use leptos::*;
@@ -14,7 +14,7 @@ use leptos_router::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let store = create_rw_signal::<AppStore<DimAttrs>>(AppStore::load_from_storage());
+    let bipartite = create_rw_signal::<Bipartite<DimAttrs>>(AppStorage::load());
     let selected_tags = create_rw_signal(Vec::<(String, String)>::new());
     let editing = create_rw_signal(Option::<Resource>::None);
     let settings_open = create_rw_signal(false);
@@ -46,24 +46,24 @@ pub fn App() -> impl IntoView {
                 </button>
             </header>
 
-            <Palette store=store.read_only() selected_tags=selected_tags />
+            <Palette bipartite=bipartite.read_only() selected_tags=selected_tags />
 
             <div class="route-content">
                 <Routes>
                     <Route path="/" view=move || view! {
-                        <FacetView store=store.read_only() selected_tags=selected_tags editing=editing />
+                        <FacetView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
                     }/>
                     <Route path="/facet" view=move || view! {
-                        <FacetView store=store.read_only() selected_tags=selected_tags editing=editing />
+                        <FacetView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
                     }/>
                     <Route path="/map" view=move || view! {
-                        <MapView store=store.read_only() selected_tags=selected_tags editing=editing />
+                        <MapView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
                     }/>
                 </Routes>
             </div>
 
-            <ResourceForm store=store editing=editing />
-            <SettingsModal store=store open=settings_open import_toast=import_toast editing=editing return_to_settings=return_to_settings />
+            <ResourceForm bipartite=bipartite editing=editing />
+            <SettingsModal bipartite=bipartite open=settings_open import_toast=import_toast editing=editing return_to_settings=return_to_settings />
 
             {move || import_toast.get().map(|msg| view! {
                 <div class="import-toast">
@@ -82,7 +82,7 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn MapView(
-    store: ReadSignal<AppStore<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
@@ -90,7 +90,7 @@ fn MapView(
     let zoom_level = create_rw_signal(0u32);
     // ズーム軸＝ディメンション。既定は一番上の facet（最初のディメンション）。
     let zoom_dim = create_rw_signal({
-        let s = store.get_untracked();
+        let s = bipartite.get_untracked();
         s.dimensions
             .first()
             .map(|d| d.id.clone())
@@ -100,21 +100,21 @@ fn MapView(
     view! {
         <div class="map-view">
             <Controls
-                store=store
+                bipartite=bipartite
                 selected_tags=selected_tags
                 zoom_level=zoom_level.read_only()
                 editing=editing
             />
             <div class="map-area">
-                <FacetSidebar store=store selected_tags=selected_tags zoom_dim=zoom_dim />
+                <FacetSidebar bipartite=bipartite selected_tags=selected_tags zoom_dim=zoom_dim />
                 <MapCanvas
-                    store=store
+                    bipartite=bipartite
                     selected_tags=selected_tags
                     zoom_dim=zoom_dim
                     selected_resource=selected_resource_id
                     zoom_level=zoom_level
                 />
-                <DetailPanel store=store selected_id=selected_resource_id editing=editing />
+                <DetailPanel bipartite=bipartite selected_id=selected_resource_id editing=editing />
             </div>
         </div>
     }

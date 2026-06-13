@@ -1,6 +1,6 @@
 use crate::platform::DimAttrs;
-use crate::storage::AppStoreExt;
-use cumulo_model::model::{AppStore, Resource};
+use crate::storage::AppStorage;
+use cumulo_model::model::{Bipartite, Resource};
 
 use icondata as icon;
 use leptos::*;
@@ -19,7 +19,7 @@ fn ask_confirm(
 
 #[component]
 pub fn ResourcesTab(
-    store: RwSignal<AppStore<DimAttrs>>,
+    bipartite: RwSignal<Bipartite<DimAttrs>>,
     editing: RwSignal<Option<Resource>>,
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,
@@ -46,7 +46,7 @@ pub fn ResourcesTab(
             </button>
 
             {move || {
-                let s = store.get();
+                let s = bipartite.get();
 
                 if s.resources.is_empty() {
                     return view! {
@@ -83,10 +83,10 @@ pub fn ResourcesTab(
                                             ask_confirm(
                                                 "このリソースを削除しますか？",
                                                 move || {
-                                                    store.update(|s| {
+                                                    bipartite.update(|s| {
                                                         s.resources.retain(|r| r.id != id)
                                                     });
-                                                    store.get_untracked().save_to_storage();
+                                                    AppStorage::save(&bipartite.get_untracked());
                                                 },
                                                 confirm_msg,
                                                 confirm_action,

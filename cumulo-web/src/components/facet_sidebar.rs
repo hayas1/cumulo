@@ -1,11 +1,11 @@
 use crate::platform::DimAttrs;
-use cumulo_model::model::AppStore;
+use cumulo_model::model::Bipartite;
 use leptos::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
 pub fn FacetSidebar(
-    store: ReadSignal<AppStore<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
@@ -18,7 +18,7 @@ pub fn FacetSidebar(
     view! {
         <aside class="facet-sidebar">
             {move || {
-                let s = store.get();
+                let s = bipartite.get();
                 let tags = selected_tags.get();
 
                 s.dimensions.roots()

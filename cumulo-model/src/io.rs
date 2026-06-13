@@ -1,4 +1,4 @@
-use crate::model::AppStore;
+use crate::model::Bipartite;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 const CURRENT_VERSION: u32 = 1;
@@ -7,15 +7,16 @@ const CURRENT_VERSION: u32 = 1;
 pub struct ExportData<A = crate::model::NoAttrs> {
     pub cumulo_version: u32,
     pub exported_at: String,
-    pub store: AppStore<A>,
+    #[serde(rename = "store")]
+    pub bipartite: Bipartite<A>,
 }
 
 impl<A: Serialize + DeserializeOwned> ExportData<A> {
-    pub fn new(store: AppStore<A>, exported_at: impl Into<String>) -> Self {
+    pub fn new(bipartite: Bipartite<A>, exported_at: impl Into<String>) -> Self {
         ExportData {
             cumulo_version: CURRENT_VERSION,
             exported_at: exported_at.into(),
-            store,
+            bipartite,
         }
     }
 
@@ -23,11 +24,11 @@ impl<A: Serialize + DeserializeOwned> ExportData<A> {
         serde_json::to_string_pretty(self).unwrap_or_default()
     }
 
-    pub fn parse(json: &str) -> Result<AppStore<A>, String> {
+    pub fn parse(json: &str) -> Result<Bipartite<A>, String> {
         let data: ExportData<A> =
             serde_json::from_str(json).map_err(|e| format!("JSON parse error: {e}"))?;
         match data.cumulo_version {
-            1 => Ok(data.store),
+            1 => Ok(data.bipartite),
             v => Err(format!("未対応のバージョン: {v}")),
         }
     }
@@ -39,8 +40,8 @@ mod tests {
     use crate::model::{DimensionForest, DimensionNode, NoAttrs, Resource};
     use std::collections::HashMap;
 
-    fn make_store() -> AppStore {
-        AppStore {
+    fn make_space() -> Bipartite {
+        Bipartite {
             resources: vec![Resource {
                 id: "r1".into(),
                 label: Some("BigQuery (prod)".into()),
@@ -63,14 +64,14 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        let store = make_store();
+        let bipartite = make_space();
         let json = serde_json::to_string(&ExportData {
             cumulo_version: 1,
             exported_at: "2026-06-10T00:00:00.000Z".into(),
-            store: store.clone(),
+            bipartite: bipartite.clone(),
         })
         .unwrap();
-        assert_eq!(ExportData::parse(&json).unwrap(), store);
+        assert_eq!(ExportData::parse(&json).unwrap(), bipartite);
     }
 
     #[test]

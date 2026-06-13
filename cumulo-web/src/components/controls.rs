@@ -1,22 +1,22 @@
 use crate::map_bridge;
 use crate::platform::DimAttrs;
-use cumulo_model::model::{AppStore, Resource};
+use cumulo_model::model::{Bipartite, Resource};
 use leptos::*;
 
 #[component]
 pub fn Controls(
-    store: ReadSignal<AppStore<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     zoom_level: ReadSignal<u32>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let resource_count = create_memo(move |_| {
-        let s = store.get();
+        let s = bipartite.get();
         let tags = selected_tags.get();
         s.filter_resources(&tags).len()
     });
 
-    let total_count = create_memo(move |_| store.get().resources.len());
+    let total_count = create_memo(move |_| bipartite.get().resources.len());
 
     view! {
         <div class="controls-bar">

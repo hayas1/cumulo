@@ -1,18 +1,18 @@
 use super::facet_sidebar::FacetSidebar;
 use crate::platform::{DimAttrs, Platform};
-use cumulo_model::model::{AppStore, Resource};
+use cumulo_model::model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::*;
 use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
-    store: ReadSignal<AppStore<DimAttrs>>,
+    bipartite: ReadSignal<Bipartite<DimAttrs>>,
     selected_tags: RwSignal<Vec<(String, String)>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let filtered_ids = create_memo(move |_| {
-        let s = store.get();
+        let s = bipartite.get();
         let tags = selected_tags.get();
         s.filter_resources(&tags)
             .into_iter()
@@ -23,11 +23,11 @@ pub fn FacetView(
     view! {
         <div class="facet-view">
             <div class="facet-body">
-                <FacetSidebar store=store selected_tags=selected_tags />
+                <FacetSidebar bipartite=bipartite selected_tags=selected_tags />
 
                 <main class="facet-results">
                     {move || {
-                        let s = store.get();
+                        let s = bipartite.get();
                         let ids = filtered_ids.get();
 
                         let resources: Vec<_> = s

@@ -1,6 +1,6 @@
 use crate::platform::{DimAttrs, Platform};
-use crate::storage::AppStoreExt;
-use cumulo_model::model::{AppStore, DimensionForest, Resource};
+use crate::storage::AppStorage;
+use cumulo_model::model::{Bipartite, DimensionForest, Resource};
 
 use leptos::html::Input;
 use leptos::*;
@@ -89,7 +89,7 @@ fn descendants_dfs(forest: &DimensionForest<DimAttrs>, root_id: &str) -> Vec<Dim
 
 #[component]
 pub fn ResourceForm(
-    store: RwSignal<AppStore<DimAttrs>>,
+    bipartite: RwSignal<Bipartite<DimAttrs>>,
     editing: RwSignal<Option<Resource>>,
 ) -> impl IntoView {
     let form_label = create_rw_signal(String::new());
@@ -145,14 +145,14 @@ pub fn ResourceForm(
             created_at: None,
         };
 
-        store.update(|s| {
+        bipartite.update(|s| {
             if let Some(pos) = s.resources.iter().position(|x| x.id == id) {
                 s.resources[pos] = r;
             } else {
                 s.resources.push(r);
             }
         });
-        store.get_untracked().save_to_storage();
+        AppStorage::save(&bipartite.get_untracked());
         editing.set(None);
     };
 
@@ -204,7 +204,7 @@ pub fn ResourceForm(
                     // ── 軸ごとのディメンションチップ ──────────────────────────
                     <label class="form-label">"ディメンション"</label>
                     {move || {
-                        let s = store.get();
+                        let s = bipartite.get();
                         s.dimensions.roots()
                             .into_iter()
                             .map(|root| {

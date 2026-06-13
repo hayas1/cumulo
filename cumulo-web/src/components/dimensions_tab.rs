@@ -1,6 +1,6 @@
 use crate::platform::{DimAttrs, Platform};
-use crate::storage::AppStoreExt;
-use cumulo_model::model::{AppStore, DimensionNode};
+use crate::storage::AppStorage;
+use cumulo_model::model::{Bipartite, DimensionNode};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -11,27 +11,27 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(RwSignal<AppStore<DimAttrs>>);
+struct DimTabActions(RwSignal<Bipartite<DimAttrs>>);
 
 impl DimTabActions {
     fn reparent(self, dragged: String, new_parent: Option<String>) {
         self.0.update(|s| s.dimensions.reparent(&dragged, new_parent));
-        self.0.get_untracked().save_to_storage();
+        AppStorage::save(&self.0.get_untracked());
     }
 
     fn move_relative(self, dragged: String, target: String, after: bool) {
         self.0.update(|s| s.dimensions.move_relative(&dragged, &target, after));
-        self.0.get_untracked().save_to_storage();
+        AppStorage::save(&self.0.get_untracked());
     }
 
     fn delete_promote(self, node_id: String) {
         self.0.update(|s| s.dimensions.delete_promote(&node_id));
-        self.0.get_untracked().save_to_storage();
+        AppStorage::save(&self.0.get_untracked());
     }
 
     fn delete_subtree(self, node_id: String) {
         self.0.update(|s| s.dimensions.delete_subtree(&node_id));
-        self.0.get_untracked().save_to_storage();
+        AppStorage::save(&self.0.get_untracked());
     }
 
     fn commit_node_edit(
@@ -54,7 +54,7 @@ impl DimTabActions {
             s.dimensions
                 .rename_node(&old_id, &new_id, &new_label, DimAttrs { color: new_color })
         });
-        self.0.get_untracked().save_to_storage();
+        AppStorage::save(&self.0.get_untracked());
         editing_id.set(None);
     }
 }
@@ -113,7 +113,7 @@ impl UiHelper {
 }
 
 #[component]
-pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
+pub fn DimensionsTab(bipartite: RwSignal<Bipartite<DimAttrs>>) -> impl IntoView {
     let editing_id = create_rw_signal(Option::<String>::None);
     let id_ref = create_node_ref::<Input>();
     let label_ref = create_node_ref::<Input>();
@@ -128,7 +128,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
         msg: create_rw_signal(None),
         action: create_rw_signal(None),
     };
-    let acts = DimTabActions(store);
+    let acts = DimTabActions(bipartite);
 
     let delete_target = create_rw_signal(Option::<(String, bool)>::None);
 
@@ -137,7 +137,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
             preview_color.set(String::new());
             return;
         };
-        let s = store.get_untracked();
+        let s = bipartite.get_untracked();
         let Some(n) = s.dimensions.iter().find(|n| n.id == eid) else {
             return;
         };
@@ -156,7 +156,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
     view! {
         <div class="dim-tab">
             {move || {
-                let s = store.get();
+                let s = bipartite.get();
                 let collapsed_set = collapsed.get();
                 let current_editing = editing_id.get();
                 let is_dragging = dragging.get().is_some();
@@ -188,7 +188,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                                 class:active=move || {
                                     if let Some(ref eid) = editing_id.get() {
                                         *eid == root_id_active
-                                            || store.with(|s| {
+                                            || bipartite.with(|s| {
                                                 s.dimensions.root_of(eid)
                                                     .map(|r| r == root_id_active)
                                                     .unwrap_or(false)
@@ -237,7 +237,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                                                     class="dim-row-cancel"
                                                     on:click=move |_| {
                                                         editing_id.set(None);
-                                                        store.update(|s| {
+                                                        bipartite.update(|s| {
                                                             if let Some(n) = s
                                                                 .dimensions
                                                                 .iter()
@@ -249,7 +249,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                                                                 }
                                                             }
                                                         });
-                                                        store.get_untracked().save_to_storage();
+                                                        AppStorage::save(&bipartite.get_untracked());
                                                     }
                                                 >
                                                     "キャンセル"
@@ -507,7 +507,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                                                             let parent = nid_add.clone();
                                                             let new_id = Platform::new_node_id();
                                                             let new_id2 = new_id.clone();
-                                                            store.update(|s| {
+                                                            bipartite.update(|s| {
                                                                 s.dimensions.push(DimensionNode {
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
@@ -517,7 +517,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                                                                     parent: Some(parent.clone()),
                                                                 });
                                                             });
-                                                            store.get_untracked().save_to_storage();
+                                                            AppStorage::save(&bipartite.get_untracked());
                                                             collapsed.update(|c| {
                                                                 c.remove(&nid_add);
                                                             });
@@ -628,7 +628,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                                             }
                                             let new_id = Platform::new_node_id();
                                             let new_id2 = new_id.clone();
-                                            store.update(|s| {
+                                            bipartite.update(|s| {
                                                 s.dimensions.push(DimensionNode {
                                                     id: new_id.clone(),
                                                     label: String::new(),
@@ -638,7 +638,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                                                     parent: Some(root_id_add.clone()),
                                                 });
                                             });
-                                            store.get_untracked().save_to_storage();
+                                            AppStorage::save(&bipartite.get_untracked());
                                             editing_id.set(Some(new_id2));
                                         }
                                     >
@@ -657,7 +657,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                     acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                     let new_id = Platform::new_node_id();
                     let new_id2 = new_id.clone();
-                    store.update(|s| {
+                    bipartite.update(|s| {
                         s.dimensions.push(DimensionNode {
                             id: new_id.clone(),
                             label: String::new(),
@@ -665,7 +665,7 @@ pub fn DimensionsTab(store: RwSignal<AppStore<DimAttrs>>) -> impl IntoView {
                             parent: None,
                         });
                     });
-                    store.get_untracked().save_to_storage();
+                    AppStorage::save(&bipartite.get_untracked());
                     editing_id.set(Some(new_id2));
                 }
             >
