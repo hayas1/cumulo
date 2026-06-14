@@ -107,7 +107,13 @@ pub fn EntityForm(
         form_label.set(r.label.clone().unwrap_or_default());
         form_url.set(r.attribute.console_url.clone());
         form_freq.set(r.attribute.freq.max(1));
-        form_dims.set(r.categories.clone());
+        // モデルは値リストだが、フォームは軸→値の map で編集する（軸は root_of で導出）
+        form_dims.set(bipartite.with_untracked(|s| {
+            r.categories
+                .iter()
+                .filter_map(|v| s.taxonomy.root_of(v).map(|k| (k, v.clone())))
+                .collect()
+        }));
 
         if let Some(el) = label_ref.get() {
             el.set_value(&r.label.unwrap_or_default());
@@ -143,7 +149,8 @@ pub fn EntityForm(
                 Some(lbl)
             },
             parent: None,
-            categories: form_dims.get_untracked(),
+            // 軸→値の map から値リストへ（軸は値から導出できるので値だけ保存）
+            categories: form_dims.get_untracked().into_values().collect(),
             attribute: ResourceAttribute {
                 console_url: form_url.get_untracked(),
                 freq: form_freq.get_untracked(),

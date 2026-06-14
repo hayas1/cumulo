@@ -45,7 +45,7 @@ impl Platform {
             id: Self::new_resource_id(),
             label: None,
             parent: None,
-            categories: std::collections::HashMap::new(),
+            categories: Vec::new(),
             attribute: ResourceAttribute::default(),
         }
     }

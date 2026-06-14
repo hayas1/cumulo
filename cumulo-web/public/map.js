@@ -70,7 +70,7 @@ window.cumuloUpdateFilter = function (selectedJson) {
       filteredIds = new Set(
         resources
           .filter(r => selected.every(([k, v]) => {
-            const rv = r.categories && r.categories[k];
+            const rv = valueOnAxis(r, k);
             if (rv == null) return false;
             // 階層dimは祖先一致も許容（GCP を選ぶと BigQuery もマッチ）
             return ancestryIn(k, rv).includes(v);
@@ -117,6 +117,27 @@ function ancestryIn(dimId, nodeId) {
   return chain;
 }
 
+// nodeId が属する軸（parent を辿った最上位の根 id）を返す。
+function rootOf(nodeId) {
+  const byId = {};
+  dimensions.forEach(n => { byId[n.id] = n; });
+  let cur = nodeId;
+  const seen = new Set();
+  while (cur != null && !seen.has(cur)) {
+    seen.add(cur);
+    const n = byId[cur];
+    if (!n || n.parent == null) return cur; // cur が根
+    cur = n.parent;
+  }
+  return null;
+}
+
+// リソースの categories（値リスト）から、指定軸の値を返す。なければ undefined。
+// 軸（根）は dict のキーではなく root_of で導出する。
+function valueOnAxis(r, axisId) {
+  return (r.categories || []).find(v => rootOf(v) === axisId);
+}
+
 // ノードIDからラベルを返す。見つからなければIDそのまま。
 function nodeLabel(id) {
   const n = dimensions.find(d => d.id === id);
@@ -126,7 +147,7 @@ function nodeLabel(id) {
 // リソースの表示名を返す。label がなければ dimensions 値のラベルで代替。
 function resourceLabel(r) {
   if (r.label) return r.label;
-  const parts = Object.values(r.categories || {})
+  const parts = (r.categories || [])
     .map(v => nodeLabel(v))
     .sort();
   return parts.length > 0 ? parts.join(' / ') : '(名前なし)';
@@ -136,7 +157,7 @@ function resourceLabel(r) {
 // 例: platform で BigQuery → [Cloud, GCP, BigQuery]。フラットdimなら [value]。
 function zoomPath(r) {
   if (!zoomDim) return null;
-  const leaf = r.categories && r.categories[zoomDim];
+  const leaf = valueOnAxis(r, zoomDim);
   if (leaf == null) return ['その他'];
   return ancestryIn(zoomDim, leaf).reverse();
 }
@@ -520,7 +541,7 @@ function drawResourceNode(parentG, node, rx, ry) {
   const hasChildren = node.children.length > 0;
 
   // ノードカラーは葉（zoomDim の値）で決定
-  const color = clusterColor(r.categories && r.categories[zoomDim]);
+  const color = clusterColor(valueOnAxis(r, zoomDim));
 
   // クリック時に選択するリソース ID をクロージャで直接キャプチャ
   const resourceId = r.id;

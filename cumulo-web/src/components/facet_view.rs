@@ -62,8 +62,12 @@ pub fn FacetView(
                                     .map(|r| {
                                         let url = r.attribute.console_url.clone();
 
+                                        // 軸（根）は root_of で導出する
                                         let mut dims_sorted: Vec<_> = r.categories.iter()
-                                            .map(|(k, v)| (k.clone(), v.clone()))
+                                            .map(|v| {
+                                                let k = s.taxonomy.root_of(v).unwrap_or_else(|| v.clone());
+                                                (k, v.clone())
+                                            })
                                             .collect();
                                         dims_sorted.sort_by_key(|(k, _)| k.clone());
 

@@ -30,11 +30,15 @@ pub fn DetailPanel(
                             let display = r.display_label(&s.taxonomy);
 
                             let mut dims_sorted: Vec<_> = r.categories.into_iter()
-                                .map(|(k, v)| {
-                                    let k_label = s.taxonomy.node(&k)
+                                .map(|v| {
+                                    // 軸（根）は root_of で導出する
+                                    let k = s.taxonomy.root_of(&v);
+                                    let k_label = k.as_ref()
+                                        .and_then(|k| s.taxonomy.node(k))
                                         .map(|n| n.label.clone())
                                         .filter(|l| !l.is_empty())
-                                        .unwrap_or_else(|| k.to_string());
+                                        .or_else(|| k.as_ref().map(|k| k.to_string()))
+                                        .unwrap_or_default();
                                     let v_label = s.taxonomy.node(&v)
                                         .map(|n| n.label.clone())
                                         .filter(|l| !l.is_empty())

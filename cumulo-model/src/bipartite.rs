@@ -39,20 +39,10 @@ impl<RA, CA> Bipartite<RA, CA> {
 
         for resource in self.catalog.nodes() {
             let rid = resource.id.as_str().to_string();
-            for (key, value) in &resource.categories {
-                // B1: キーは存在する Category かつ parent==None（軸の根）
-                match self.taxonomy.node(key) {
-                    None | Some(Category { parent: Some(_), .. }) => {
-                        errors.push(ValidationError::CategoryKeyNotRoot {
-                            resource: rid.clone(),
-                            key: key.as_str().to_string(),
-                        });
-                        // キーが無効な軸では B2/B3 の検証が意味をなさない
-                        continue;
-                    }
-                    _ => {}
-                }
-
+            // 軸（root_of）の重複を検出するため、見た軸を覚えておく
+            let mut seen_axes: std::collections::HashSet<Id<Category<CA>>> =
+                std::collections::HashSet::new();
+            for value in &resource.categories {
                 // B2: value は存在する Category
                 if self.taxonomy.node(value).is_none() {
                     errors.push(ValidationError::CategoryValueMissing {
@@ -62,13 +52,20 @@ impl<RA, CA> Bipartite<RA, CA> {
                     continue;
                 }
 
-                // B3: value はその軸に属し、かつ非根（value != key）
-                let root = self.taxonomy.root_of(value);
-                if root.as_ref() != Some(key) {
-                    errors.push(ValidationError::CategoryValueWrongAxis {
+                // B3: value は非根（＝軸を持つ）。根そのものは選べない
+                let Some(axis) = self.taxonomy.root_of(value) else {
+                    errors.push(ValidationError::CategoryValueNotSelectable {
                         resource: rid.clone(),
-                        key: key.as_str().to_string(),
                         value: value.as_str().to_string(),
+                    });
+                    continue;
+                };
+
+                // B4: 1軸1値。同じ軸に複数の値があれば違反
+                if !seen_axes.insert(axis.clone()) {
+                    errors.push(ValidationError::DuplicateAxis {
+                        resource: rid.clone(),
+                        axis: axis.as_str().to_string(),
                     });
                 }
             }
@@ -99,7 +96,7 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         k: &Id<Category<CA>>,
         v: &Id<Category<CA>>,
     ) -> bool {
-        let Some(rv) = r.categories.get(k.as_str()) else {
+        let Some(rv) = r.category(&self.taxonomy, k) else {
             return false;
         };
         if rv == v {
@@ -203,7 +200,6 @@ mod tests {
     use super::*;
     use crate::category::{tests::test_forest, Category, Taxonomy};
     use crate::id::Id;
-    use std::collections::HashMap;
 
     fn cid(s: &str) -> Id<Category<()>> {
         s.try_into().unwrap()
@@ -223,21 +219,21 @@ mod tests {
                     id: rid("a"),
                     label: None,
                     parent: None,
-                    categories: HashMap::from([(cid("platform"), cid("bigquery"))]),
+                    categories: vec![cid("bigquery")],
                     attribute: (),
                 },
                 Resource {
                     id: rid("b"),
                     label: None,
                     parent: None,
-                    categories: HashMap::from([(cid("platform"), cid("s3"))]),
+                    categories: vec![cid("s3")],
                     attribute: (),
                 },
                 Resource {
                     id: rid("c"),
                     label: None,
                     parent: None,
-                    categories: HashMap::from([(cid("platform"), cid("bigtable"))]),
+                    categories: vec![cid("bigtable")],
                     attribute: (),
                 },
             ]),
@@ -255,10 +251,7 @@ mod tests {
                 id: rid("r1"),
                 label: Some("BigQuery (prod)".into()),
                 parent: None,
-                categories: HashMap::from([
-                    (cid("platform"), cid("bigquery")),
-                    (cid("env"), cid("prod")),
-                ]),
+                categories: vec![cid("bigquery"), cid("prod")],
                 attribute: (),
             }]),
             taxonomy: Taxonomy(vec![
@@ -339,7 +332,7 @@ mod tests {
             "store": {
                 "catalog": [{
                     "id": "r1",
-                    "categories": { "ghost_axis": "nowhere" }
+                    "categories": ["nowhere"]
                 }],
                 "taxonomy": []
             }
@@ -467,10 +460,7 @@ mod tests {
                 id: rid("r1"),
                 label: None,
                 parent: None,
-                categories: HashMap::from([
-                    (cid("platform"), cid("bigquery")),
-                    (cid("env"), cid("prod")),
-                ]),
+                categories: vec![cid("bigquery"), cid("prod")],
                 attribute: (),
             }]),
         }
@@ -491,7 +481,7 @@ mod tests {
             id: rid("r1"), // duplicate
             label: None,
             parent: None,
-            categories: HashMap::new(),
+            categories: vec![],
             attribute: (),
         });
         let errs = b.validate().unwrap_err();
@@ -517,41 +507,12 @@ mod tests {
         })));
     }
 
-    // B1: category キーが存在しない場合は CategoryKeyNotRoot
-    #[test]
-    fn b1_key_not_found_reports_key_not_root() {
-        use crate::error::ValidationError;
-        let mut b = valid_bipartite();
-        b.catalog[0].categories.insert(cid("ghost_axis"), cid("prod"));
-        let errs = b.validate().unwrap_err();
-        assert!(errs.iter().any(|e| matches!(
-            e,
-            ValidationError::CategoryKeyNotRoot { resource, key }
-            if resource == "r1" && key == "ghost_axis"
-        )));
-    }
-
-    // B1: category キーが存在するが非根（parent を持つ）場合も CategoryKeyNotRoot
-    #[test]
-    fn b1_key_is_non_root_reports_key_not_root() {
-        use crate::error::ValidationError;
-        let mut b = valid_bipartite();
-        // "bigquery" は非根ノード（parent=platform）なのでキーに使えない
-        b.catalog[0].categories.insert(cid("bigquery"), cid("bigtable"));
-        let errs = b.validate().unwrap_err();
-        assert!(errs.iter().any(|e| matches!(
-            e,
-            ValidationError::CategoryKeyNotRoot { resource, key }
-            if resource == "r1" && key == "bigquery"
-        )));
-    }
-
     // B2: value が taxonomy に存在しない場合は CategoryValueMissing
     #[test]
     fn b2_missing_value_is_detected() {
         use crate::error::ValidationError;
         let mut b = valid_bipartite();
-        b.catalog[0].categories.insert(cid("env"), cid("staging")); // staging は存在しない
+        b.catalog[0].categories.push(cid("staging")); // staging は存在しない
         let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
@@ -560,33 +521,32 @@ mod tests {
         )));
     }
 
-    // B3: value が軸のルートそのものであれば CategoryValueWrongAxis
+    // B3: value が軸の根そのものなら CategoryValueNotSelectable（非根でなければならない）
     #[test]
-    fn b3_value_is_axis_root_reports_wrong_axis() {
+    fn b3_root_value_is_not_selectable() {
         use crate::error::ValidationError;
         let mut b = valid_bipartite();
-        // "platform" は軸の根なので値として使えない（非根でなければならない）
-        b.catalog[0].categories.insert(cid("platform"), cid("platform"));
+        b.catalog[0].categories.push(cid("platform")); // platform は根
         let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
-            ValidationError::CategoryValueWrongAxis { resource, key, value }
-            if resource == "r1" && key == "platform" && value == "platform"
+            ValidationError::CategoryValueNotSelectable { resource, value }
+            if resource == "r1" && value == "platform"
         )));
     }
 
-    // B3: value が別の軸に属する場合は CategoryValueWrongAxis
+    // B4: 同一軸に複数の値があれば DuplicateAxis
     #[test]
-    fn b3_value_from_different_axis_reports_wrong_axis() {
+    fn b4_duplicate_axis_is_detected() {
         use crate::error::ValidationError;
         let mut b = valid_bipartite();
-        // platform 軸のキーに env 軸の値 "prod" を指定する（軸違い）
-        b.catalog[0].categories.insert(cid("platform"), cid("prod"));
+        // r1 は既に bigquery（軸 platform）を持つ。bigtable も軸 platform なので重複
+        b.catalog[0].categories.push(cid("bigtable"));
         let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
-            ValidationError::CategoryValueWrongAxis { resource, key, value }
-            if resource == "r1" && key == "platform" && value == "prod"
+            ValidationError::DuplicateAxis { resource, axis }
+            if resource == "r1" && axis == "platform"
         )));
     }
 
@@ -601,7 +561,7 @@ mod tests {
                 id: rid("r1"),
                 label: None,
                 parent: None,
-                categories: HashMap::new(),
+                categories: vec![],
                 attribute: (),
             }]),
         };
@@ -622,7 +582,7 @@ mod tests {
             id: rid("r1"),
             label: None,
             parent: None,
-            categories: HashMap::from([(cid("platform"), cid("bigquery"))]),
+            categories: vec![cid("bigquery")],
             attribute: (),
         }])
     }
@@ -633,19 +593,19 @@ mod tests {
     }
 
     #[test]
-    fn try_new_returns_err_when_category_key_is_not_root() {
+    fn try_new_returns_err_for_invalid_category_value() {
         use crate::error::ValidationError;
-        // "bigquery" は非根ノードなのでキーに使えない
+        // "platform" は軸の根なのでカテゴリ値として選べない
         let catalog = Catalog(vec![Resource {
             id: rid("r1"),
             label: None,
             parent: None,
-            categories: HashMap::from([(cid("bigquery"), cid("bigquery"))]),
+            categories: vec![cid("platform")],
             attribute: (),
         }]);
         let err = Bipartite::try_new(catalog, valid_taxonomy()).unwrap_err();
-        assert!(err.iter().any(|e| matches!(e, ValidationError::CategoryKeyNotRoot { resource, key }
-            if resource == "r1" && key == "bigquery")));
+        assert!(err.iter().any(|e| matches!(e, ValidationError::CategoryValueNotSelectable { resource, value }
+            if resource == "r1" && value == "platform")));
     }
 
     #[test]
@@ -653,8 +613,8 @@ mod tests {
         use crate::error::ValidationError;
         // catalog に重複 id
         let catalog = Catalog(vec![
-            Resource { id: rid("r1"), label: None, parent: None, categories: HashMap::new(), attribute: () },
-            Resource { id: rid("r1"), label: None, parent: None, categories: HashMap::new(), attribute: () },
+            Resource { id: rid("r1"), label: None, parent: None, categories: vec![], attribute: () },
+            Resource { id: rid("r1"), label: None, parent: None, categories: vec![], attribute: () },
         ]);
         let err = Bipartite::try_new(catalog, valid_taxonomy()).unwrap_err();
         assert!(err.iter().any(|e| matches!(e, ValidationError::Catalog(_))));

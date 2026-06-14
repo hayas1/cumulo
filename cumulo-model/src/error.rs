@@ -56,9 +56,12 @@ impl Error for ForestError {
 pub enum ValidationError {
     Catalog(ForestError),
     Taxonomy(ForestError),
-    CategoryKeyNotRoot { resource: String, key: String },
+    /// 値が taxonomy に存在しない。
     CategoryValueMissing { resource: String, value: String },
-    CategoryValueWrongAxis { resource: String, key: String, value: String },
+    /// 値が軸の根そのもの（非根でない）で、カテゴリ値として選べない。
+    CategoryValueNotSelectable { resource: String, value: String },
+    /// 同一軸（root_of が同じ）に複数の値が付いている（1軸1値違反）。
+    DuplicateAxis { resource: String, axis: String },
 }
 
 impl fmt::Display for ValidationError {
@@ -66,17 +69,17 @@ impl fmt::Display for ValidationError {
         match self {
             ValidationError::Catalog(e) => write!(f, "catalog: {e}"),
             ValidationError::Taxonomy(e) => write!(f, "taxonomy: {e}"),
-            ValidationError::CategoryKeyNotRoot { resource, key } => {
-                write!(f, "resource '{resource}': category key '{key}' is not a root")
-            }
             ValidationError::CategoryValueMissing { resource, value } => {
                 write!(f, "resource '{resource}': category value '{value}' does not exist")
             }
-            ValidationError::CategoryValueWrongAxis { resource, key, value } => {
+            ValidationError::CategoryValueNotSelectable { resource, value } => {
                 write!(
                     f,
-                    "resource '{resource}': category value '{value}' does not belong to axis '{key}'"
+                    "resource '{resource}': category value '{value}' is a root and not selectable"
                 )
+            }
+            ValidationError::DuplicateAxis { resource, axis } => {
+                write!(f, "resource '{resource}': multiple values on axis '{axis}'")
             }
         }
     }

@@ -7,7 +7,7 @@
         "id": "bq-prod",
         "label": "auth / BigQuery (prod)",
         "freq": 12,
-        "categories": { "platform": "bigquery", "product": "auth", "env": "prod" },
+        "categories": ["bigquery", "auth", "prod"],
         "console_url": "https://console.cloud.google.com/bigquery?project=auth-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -15,7 +15,7 @@
         "id": "bq-stg",
         "label": "auth / BigQuery (stg)",
         "freq": 4,
-        "categories": { "platform": "bigquery", "product": "auth", "env": "stg" },
+        "categories": ["bigquery", "auth", "stg"],
         "console_url": "https://console.cloud.google.com/bigquery?project=auth-stg",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -23,7 +23,7 @@
         "id": "bt-prod",
         "label": "payment / Bigtable (prod)",
         "freq": 6,
-        "categories": { "platform": "bigtable", "product": "payment", "env": "prod" },
+        "categories": ["bigtable", "payment", "prod"],
         "console_url": "https://console.cloud.google.com/bigtable?project=payment-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -31,7 +31,7 @@
         "id": "logging-prod",
         "label": "infra / Cloud Logging (prod)",
         "freq": 9,
-        "categories": { "platform": "cloud-logging", "product": "infra", "env": "prod" },
+        "categories": ["cloud-logging", "infra", "prod"],
         "console_url": "https://console.cloud.google.com/logs?project=infra-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -39,7 +39,7 @@
         "id": "monitoring-prod",
         "label": "infra / Cloud Monitoring (prod)",
         "freq": 7,
-        "categories": { "platform": "cloud-monitoring", "product": "infra", "env": "prod" },
+        "categories": ["cloud-monitoring", "infra", "prod"],
         "console_url": "https://console.cloud.google.com/monitoring?project=infra-prod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -47,7 +47,7 @@
         "id": "s3-prod",
         "label": "payment / S3 (prod)",
         "freq": 10,
-        "categories": { "platform": "s3", "product": "payment", "env": "prod" },
+        "categories": ["s3", "payment", "prod"],
         "console_url": "https://s3.console.aws.amazon.com/s3/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -55,7 +55,7 @@
         "id": "msk-stg",
         "label": "payment / MSK (stg)",
         "freq": 5,
-        "categories": { "platform": "msk", "product": "payment", "env": "stg" },
+        "categories": ["msk", "payment", "stg"],
         "console_url": "https://console.aws.amazon.com/msk/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -63,7 +63,7 @@
         "id": "rds-prod",
         "label": "auth / RDS (prod)",
         "freq": 11,
-        "categories": { "platform": "rds", "product": "auth", "env": "prod" },
+        "categories": ["rds", "auth", "prod"],
         "console_url": "https://console.aws.amazon.com/rds/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -71,7 +71,7 @@
         "id": "secrets-dev",
         "label": "auth / Secrets Manager (dev)",
         "freq": 3,
-        "categories": { "platform": "secrets-manager", "product": "auth", "env": "dev" },
+        "categories": ["secrets-manager", "auth", "dev"],
         "console_url": "https://console.aws.amazon.com/secretsmanager/home",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -79,7 +79,7 @@
         "id": "dd-dashboard-prod",
         "label": "infra / Datadog Dashboard (prod)",
         "freq": 10,
-        "categories": { "platform": "dashboard", "product": "infra", "env": "prod" },
+        "categories": ["dashboard", "infra", "prod"],
         "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Aprod",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -87,7 +87,7 @@
         "id": "dd-dashboard-dev",
         "label": "infra / Datadog Dashboard (dev)",
         "freq": 4,
-        "categories": { "platform": "dashboard", "product": "infra", "env": "dev" },
+        "categories": ["dashboard", "infra", "dev"],
         "console_url": "https://app.datadoghq.com/dashboard/lists?tags=env%3Adev",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -95,7 +95,7 @@
         "id": "dd-apm-tracing",
         "label": "auth / Datadog APM — Tracing",
         "freq": 9,
-        "categories": { "platform": "apm", "product": "auth", "env": "shared" },
+        "categories": ["apm", "auth", "shared"],
         "console_url": "https://app.datadoghq.com/apm/traces",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -103,7 +103,7 @@
         "id": "dd-apm-services",
         "label": "payment / Datadog APM — Service Page",
         "freq": 8,
-        "categories": { "platform": "apm", "product": "payment", "env": "shared" },
+        "categories": ["apm", "payment", "shared"],
         "console_url": "https://app.datadoghq.com/apm/services",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -111,7 +111,7 @@
         "id": "kafka-ui-dev",
         "label": "payment / Kafka UI (dev)",
         "freq": 5,
-        "categories": { "platform": "kafka-ui", "product": "payment", "env": "dev" },
+        "categories": ["kafka-ui", "payment", "dev"],
         "console_url": "https://kafka-ui.dev.internal.example.com",
         "created_at": "2026-01-01T00:00:00Z"
       }

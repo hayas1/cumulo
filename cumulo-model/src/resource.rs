@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
@@ -19,8 +17,10 @@ pub struct Resource<RA, CA> {
     /// parent が None のリソースが catalog の is-a 森の根となる（Taxonomy と対称）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<Id<Resource<RA, CA>>>,
-    /// キーは軸の根id。値はその軸内のノードid。
-    pub categories: HashMap<Id<Category<CA>>, Id<Category<CA>>>,
+    /// このリソースが持つカテゴリ値（非根ノードid）のリスト。
+    /// 各値の軸（根）は taxonomy の root_of で導出する。1軸1値の不変条件は検証で担保する。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub categories: Vec<Id<Category<CA>>>,
     #[serde(flatten)]
     pub attribute: RA,
 }
@@ -35,7 +35,7 @@ impl<RA, CA: Clone> Resource<RA, CA> {
         }
         let mut parts: Vec<String> = self
             .categories
-            .values()
+            .iter()
             .filter_map(|v| forest.node(v))
             .map(|n| {
                 if n.label.is_empty() {
@@ -53,8 +53,16 @@ impl<RA, CA: Clone> Resource<RA, CA> {
         }
     }
 
-    pub fn category(&self, root_id: &Id<Category<CA>>) -> Option<&Id<Category<CA>>> {
-        self.categories.get(root_id)
+    /// 指定軸（根）におけるこのリソースのカテゴリ値を返す。
+    /// 値リストは軸を持たないため、各値の root_of を taxonomy から導出して照合する。
+    pub fn category<'a>(
+        &'a self,
+        taxonomy: &Taxonomy<CA>,
+        root_id: &Id<Category<CA>>,
+    ) -> Option<&'a Id<Category<CA>>> {
+        self.categories
+            .iter()
+            .find(|c| taxonomy.root_of(c).as_ref() == Some(root_id))
     }
 }
 
@@ -122,21 +130,21 @@ mod tests {
                 id: id("gcp"),
                 label: None,
                 parent: None,
-                categories: HashMap::new(),
+                categories: Vec::new(),
                 attribute: (),
             },
             Resource {
                 id: id("bigquery"),
                 label: None,
                 parent: Some(id("gcp")),
-                categories: HashMap::new(),
+                categories: Vec::new(),
                 attribute: (),
             },
             Resource {
                 id: id("bigtable"),
                 label: None,
                 parent: Some(id("gcp")),
-                categories: HashMap::new(),
+                categories: Vec::new(),
                 attribute: (),
             },
         ])
@@ -180,8 +188,8 @@ mod tests {
     #[test]
     fn try_new_returns_ok_for_valid_nodes() {
         let nodes = vec![
-            Resource { id: id("root"), label: None, parent: None, categories: HashMap::new(), attribute: () },
-            Resource { id: id("child"), label: None, parent: Some(id("root")), categories: HashMap::new(), attribute: () },
+            Resource { id: id("root"), label: None, parent: None, categories: Vec::new(), attribute: () },
+            Resource { id: id("child"), label: None, parent: Some(id("root")), categories: Vec::new(), attribute: () },
         ];
         assert!(Catalog::try_new(nodes).is_ok());
     }
@@ -190,8 +198,8 @@ mod tests {
     fn try_new_returns_err_for_duplicate_ids() {
         use crate::error::ForestError;
         let nodes = vec![
-            Resource { id: id("dup"), label: None, parent: None, categories: HashMap::new(), attribute: () },
-            Resource { id: id("dup"), label: None, parent: None, categories: HashMap::new(), attribute: () },
+            Resource { id: id("dup"), label: None, parent: None, categories: Vec::new(), attribute: () },
+            Resource { id: id("dup"), label: None, parent: None, categories: Vec::new(), attribute: () },
         ];
         let err = Catalog::<(), ()>::try_new(nodes).unwrap_err();
         assert!(err.iter().any(|e| matches!(e, ForestError::DuplicateId { id } if id == "dup")));
@@ -201,7 +209,7 @@ mod tests {
     fn try_new_returns_err_for_dangling_parent() {
         use crate::error::ForestError;
         let nodes = vec![
-            Resource { id: id("r1"), label: None, parent: Some(id("ghost")), categories: HashMap::new(), attribute: () },
+            Resource { id: id("r1"), label: None, parent: Some(id("ghost")), categories: Vec::new(), attribute: () },
         ];
         let err = Catalog::<(), ()>::try_new(nodes).unwrap_err();
         assert!(err.iter().any(|e| matches!(e, ForestError::DanglingParent { id, parent }

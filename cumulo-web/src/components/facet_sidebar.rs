@@ -33,7 +33,7 @@ pub fn FacetSidebar(
 
                         let mut counts: HashMap<CategoryId, usize> = HashMap::new();
                         for r in &base {
-                            if let Some(leaf_id) = r.category(&root.id) {
+                            if let Some(leaf_id) = r.category(&s.taxonomy, &root.id) {
                                 *counts.entry(leaf_id.clone()).or_default() += 1;
                                 for anc in s.taxonomy.ancestry(leaf_id) {
                                     if &anc != leaf_id {
