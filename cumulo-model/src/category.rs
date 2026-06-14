@@ -210,6 +210,13 @@ impl<CA> Taxonomy<CA> {
     }
 }
 
+impl<CA> Taxonomy<CA> {
+    /// 森の構造整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
+    pub fn try_new(nodes: Vec<Category<CA>>) -> Result<Self, crate::error::Errors<crate::error::ForestError>> {
+        Taxonomy(nodes).validated()
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -301,5 +308,43 @@ pub(crate) mod tests {
         assert!(desc.contains("bigquery"));
         assert!(desc.contains("bigtable"));
         assert!(!desc.contains("s3"));
+    }
+
+    // --- try_new のテスト ---
+
+    #[test]
+    fn try_new_returns_ok_for_valid_nodes() {
+        let nodes = vec![
+            Category { id: id("root"), label: "Root".into(), parent: None, attribute: () },
+            Category { id: id("child"), label: "Child".into(), parent: Some(id("root")), attribute: () },
+        ];
+        assert!(Taxonomy::try_new(nodes).is_ok());
+    }
+
+    #[test]
+    fn try_new_returns_err_for_duplicate_ids() {
+        use crate::error::ForestError;
+        let nodes = vec![
+            Category { id: id("dup"), label: "A".into(), parent: None, attribute: () },
+            Category { id: id("dup"), label: "B".into(), parent: None, attribute: () },
+        ];
+        let err = Taxonomy::try_new(nodes).unwrap_err();
+        assert!(err.iter().any(|e| matches!(e, ForestError::DuplicateId { id } if id == "dup")));
+    }
+
+    #[test]
+    fn try_new_returns_err_for_dangling_parent() {
+        use crate::error::ForestError;
+        let nodes = vec![
+            Category { id: id("child"), label: "Child".into(), parent: Some(id("ghost")), attribute: () },
+        ];
+        let err = Taxonomy::try_new(nodes).unwrap_err();
+        assert!(err.iter().any(|e| matches!(e, ForestError::DanglingParent { id, parent }
+            if id == "child" && parent == "ghost")));
+    }
+
+    #[test]
+    fn try_new_empty_is_ok() {
+        assert!(Taxonomy::<()>::try_new(vec![]).is_ok());
     }
 }

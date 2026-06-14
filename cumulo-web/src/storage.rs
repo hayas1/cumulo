@@ -10,7 +10,15 @@ pub struct AppStorage;
 impl AppStorage {
     pub fn load() -> Bipartite<ResourceAttribute, CategoryAttribute> {
         match LocalStorage::get::<Bipartite<ResourceAttribute, CategoryAttribute>>(STORAGE_KEY) {
-            Ok(bipartite) => bipartite,
+            Ok(bipartite) => match bipartite.validated() {
+                Ok(b) => b,
+                Err(errs) => {
+                    web_sys::console::warn_1(
+                        &format!("[cumulo] loaded data is invalid ({errs}), using demo").into(),
+                    );
+                    Self::demo()
+                }
+            },
             Err(e) => {
                 web_sys::console::warn_1(
                     &format!("[cumulo] load failed ({e:?}), using demo").into(),
@@ -33,6 +41,6 @@ impl AppStorage {
 
     fn demo() -> Bipartite<ResourceAttribute, CategoryAttribute> {
         ExportData::<ResourceAttribute, CategoryAttribute>::parse(cumulo_model::demo::CLOUD)
-            .expect("invalid demo")
+            .expect("demo data must be valid")
     }
 }

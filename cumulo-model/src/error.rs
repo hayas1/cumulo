@@ -92,21 +92,39 @@ impl Error for ValidationError {
     }
 }
 
+/// インポート境界でのパースエラー。JSON 不正・バージョン不一致・構造不整合の3種を区別する。
+#[derive(Debug)]
+pub enum ParseError {
+    /// serde 由来のデシリアライズ失敗。JSON に限らない（今後 JSON 以外もあり得る）。
+    Serde(String),
+    UnsupportedVersion(u32),
+    /// 構造検証（forest + categories クロス整合）で収集されたエラー群。
+    Invalid(Errors<ValidationError>),
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseError::Serde(msg) => write!(f, "deserialize error: {msg}"),
+            ParseError::UnsupportedVersion(v) => write!(f, "unsupported version: {v}"),
+            ParseError::Invalid(errs) => write!(f, "invalid data: {errs}"),
+        }
+    }
+}
+
+impl Error for ParseError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            ParseError::Invalid(errs) => Some(errs),
+            _ => None,
+        }
+    }
+}
+
 /// 全件収集した検証エラーの集約。
 /// `Vec` は `std::error::Error` を実装しないため、エラーとして扱える型でラップする。
 #[derive(Debug, PartialEq)]
 pub struct Errors<E>(pub Vec<E>);
-
-impl<E> Errors<E> {
-    /// 空（＝検証成功）なら `Ok(())`、そうでなければ自身を `Err` として返す。
-    pub fn into_result(self) -> Result<(), Self> {
-        if self.0.is_empty() {
-            Ok(())
-        } else {
-            Err(self)
-        }
-    }
-}
 
 impl<E> std::ops::Deref for Errors<E> {
     type Target = Vec<E>;
@@ -175,11 +193,4 @@ mod tests {
         assert!(text.contains("'b'"));
     }
 
-    #[test]
-    fn into_result_is_ok_when_empty_and_err_otherwise() {
-        assert!(Errors::<ForestError>(vec![]).into_result().is_ok());
-        assert!(Errors(vec![ForestError::Cycle { id: "a".into() }])
-            .into_result()
-            .is_err());
-    }
 }

@@ -99,6 +99,13 @@ impl<RA, CA> Forest for Catalog<RA, CA> {
     }
 }
 
+impl<RA, CA> Catalog<RA, CA> {
+    /// 森の構造整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
+    pub fn try_new(nodes: Vec<Resource<RA, CA>>) -> Result<Self, crate::error::Errors<crate::error::ForestError>> {
+        Catalog(nodes).validated()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,5 +173,43 @@ mod tests {
             c.ancestry(&id("gcp")),
             Vec::<Id<Resource<(), ()>>>::new()
         );
+    }
+
+    // --- Catalog::try_new のテスト ---
+
+    #[test]
+    fn try_new_returns_ok_for_valid_nodes() {
+        let nodes = vec![
+            Resource { id: id("root"), label: None, parent: None, categories: HashMap::new(), attribute: () },
+            Resource { id: id("child"), label: None, parent: Some(id("root")), categories: HashMap::new(), attribute: () },
+        ];
+        assert!(Catalog::try_new(nodes).is_ok());
+    }
+
+    #[test]
+    fn try_new_returns_err_for_duplicate_ids() {
+        use crate::error::ForestError;
+        let nodes = vec![
+            Resource { id: id("dup"), label: None, parent: None, categories: HashMap::new(), attribute: () },
+            Resource { id: id("dup"), label: None, parent: None, categories: HashMap::new(), attribute: () },
+        ];
+        let err = Catalog::<(), ()>::try_new(nodes).unwrap_err();
+        assert!(err.iter().any(|e| matches!(e, ForestError::DuplicateId { id } if id == "dup")));
+    }
+
+    #[test]
+    fn try_new_returns_err_for_dangling_parent() {
+        use crate::error::ForestError;
+        let nodes = vec![
+            Resource { id: id("r1"), label: None, parent: Some(id("ghost")), categories: HashMap::new(), attribute: () },
+        ];
+        let err = Catalog::<(), ()>::try_new(nodes).unwrap_err();
+        assert!(err.iter().any(|e| matches!(e, ForestError::DanglingParent { id, parent }
+            if id == "r1" && parent == "ghost")));
+    }
+
+    #[test]
+    fn try_new_empty_is_ok() {
+        assert!(Catalog::<(), ()>::try_new(vec![]).is_ok());
     }
 }

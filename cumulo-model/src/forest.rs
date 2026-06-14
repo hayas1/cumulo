@@ -107,7 +107,7 @@ pub trait Forest {
     /// 森の構造的整合性を全件検証し、見つかったエラーを集約して返す。
     /// fail-fast せず全件収集するのは、インポート時に一度で全問題を把握させるため。
     /// attribute ペイロードの検証はモデル層が型を知らないため対象外。
-    fn validate(&self) -> Errors<ForestError> {
+    fn validate(&self) -> Result<&Self, Errors<ForestError>> {
         let nodes = self.nodes();
         let mut errors = Vec::new();
 
@@ -160,7 +160,20 @@ pub trait Forest {
             }
         }
 
-        Errors(errors)
+        if errors.is_empty() {
+            Ok(self)
+        } else {
+            Err(Errors(errors))
+        }
+    }
+
+    /// 検証を通れば所有権ごと返す。構築境界で `Self(nodes).validated()?` のように書ける。
+    fn validated(self) -> Result<Self, Errors<ForestError>>
+    where
+        Self: Sized,
+    {
+        self.validate()?;
+        Ok(self)
     }
 }
 
@@ -186,7 +199,7 @@ mod tests {
     #[test]
     fn valid_forest_has_no_errors() {
         let t = Taxonomy(vec![cat("root", None), cat("child", Some("root"))]);
-        assert!(t.validate().is_empty());
+        assert!(t.validate().is_ok());
     }
 
     // A1: id 重複を検出する
@@ -196,7 +209,7 @@ mod tests {
             cat("root", None),
             cat("root", None), // 重複
         ]);
-        let errs = t.validate();
+        let errs = t.validate().unwrap_err();
         assert!(errs.contains(&ForestError::DuplicateId {
             id: "root".into()
         }));
@@ -206,7 +219,7 @@ mod tests {
     #[test]
     fn empty_id_is_detected() {
         let t = Taxonomy(vec![cat("", None)]);
-        let errs = t.validate();
+        let errs = t.validate().unwrap_err();
         assert!(errs.contains(&ForestError::InvalidId {
             id: "".into(),
             error: IdError::Empty,
@@ -217,7 +230,7 @@ mod tests {
     #[test]
     fn dangling_parent_is_detected() {
         let t = Taxonomy(vec![cat("child", Some("ghost"))]);
-        let errs = t.validate();
+        let errs = t.validate().unwrap_err();
         assert!(errs.contains(&ForestError::DanglingParent {
             id: "child".into(),
             parent: "ghost".into(),
@@ -228,7 +241,7 @@ mod tests {
     #[test]
     fn self_loop_is_detected_as_cycle() {
         let t = Taxonomy(vec![cat("a", Some("a"))]);
-        let errs = t.validate();
+        let errs = t.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(e, ForestError::Cycle { id } if id == "a")));
     }
 
@@ -236,7 +249,7 @@ mod tests {
     #[test]
     fn two_node_cycle_is_detected() {
         let t = Taxonomy(vec![cat("a", Some("b")), cat("b", Some("a"))]);
-        let errs = t.validate();
+        let errs = t.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(e, ForestError::Cycle { .. })));
     }
 
@@ -244,7 +257,21 @@ mod tests {
     #[test]
     fn empty_forest_is_valid() {
         let t: Taxonomy<()> = Taxonomy(vec![]);
-        assert!(t.validate().is_empty());
+        assert!(t.validate().is_ok());
+    }
+
+    // validated は通れば所有権ごと値を返し、不正なら Err
+    #[test]
+    fn validated_returns_owned_self_when_valid() {
+        let t = Taxonomy(vec![cat("root", None)]);
+        let got = t.validated().expect("valid forest");
+        assert_eq!(got.len(), 1);
+    }
+
+    #[test]
+    fn validated_returns_err_when_invalid() {
+        let t = Taxonomy(vec![cat("a", Some("a"))]); // self-loop
+        assert!(t.validated().is_err());
     }
 
     // 複数エラーが同時に収集される（fail-fast しない）
@@ -256,7 +283,7 @@ mod tests {
             cat("dup", None),        // A1: duplicate
             cat("x", Some("ghost")), // A3: dangling
         ]);
-        let errs = t.validate();
+        let errs = t.validate().unwrap_err();
         assert!(errs.contains(&ForestError::InvalidId {
             id: "".into(),
             error: IdError::Empty,

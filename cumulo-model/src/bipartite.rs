@@ -4,7 +4,7 @@ use crate::category::{Category, Taxonomy};
 use crate::forest::Forest;
 use crate::id::Id;
 use crate::resource::{Catalog, Resource};
-use crate::error::{Errors, ValidationError};
+use crate::error::{Errors, ParseError, ValidationError};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Bipartite<RA, CA> {
@@ -13,20 +13,29 @@ pub struct Bipartite<RA, CA> {
 }
 
 impl<RA, CA> Bipartite<RA, CA> {
+    /// 全整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
+    pub fn try_new(
+        catalog: crate::resource::Catalog<RA, CA>,
+        taxonomy: crate::category::Taxonomy<CA>,
+    ) -> Result<Self, Errors<ValidationError>> {
+        Bipartite { catalog, taxonomy }.validated()
+    }
+
+    /// 検証を通れば所有権ごと返す。`?` と相性がよく構築境界で使う。
+    pub fn validated(self) -> Result<Self, Errors<ValidationError>> {
+        self.validate()?;
+        Ok(self)
+    }
+
     /// Catalog・Taxonomy それぞれの森構造整合性と、categories のクロス整合性を全件検証する。
-    pub fn validate(&self) -> Errors<ValidationError> {
-        let mut errors: Vec<ValidationError> = self
-            .catalog
-            .validate()
-            .into_iter()
-            .map(ValidationError::Catalog)
-            .chain(
-                self.taxonomy
-                    .validate()
-                    .into_iter()
-                    .map(ValidationError::Taxonomy),
-            )
-            .collect();
+    pub fn validate(&self) -> Result<&Self, Errors<ValidationError>> {
+        let mut errors: Vec<ValidationError> = Vec::new();
+        if let Err(e) = self.catalog.validate() {
+            errors.extend(e.into_iter().map(ValidationError::Catalog));
+        }
+        if let Err(e) = self.taxonomy.validate() {
+            errors.extend(e.into_iter().map(ValidationError::Taxonomy));
+        }
 
         for resource in self.catalog.nodes() {
             let rid = resource.id.as_str().to_string();
@@ -65,7 +74,11 @@ impl<RA, CA> Bipartite<RA, CA> {
             }
         }
 
-        Errors(errors)
+        if errors.is_empty() {
+            Ok(self)
+        } else {
+            Err(Errors(errors))
+        }
     }
 }
 
@@ -136,13 +149,13 @@ where
         serde_json::to_string_pretty(self).unwrap_or_default()
     }
 
-    pub fn parse(json: &str) -> Result<Bipartite<RA, CA>, String> {
+    pub fn parse(json: &str) -> Result<Bipartite<RA, CA>, ParseError> {
         let data: ExportData<RA, CA> =
-            serde_json::from_str(json).map_err(|e| format!("JSON parse error: {e}"))?;
-        match data.cumulo_version {
-            1 => Ok(data.bipartite),
-            v => Err(format!("未対応のバージョン: {v}")),
+            serde_json::from_str(json).map_err(|e| ParseError::Serde(e.to_string()))?;
+        if data.cumulo_version != CURRENT_VERSION {
+            return Err(ParseError::UnsupportedVersion(data.cumulo_version));
         }
+        data.bipartite.validated().map_err(ParseError::Invalid)
     }
 }
 
@@ -292,7 +305,64 @@ mod tests {
             "store": { "catalog": [], "taxonomy": [] }
         })
         .to_string();
+        // バージョン不正は ParseError::UnsupportedVersion になるはず
         assert!(ExportData::<(), ()>::parse(&json).is_err());
+    }
+
+    #[test]
+    fn unknown_version_is_unsupported_version_error() {
+        use crate::error::ParseError;
+        let json = serde_json::json!({
+            "cumulo_version": 99,
+            "exported_at": "2026-06-10T00:00:00.000Z",
+            "store": { "catalog": [], "taxonomy": [] }
+        })
+        .to_string();
+        let err = ExportData::<(), ()>::parse(&json).unwrap_err();
+        assert!(matches!(err, ParseError::UnsupportedVersion(99)));
+    }
+
+    #[test]
+    fn malformed_json_gives_serde_error() {
+        use crate::error::ParseError;
+        let err = ExportData::<(), ()>::parse("not json").unwrap_err();
+        assert!(matches!(err, ParseError::Serde(_)));
+    }
+
+    #[test]
+    fn structurally_invalid_json_gives_invalid_error() {
+        use crate::error::ParseError;
+        // JSON としては正しいが構造不正: taxonomy にない axis をキーに使う dangling parent あり
+        let json = serde_json::json!({
+            "cumulo_version": 1,
+            "exported_at": "2026-06-10T00:00:00.000Z",
+            "store": {
+                "catalog": [{
+                    "id": "r1",
+                    "categories": { "ghost_axis": "nowhere" }
+                }],
+                "taxonomy": []
+            }
+        })
+        .to_string();
+        let err = ExportData::<(), ()>::parse(&json).unwrap_err();
+        assert!(matches!(err, ParseError::Invalid(_)));
+    }
+
+    #[test]
+    fn dangling_parent_in_taxonomy_gives_invalid_error() {
+        use crate::error::ParseError;
+        let json = serde_json::json!({
+            "cumulo_version": 1,
+            "exported_at": "2026-06-10T00:00:00.000Z",
+            "store": {
+                "catalog": [],
+                "taxonomy": [{ "id": "child", "label": "Child", "parent": "ghost" }]
+            }
+        })
+        .to_string();
+        let err = ExportData::<(), ()>::parse(&json).unwrap_err();
+        assert!(matches!(err, ParseError::Invalid(_)));
     }
 
     #[test]
@@ -409,7 +479,7 @@ mod tests {
     // 正常系 — エラーなし
     #[test]
     fn valid_bipartite_has_no_validation_errors() {
-        assert!(valid_bipartite().validate().is_empty());
+        assert!(valid_bipartite().validate().is_ok());
     }
 
     // Catalog の森エラーが ValidationError::Catalog にラップされる
@@ -424,7 +494,7 @@ mod tests {
             categories: HashMap::new(),
             attribute: (),
         });
-        let errs = b.validate();
+        let errs = b.validate().unwrap_err();
         assert!(errs.contains(&ValidationError::Catalog(ForestError::DuplicateId {
             id: "r1".into()
         })));
@@ -441,7 +511,7 @@ mod tests {
             parent: Some(cid("platform")),
             attribute: (),
         });
-        let errs = b.validate();
+        let errs = b.validate().unwrap_err();
         assert!(errs.contains(&ValidationError::Taxonomy(ForestError::DuplicateId {
             id: "bigquery".into()
         })));
@@ -453,7 +523,7 @@ mod tests {
         use crate::error::ValidationError;
         let mut b = valid_bipartite();
         b.catalog[0].categories.insert(cid("ghost_axis"), cid("prod"));
-        let errs = b.validate();
+        let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
             ValidationError::CategoryKeyNotRoot { resource, key }
@@ -468,7 +538,7 @@ mod tests {
         let mut b = valid_bipartite();
         // "bigquery" は非根ノード（parent=platform）なのでキーに使えない
         b.catalog[0].categories.insert(cid("bigquery"), cid("bigtable"));
-        let errs = b.validate();
+        let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
             ValidationError::CategoryKeyNotRoot { resource, key }
@@ -482,7 +552,7 @@ mod tests {
         use crate::error::ValidationError;
         let mut b = valid_bipartite();
         b.catalog[0].categories.insert(cid("env"), cid("staging")); // staging は存在しない
-        let errs = b.validate();
+        let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
             ValidationError::CategoryValueMissing { resource, value }
@@ -497,7 +567,7 @@ mod tests {
         let mut b = valid_bipartite();
         // "platform" は軸の根なので値として使えない（非根でなければならない）
         b.catalog[0].categories.insert(cid("platform"), cid("platform"));
-        let errs = b.validate();
+        let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
             ValidationError::CategoryValueWrongAxis { resource, key, value }
@@ -512,7 +582,7 @@ mod tests {
         let mut b = valid_bipartite();
         // platform 軸のキーに env 軸の値 "prod" を指定する（軸違い）
         b.catalog[0].categories.insert(cid("platform"), cid("prod"));
-        let errs = b.validate();
+        let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
             ValidationError::CategoryValueWrongAxis { resource, key, value }
@@ -535,6 +605,63 @@ mod tests {
                 attribute: (),
             }]),
         };
-        assert!(b.validate().is_empty());
+        assert!(b.validate().is_ok());
+    }
+
+    // --- Bipartite::try_new のテスト ---
+
+    fn valid_taxonomy() -> Taxonomy<()> {
+        Taxonomy(vec![
+            Category { id: cid("platform"), label: "Platform".into(), parent: None, attribute: () },
+            Category { id: cid("bigquery"), label: "BigQuery".into(), parent: Some(cid("platform")), attribute: () },
+        ])
+    }
+
+    fn valid_catalog() -> Catalog<(), ()> {
+        Catalog(vec![Resource {
+            id: rid("r1"),
+            label: None,
+            parent: None,
+            categories: HashMap::from([(cid("platform"), cid("bigquery"))]),
+            attribute: (),
+        }])
+    }
+
+    #[test]
+    fn try_new_returns_ok_for_valid_bipartite() {
+        assert!(Bipartite::try_new(valid_catalog(), valid_taxonomy()).is_ok());
+    }
+
+    #[test]
+    fn try_new_returns_err_when_category_key_is_not_root() {
+        use crate::error::ValidationError;
+        // "bigquery" は非根ノードなのでキーに使えない
+        let catalog = Catalog(vec![Resource {
+            id: rid("r1"),
+            label: None,
+            parent: None,
+            categories: HashMap::from([(cid("bigquery"), cid("bigquery"))]),
+            attribute: (),
+        }]);
+        let err = Bipartite::try_new(catalog, valid_taxonomy()).unwrap_err();
+        assert!(err.iter().any(|e| matches!(e, ValidationError::CategoryKeyNotRoot { resource, key }
+            if resource == "r1" && key == "bigquery")));
+    }
+
+    #[test]
+    fn try_new_returns_err_for_catalog_forest_error() {
+        use crate::error::ValidationError;
+        // catalog に重複 id
+        let catalog = Catalog(vec![
+            Resource { id: rid("r1"), label: None, parent: None, categories: HashMap::new(), attribute: () },
+            Resource { id: rid("r1"), label: None, parent: None, categories: HashMap::new(), attribute: () },
+        ]);
+        let err = Bipartite::try_new(catalog, valid_taxonomy()).unwrap_err();
+        assert!(err.iter().any(|e| matches!(e, ValidationError::Catalog(_))));
+    }
+
+    #[test]
+    fn try_new_returns_ok_for_empty_bipartite() {
+        assert!(Bipartite::<(), ()>::try_new(Catalog(vec![]), Taxonomy(vec![])).is_ok());
     }
 }
