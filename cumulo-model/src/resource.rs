@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
+use crate::error::{Errors, ForestError};
 use crate::forest::{Forest, ForestNode};
 use crate::id::Id;
 
@@ -24,7 +25,6 @@ pub struct Resource<RA, CA> {
     #[serde(flatten)]
     pub attribute: RA,
 }
-
 
 impl<RA, CA: Clone> Resource<RA, CA> {
     pub fn display_label(&self, forest: &Taxonomy<CA>) -> String {
@@ -109,7 +109,7 @@ impl<RA, CA> Forest for Catalog<RA, CA> {
 
 impl<RA, CA> Catalog<RA, CA> {
     /// 森の構造整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
-    pub fn try_new(nodes: Vec<Resource<RA, CA>>) -> Result<Self, crate::error::Errors<crate::error::ForestError>> {
+    pub fn try_new(nodes: Vec<Resource<RA, CA>>) -> Result<Self, Errors<ForestError>> {
         Catalog(nodes).validated()
     }
 }
@@ -178,10 +178,7 @@ mod tests {
         let c = test_catalog();
         // 根も値になりうるため、ancestry は根を含めて返す
         assert_eq!(c.ancestry(&id("bigquery")), vec![id("bigquery"), id("gcp")]);
-        assert_eq!(
-            c.ancestry(&id("gcp")),
-            vec![id("gcp")]
-        );
+        assert_eq!(c.ancestry(&id("gcp")), vec![id("gcp")]);
     }
 
     // --- Catalog::try_new のテスト ---
@@ -189,8 +186,20 @@ mod tests {
     #[test]
     fn try_new_returns_ok_for_valid_nodes() {
         let nodes = vec![
-            Resource { id: id("root"), label: None, parent: None, categories: Vec::new(), attribute: () },
-            Resource { id: id("child"), label: None, parent: Some(id("root")), categories: Vec::new(), attribute: () },
+            Resource {
+                id: id("root"),
+                label: None,
+                parent: None,
+                categories: Vec::new(),
+                attribute: (),
+            },
+            Resource {
+                id: id("child"),
+                label: None,
+                parent: Some(id("root")),
+                categories: Vec::new(),
+                attribute: (),
+            },
         ];
         assert!(Catalog::try_new(nodes).is_ok());
     }
@@ -199,21 +208,41 @@ mod tests {
     fn try_new_returns_err_for_duplicate_ids() {
         use crate::error::ForestError;
         let nodes = vec![
-            Resource { id: id("dup"), label: None, parent: None, categories: Vec::new(), attribute: () },
-            Resource { id: id("dup"), label: None, parent: None, categories: Vec::new(), attribute: () },
+            Resource {
+                id: id("dup"),
+                label: None,
+                parent: None,
+                categories: Vec::new(),
+                attribute: (),
+            },
+            Resource {
+                id: id("dup"),
+                label: None,
+                parent: None,
+                categories: Vec::new(),
+                attribute: (),
+            },
         ];
         let err = Catalog::<(), ()>::try_new(nodes).unwrap_err();
-        assert!(err.iter().any(|e| matches!(e, ForestError::DuplicateId { id } if id == "dup")));
+        assert!(err
+            .iter()
+            .any(|e| matches!(e, ForestError::DuplicateId { id } if id == "dup")));
     }
 
     #[test]
     fn try_new_returns_err_for_dangling_parent() {
         use crate::error::ForestError;
-        let nodes = vec![
-            Resource { id: id("r1"), label: None, parent: Some(id("ghost")), categories: Vec::new(), attribute: () },
-        ];
+        let nodes = vec![Resource {
+            id: id("r1"),
+            label: None,
+            parent: Some(id("ghost")),
+            categories: Vec::new(),
+            attribute: (),
+        }];
         let err = Catalog::<(), ()>::try_new(nodes).unwrap_err();
-        assert!(err.iter().any(|e| matches!(e, ForestError::DanglingParent { id, parent }
+        assert!(err
+            .iter()
+            .any(|e| matches!(e, ForestError::DanglingParent { id, parent }
             if id == "r1" && parent == "ghost")));
     }
 

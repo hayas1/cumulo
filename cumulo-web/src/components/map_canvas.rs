@@ -29,10 +29,7 @@ pub fn MapCanvas(
         // クラスタへのズームイン → そのディメンション値を絞り込み軸へ反映（置換）
         // JS からの axis/value は空文字列になり得るため、どちらかが空なら無視する
         map_bridge::on_cluster_drill(move |axis, value| {
-            if let (Ok(k), Ok(v)) = (
-                CategoryId::try_from(axis),
-                CategoryId::try_from(value),
-            ) {
+            if let (Ok(k), Ok(v)) = (CategoryId::try_from(axis), CategoryId::try_from(value)) {
                 selected_tags.update(|t| t.set(k, v));
             }
         });

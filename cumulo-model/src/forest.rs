@@ -204,9 +204,7 @@ mod tests {
             cat("root", None), // 重複
         ]);
         let errs = t.validate().unwrap_err();
-        assert!(errs.contains(&ForestError::DuplicateId {
-            id: "root".into()
-        }));
+        assert!(errs.contains(&ForestError::DuplicateId { id: "root".into() }));
     }
 
     // A2: 空 id を InvalidId として検出する（ルールは Id::validate が持つ）
@@ -236,7 +234,9 @@ mod tests {
     fn self_loop_is_detected_as_cycle() {
         let t = Taxonomy(vec![cat("a", Some("a"))]);
         let errs = t.validate().unwrap_err();
-        assert!(errs.iter().any(|e| matches!(e, ForestError::Cycle { id } if id == "a")));
+        assert!(errs
+            .iter()
+            .any(|e| matches!(e, ForestError::Cycle { id } if id == "a")));
     }
 
     // A4: 2 ノード間の循環を検出する

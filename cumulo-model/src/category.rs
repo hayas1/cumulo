@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::error::{Errors, ForestError};
 use crate::forest::{Forest, ForestNode};
 use crate::id::Id;
 
@@ -186,12 +187,11 @@ impl<CA> Taxonomy<CA> {
             n.attribute = attribute;
         }
     }
-
 }
 
 impl<CA> Taxonomy<CA> {
     /// 森の構造整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
-    pub fn try_new(nodes: Vec<Category<CA>>) -> Result<Self, crate::error::Errors<crate::error::ForestError>> {
+    pub fn try_new(nodes: Vec<Category<CA>>) -> Result<Self, Errors<ForestError>> {
         Taxonomy(nodes).validated()
     }
 }
@@ -261,14 +261,8 @@ pub(crate) mod tests {
             f.ancestry(&id("bigquery")),
             vec![id("bigquery"), id("gcp"), id("cloud"), id("platform")]
         );
-        assert_eq!(
-            f.ancestry(&id("cloud")),
-            vec![id("cloud"), id("platform")]
-        );
-        assert_eq!(
-            f.ancestry(&id("unknown")),
-            Vec::<Id<Category<()>>>::new()
-        );
+        assert_eq!(f.ancestry(&id("cloud")), vec![id("cloud"), id("platform")]);
+        assert_eq!(f.ancestry(&id("unknown")), Vec::<Id<Category<()>>>::new());
     }
 
     #[test]
@@ -308,8 +302,18 @@ pub(crate) mod tests {
     #[test]
     fn try_new_returns_ok_for_valid_nodes() {
         let nodes = vec![
-            Category { id: id("root"), label: "Root".into(), parent: None, attribute: () },
-            Category { id: id("child"), label: "Child".into(), parent: Some(id("root")), attribute: () },
+            Category {
+                id: id("root"),
+                label: "Root".into(),
+                parent: None,
+                attribute: (),
+            },
+            Category {
+                id: id("child"),
+                label: "Child".into(),
+                parent: Some(id("root")),
+                attribute: (),
+            },
         ];
         assert!(Taxonomy::try_new(nodes).is_ok());
     }
@@ -318,21 +322,38 @@ pub(crate) mod tests {
     fn try_new_returns_err_for_duplicate_ids() {
         use crate::error::ForestError;
         let nodes = vec![
-            Category { id: id("dup"), label: "A".into(), parent: None, attribute: () },
-            Category { id: id("dup"), label: "B".into(), parent: None, attribute: () },
+            Category {
+                id: id("dup"),
+                label: "A".into(),
+                parent: None,
+                attribute: (),
+            },
+            Category {
+                id: id("dup"),
+                label: "B".into(),
+                parent: None,
+                attribute: (),
+            },
         ];
         let err = Taxonomy::try_new(nodes).unwrap_err();
-        assert!(err.iter().any(|e| matches!(e, ForestError::DuplicateId { id } if id == "dup")));
+        assert!(err
+            .iter()
+            .any(|e| matches!(e, ForestError::DuplicateId { id } if id == "dup")));
     }
 
     #[test]
     fn try_new_returns_err_for_dangling_parent() {
         use crate::error::ForestError;
-        let nodes = vec![
-            Category { id: id("child"), label: "Child".into(), parent: Some(id("ghost")), attribute: () },
-        ];
+        let nodes = vec![Category {
+            id: id("child"),
+            label: "Child".into(),
+            parent: Some(id("ghost")),
+            attribute: (),
+        }];
         let err = Taxonomy::try_new(nodes).unwrap_err();
-        assert!(err.iter().any(|e| matches!(e, ForestError::DanglingParent { id, parent }
+        assert!(err
+            .iter()
+            .any(|e| matches!(e, ForestError::DanglingParent { id, parent }
             if id == "child" && parent == "ghost")));
     }
 

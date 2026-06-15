@@ -57,9 +57,15 @@ pub enum ValidationError {
     Catalog(ForestError),
     Taxonomy(ForestError),
     /// 値が taxonomy に存在しない。
-    CategoryValueMissing { resource: String, value: String },
+    CategoryValueMissing {
+        resource: String,
+        value: String,
+    },
     /// 同一軸（root_of が同じ）に複数の値が付いている（1軸1値違反）。
-    DuplicateAxis { resource: String, axis: String },
+    DuplicateAxis {
+        resource: String,
+        axis: String,
+    },
 }
 
 impl fmt::Display for ValidationError {
@@ -68,7 +74,10 @@ impl fmt::Display for ValidationError {
             ValidationError::Catalog(e) => write!(f, "catalog: {e}"),
             ValidationError::Taxonomy(e) => write!(f, "taxonomy: {e}"),
             ValidationError::CategoryValueMissing { resource, value } => {
-                write!(f, "resource '{resource}': category value '{value}' does not exist")
+                write!(
+                    f,
+                    "resource '{resource}': category value '{value}' does not exist"
+                )
             }
             ValidationError::DuplicateAxis { resource, axis } => {
                 write!(f, "resource '{resource}': multiple values on axis '{axis}'")
@@ -173,7 +182,9 @@ mod tests {
     #[test]
     fn validation_error_chains_to_forest_error_as_source() {
         let e = ValidationError::Taxonomy(ForestError::Cycle { id: "a".into() });
-        let src = e.source().expect("source should be the underlying ForestError");
+        let src = e
+            .source()
+            .expect("source should be the underlying ForestError");
         assert!(src.downcast_ref::<ForestError>().is_some());
     }
 
@@ -187,5 +198,4 @@ mod tests {
         assert!(text.contains("'a'"));
         assert!(text.contains("'b'"));
     }
-
 }

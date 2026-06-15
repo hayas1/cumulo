@@ -205,11 +205,16 @@ mod tests {
     #[test]
     fn filter_ands_across_axes() {
         let bipartite = valid_bipartite(); // platform>{bigquery,bigtable}, env>prod; r1=[bigquery,prod]
-        let both = Filters::from_iter([(cid("platform"), cid("bigquery")), (cid("env"), cid("prod"))]);
+        let both = Filters::from_iter([
+            (cid("platform"), cid("bigquery")),
+            (cid("env"), cid("prod")),
+        ]);
         assert_eq!(bipartite.filter_resources(&both).len(), 1);
         // 片方の軸を満たさない（platform=bigtable）と r1 は外れる
-        let unmatched =
-            Filters::from_iter([(cid("platform"), cid("bigtable")), (cid("env"), cid("prod"))]);
+        let unmatched = Filters::from_iter([
+            (cid("platform"), cid("bigtable")),
+            (cid("env"), cid("prod")),
+        ]);
         assert!(bipartite.filter_resources(&unmatched).is_empty());
     }
 
@@ -242,8 +247,7 @@ mod tests {
                 },
             ]),
         };
-        let got =
-            bipartite.filter_resources(&Filters::from_iter([(cid("platform"), cid("gcp"))]));
+        let got = bipartite.filter_resources(&Filters::from_iter([(cid("platform"), cid("gcp"))]));
         assert!(got.iter().any(|r| r.id.as_str() == "a"));
         assert!(got.iter().any(|r| r.id.as_str() == "c"));
         assert!(!got.iter().any(|r| r.id.as_str() == "b"));
