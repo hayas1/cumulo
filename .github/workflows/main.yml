@@ -27,11 +27,11 @@ jobs:
       - name: Install trunk
         run: cargo install trunk
       - name: Build
-        run: trunk build --release --public-url /cumulo/
+        run: cd cumulo-web && trunk build --release --public-url /cumulo/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: cumulo-web/dist
 
   deploy:
     needs: [test, build]
