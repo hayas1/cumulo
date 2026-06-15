@@ -1,4 +1,4 @@
-use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute};
+use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute};
 use cumulo_model::{Bipartite, Forest};
 use leptos::*;
 use std::collections::{HashMap, HashSet};
@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 #[component]
 pub fn FacetSidebar(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    selected_tags: RwSignal<Filters>,
     /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
     #[prop(optional)]
@@ -24,12 +24,8 @@ pub fn FacetSidebar(
                 s.taxonomy.roots()
                     .into_iter()
                     .filter_map(|root| {
-                        let tags_minus: Vec<_> = tags
-                            .iter()
-                            .filter(|(k, _)| k != &root.id)
-                            .cloned()
-                            .collect();
-                        let base = s.filter_resources(&tags_minus);
+                        // この軸の候補件数は、他の軸で絞った母集団に対して数える
+                        let base = s.filter_resources(&tags.without_root(&root.id));
 
                         let mut counts: HashMap<CategoryId, usize> = HashMap::new();
                         for r in &base {
@@ -48,10 +44,7 @@ pub fn FacetSidebar(
                         }
 
                         // 1軸1フィルタなので、その軸で選択中の値は高々1つ
-                        let selected_val = tags
-                            .iter()
-                            .find(|(k, _)| k == &root.id)
-                            .map(|(_, v)| v.clone());
+                        let selected_val = tags.get(&root.id).cloned();
 
                         // 軸（根）はヘッダの見出し兼フィルタ要素に集約する。配下の値だけを行に並べる。
                         let root_count = counts.get(root.id.as_str()).copied().unwrap_or(0);
@@ -118,14 +111,8 @@ pub fn FacetSidebar(
                                         }
                                         title="この軸全体で絞り込む"
                                         on:click=move |_| {
-                                            // 1軸1フィルタ: 同軸の既存値を外して根に入れ替える（同値なら解除）
-                                            selected_tags.update(|t| {
-                                                let already = t.iter().any(|(tk, tv)| tk == &rid && tv == &rid);
-                                                t.retain(|(tk, _)| tk != &rid);
-                                                if !already {
-                                                    t.push((rid.clone(), rid.clone()));
-                                                }
-                                            });
+                                            // 根を選ぶ＝その軸全体での絞り込み（同値なら解除）
+                                            selected_tags.update(|t| t.toggle(rid.clone(), rid.clone()));
                                         }
                                     >
                                         <span class="fv-label">{root_label}</span>
@@ -169,16 +156,8 @@ pub fn FacetSidebar(
                                                                 "facet-value"
                                                             }
                                                             on:click=move |_| {
-                                                                let k = rid.clone();
-                                                                let v = nid.clone();
-                                                                // 1軸1フィルタ: 同軸の既存値を外して入れ替える（同値なら解除）
-                                                                selected_tags.update(|t| {
-                                                                    let already = t.iter().any(|(tk, tv)| tk == &k && tv == &v);
-                                                                    t.retain(|(tk, _)| tk != &k);
-                                                                    if !already {
-                                                                        t.push((k, v));
-                                                                    }
-                                                                });
+                                                                // 1軸1フィルタ: 同軸はその値に入れ替え（同値なら解除）
+                                                                selected_tags.update(|t| t.toggle(rid.clone(), nid.clone()));
                                                             }
                                                         >
                                                             <span class="fv-label">{node_label.clone()}</span>

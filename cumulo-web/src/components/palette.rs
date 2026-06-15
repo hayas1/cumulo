@@ -1,11 +1,11 @@
-use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute};
+use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute};
 use cumulo_model::{Bipartite, Forest};
 use leptos::*;
 
 #[component]
 pub fn Palette(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    selected_tags: RwSignal<Filters>,
 ) -> impl IntoView {
     let input_text = create_rw_signal(String::new());
     let focused_index = create_rw_signal(Option::<usize>::None);
@@ -27,11 +27,8 @@ pub fn Palette(
     });
 
     let commit_tag = move |k: CategoryId, v: CategoryId| {
-        // 1軸1フィルタ: 同軸の既存値を入れ替える
-        selected_tags.update(|t| {
-            t.retain(|(tk, _)| tk != &k);
-            t.push((k, v));
-        });
+        // 1軸1フィルタ: その軸の値を設定（既存値は置換）
+        selected_tags.update(|t| t.set(k, v));
         input_text.set(String::new());
         focused_index.set(None);
     };
@@ -48,11 +45,10 @@ pub fn Palette(
             <div class="palette-input-row">
                 {move || {
                     selected_tags
-                        .get()
+                        .with(|f| f.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>())
                         .into_iter()
                         .map(|(k, v)| {
-                            let k2 = k.clone();
-                            let v2 = v.clone();
+                            let root = k.clone();
                             view! {
                                 <span class="tag-pill">
                                     <span class="pill-key">{k.to_string()}</span>
@@ -61,10 +57,8 @@ pub fn Palette(
                                     <button
                                         class="pill-remove"
                                         on:click=move |_| {
-                                            selected_tags
-                                                .update(|t| {
-                                                    t.retain(|(tk, tv)| !(tk == &k2 && tv == &v2))
-                                                })
+                                            // 根1つにつき値1つなので、その根を外せばこのピルが消える
+                                            selected_tags.update(|t| t.remove_root(&root))
                                         }
                                     >
                                         "×"

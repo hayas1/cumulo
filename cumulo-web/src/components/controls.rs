@@ -1,12 +1,12 @@
 use crate::map_bridge;
-use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
+use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Resource};
 use leptos::*;
 
 #[component]
 pub fn Controls(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    selected_tags: RwSignal<Filters>,
     zoom_level: ReadSignal<u32>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {

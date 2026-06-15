@@ -1,12 +1,12 @@
 use crate::map_bridge;
-use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute, ResourceId};
+use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute, ResourceId};
 use cumulo_model::Bipartite;
 use leptos::*;
 
 #[component]
 pub fn MapCanvas(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    selected_tags: RwSignal<Filters>,
     zoom_dim: RwSignal<CategoryId>,
     selected_entity: RwSignal<Option<ResourceId>>,
     zoom_level: RwSignal<u32>,
@@ -33,17 +33,14 @@ pub fn MapCanvas(
                 CategoryId::try_from(axis),
                 CategoryId::try_from(value),
             ) {
-                selected_tags.update(|t| {
-                    t.retain(|(k2, _)| k2.as_str() != k.as_str());
-                    t.push((k, v));
-                });
+                selected_tags.update(|t| t.set(k, v));
             }
         });
 
         // 全体表示へのズームアウト → 現在のズーム軸の絞り込みだけ解除
         map_bridge::on_zoom_reset(move || {
             let zd = zoom_dim.get_untracked();
-            selected_tags.update(|t| t.retain(|(k, _)| k != &zd));
+            selected_tags.update(|t| t.remove_root(&zd));
         });
     });
 
@@ -65,7 +62,9 @@ pub fn MapCanvas(
 
     // ── Effect 4: フィルター更新 ──────────────────────────────────────────────
     create_effect(move |_| {
-        let tags = selected_tags.get();
+        // map.js は [[axis, value], ...] の配列を期待するため、Filters を組に変換して渡す
+        let tags: Vec<(CategoryId, CategoryId)> =
+            selected_tags.with(|f| f.iter().map(|(k, v)| (k.clone(), v.clone())).collect());
         if let Ok(json) = serde_json::to_string(&tags) {
             map_bridge::update_filter(&json);
         }

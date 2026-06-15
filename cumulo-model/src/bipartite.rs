@@ -2,12 +2,10 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
 use crate::error::{Errors, ParseError, ValidationError};
+use crate::filters::Filters;
 use crate::forest::Forest;
 use crate::id::Id;
 use crate::resource::{Catalog, Resource};
-
-/// フィルタ条件の最小単位 = (軸の根, 選択値)。
-pub type Tag<CA> = (Id<Category<CA>>, Id<Category<CA>>);
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Bipartite<RA, CA> {
@@ -79,12 +77,11 @@ impl<RA, CA> Bipartite<RA, CA> {
 }
 
 impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
-    pub fn filter_resources<'a>(&'a self, selected_tags: &[Tag<CA>]) -> Vec<&'a Resource<RA, CA>> {
-        // 「少ないクリックでたどり着く」ため同一軸のフィルタは1つに限る運用なので、
-        // タグは軸間 AND で素直に評価する。
+    pub fn filter_resources<'a>(&'a self, filters: &Filters<CA>) -> Vec<&'a Resource<RA, CA>> {
+        // Filters は軸ごとに値が1つなので、各軸の条件を素直に AND で評価する。
         self.catalog
             .iter()
-            .filter(|r| selected_tags.iter().all(|(k, v)| self.tag_matches(r, k, v)))
+            .filter(|r| filters.iter().all(|(k, v)| self.tag_matches(r, k, v)))
             .collect()
     }
 
@@ -208,22 +205,12 @@ mod tests {
     #[test]
     fn filter_ands_across_axes() {
         let bipartite = valid_bipartite(); // platform>{bigquery,bigtable}, env>prod; r1=[bigquery,prod]
-        assert_eq!(
-            bipartite
-                .filter_resources(&[
-                    (cid("platform"), cid("bigquery")),
-                    (cid("env"), cid("prod"))
-                ])
-                .len(),
-            1
-        );
+        let both = Filters::from_iter([(cid("platform"), cid("bigquery")), (cid("env"), cid("prod"))]);
+        assert_eq!(bipartite.filter_resources(&both).len(), 1);
         // 片方の軸を満たさない（platform=bigtable）と r1 は外れる
-        assert!(bipartite
-            .filter_resources(&[
-                (cid("platform"), cid("bigtable")),
-                (cid("env"), cid("prod"))
-            ])
-            .is_empty());
+        let unmatched =
+            Filters::from_iter([(cid("platform"), cid("bigtable")), (cid("env"), cid("prod"))]);
+        assert!(bipartite.filter_resources(&unmatched).is_empty());
     }
 
     #[test]
@@ -255,7 +242,8 @@ mod tests {
                 },
             ]),
         };
-        let got = bipartite.filter_resources(&[(cid("platform"), cid("gcp"))]);
+        let got =
+            bipartite.filter_resources(&Filters::from_iter([(cid("platform"), cid("gcp"))]));
         assert!(got.iter().any(|r| r.id.as_str() == "a"));
         assert!(got.iter().any(|r| r.id.as_str() == "c"));
         assert!(!got.iter().any(|r| r.id.as_str() == "b"));

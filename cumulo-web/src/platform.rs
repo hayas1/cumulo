@@ -22,6 +22,8 @@ pub struct CategoryAttribute {
 
 pub type CategoryId = Id<Category<CategoryAttribute>>;
 pub type ResourceId = Id<Resource<ResourceAttribute, CategoryAttribute>>;
+/// 軸→値の絞り込み選択。web 層では CA を固定して扱う。
+pub type Filters = cumulo_model::Filters<CategoryAttribute>;
 
 /// ブラウザ固有の副作用（ID 生成、色生成、ダウンロード、URL 開放）をまとめる。
 /// js_sys / web_sys を使うため core クレートには含めない。

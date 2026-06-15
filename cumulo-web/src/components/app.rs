@@ -3,7 +3,7 @@ use super::{
     facet_sidebar::FacetSidebar, facet_view::FacetView, map_canvas::MapCanvas, palette::Palette,
     settings_modal::SettingsModal,
 };
-use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute, ResourceId};
+use crate::platform::{CategoryAttribute, Filters, ResourceAttribute, ResourceId};
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Forest, Resource};
 
@@ -16,7 +16,7 @@ use leptos_router::*;
 pub fn App() -> impl IntoView {
     let bipartite =
         create_rw_signal::<Bipartite<ResourceAttribute, CategoryAttribute>>(AppStorage::load());
-    let selected_tags = create_rw_signal(Vec::<(CategoryId, CategoryId)>::new());
+    let selected_tags = create_rw_signal(Filters::default());
     let editing = create_rw_signal(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
     let settings_open = create_rw_signal(false);
     let import_toast = create_rw_signal(Option::<String>::None);
@@ -84,7 +84,7 @@ pub fn App() -> impl IntoView {
 #[component]
 fn MapView(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    selected_tags: RwSignal<Filters>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let selected_entity_id = create_rw_signal(Option::<ResourceId>::None);

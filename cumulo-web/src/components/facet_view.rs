@@ -1,5 +1,5 @@
 use super::facet_sidebar::FacetSidebar;
-use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
+use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Forest, Resource};
 use icondata as icon;
 use leptos::*;
@@ -8,7 +8,7 @@ use leptos_icons::Icon;
 #[component]
 pub fn FacetView(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    selected_tags: RwSignal<Vec<(CategoryId, CategoryId)>>,
+    selected_tags: RwSignal<Filters>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let filtered_ids = create_memo(move |_| {
