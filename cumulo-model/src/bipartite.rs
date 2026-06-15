@@ -80,6 +80,8 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         &'a self,
         selected_tags: &[(Id<Category<CA>>, Id<Category<CA>>)],
     ) -> Vec<&'a Resource<RA, CA>> {
+        // 「少ないクリックでたどり着く」ため同一軸のフィルタは1つに限る運用なので、
+        // タグは軸間 AND で素直に評価する。
         self.catalog
             .iter()
             .filter(|r| selected_tags.iter().all(|(k, v)| self.tag_matches(r, k, v)))
@@ -197,6 +199,22 @@ mod tests {
 
     fn rid(s: &str) -> Id<Resource<(), ()>> {
         s.try_into().unwrap()
+    }
+
+    // 異なる軸を選ぶと AND で絞り込む
+    #[test]
+    fn filter_ands_across_axes() {
+        let bipartite = valid_bipartite(); // platform>{bigquery,bigtable}, env>prod; r1=[bigquery,prod]
+        assert_eq!(
+            bipartite
+                .filter_resources(&[(cid("platform"), cid("bigquery")), (cid("env"), cid("prod"))])
+                .len(),
+            1
+        );
+        // 片方の軸を満たさない（platform=bigtable）と r1 は外れる
+        assert!(bipartite
+            .filter_resources(&[(cid("platform"), cid("bigtable")), (cid("env"), cid("prod"))])
+            .is_empty());
     }
 
     #[test]

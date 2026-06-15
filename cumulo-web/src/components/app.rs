@@ -5,7 +5,7 @@ use super::{
 };
 use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute, ResourceId};
 use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Resource};
+use cumulo_model::{Bipartite, Forest, Resource};
 
 use icondata as icon;
 use leptos::*;
@@ -89,11 +89,12 @@ fn MapView(
 ) -> impl IntoView {
     let selected_entity_id = create_rw_signal(Option::<ResourceId>::None);
     let zoom_level = create_rw_signal(0u32);
-    // ズーム軸＝ディメンション。既定は一番上の facet（最初のディメンション）。
+    // ズーム軸＝軸（根カテゴリ）。既定は最初の根。セレクタの候補も根なので既定も根に揃える。
     // taxonomy が空の場合は表示対象がないため、使われないダミー id を割り当てる
     let zoom_dim = create_rw_signal({
         let s = bipartite.get_untracked();
         s.taxonomy
+            .roots()
             .first()
             .map(|d| d.id.clone())
             .unwrap_or_else(crate::platform::Platform::new_node_id)

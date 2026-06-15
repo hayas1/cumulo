@@ -27,6 +27,7 @@ pub fn Palette(
     });
 
     let commit_tag = move |k: CategoryId, v: CategoryId| {
+        // 1軸1フィルタ: 同軸の既存値を入れ替える
         selected_tags.update(|t| {
             t.retain(|(tk, _)| tk != &k);
             t.push((k, v));

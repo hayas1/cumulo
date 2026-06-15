@@ -1221,7 +1221,12 @@ body {
 
 /* マップ時: タイトルをクリックでズーム軸に。選択中は文字色↔背景色を反転 */
 .facet-panel-title-btn {
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
   background: none;
   border: none;
   font-family: inherit;
@@ -1236,6 +1241,7 @@ body {
   background: var(--accent);
   color: var(--bg-base);
 }
+.facet-panel-title-btn.selected { color: var(--accent); }
 
 /* パネルヘッダー: 折りたたみ chevron + タイトル */
 .facet-panel-header {

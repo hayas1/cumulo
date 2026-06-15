@@ -47,40 +47,49 @@ pub fn FacetSidebar(
                             return None;
                         }
 
+                        // 1軸1フィルタなので、その軸で選択中の値は高々1つ
                         let selected_val = tags
                             .iter()
                             .find(|(k, _)| k == &root.id)
                             .map(|(_, v)| v.clone());
 
+                        // 軸（根）はヘッダの見出し兼フィルタ要素に集約する。配下の値だけを行に並べる。
+                        let root_count = counts.get(root.id.as_str()).copied().unwrap_or(0);
                         let mut ordered: Vec<(CategoryId, String, usize, usize)> = Vec::new();
                         s.taxonomy.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
-                        if ordered.is_empty() {
-                            return None;
-                        }
-
+                        // collapse は折りたためる子がある軸でのみ可能にする
+                        let has_children = !s.taxonomy.children_of(&root.id).is_empty();
                         let root_id = root.id.clone();
-                        let root_label = root.label.clone();
-
-                        let rid_toggle = root_id.clone();
-                        let rid_icon = root_id.clone();
-                        let chevron = view! {
-                            <button
-                                class="facet-panel-chevron"
-                                title="折りたたむ"
-                                on:click=move |_| {
-                                    collapsed.update(|c| {
-                                        if !c.remove(&rid_toggle) {
-                                            c.insert(rid_toggle.clone());
-                                        }
-                                    });
-                                }
-                            >
-                                {move || if collapsed.with(|c| c.contains(&rid_icon)) { "▶" } else { "▼" }}
-                            </button>
+                        let root_label = if root.label.is_empty() {
+                            root.id.to_string()
+                        } else {
+                            root.label.clone()
                         };
 
-                        let title = match zoom_dim {
+                        let chevron = has_children.then(|| {
+                            let rid_toggle = root_id.clone();
+                            let rid_icon = root_id.clone();
+                            view! {
+                                <button
+                                    class="facet-panel-chevron"
+                                    title="折りたたむ"
+                                    on:click=move |_| {
+                                        collapsed.update(|c| {
+                                            if !c.remove(&rid_toggle) {
+                                                c.insert(rid_toggle.clone());
+                                            }
+                                        });
+                                    }
+                                >
+                                    {move || if collapsed.with(|c| c.contains(&rid_icon)) { "▶" } else { "▼" }}
+                                </button>
+                            }
+                        });
+
+                        // 軸の見出し＝根。マップではクリックでズーム軸、ファセットでは
+                        // 根フィルタ（その軸の部分木全体にマッチ）。見出しと根を1要素に統合する。
+                        let axis_btn = match zoom_dim {
                             Some(zd) => {
                                 let did = root_id.clone();
                                 let did_eq = root_id.clone();
@@ -91,15 +100,40 @@ pub fn FacetSidebar(
                                         title="ズーム軸にする"
                                         on:click=move |_| zd.set(did.clone())
                                     >
-                                        {root_label}
+                                        <span class="fv-label">{root_label}</span>
+                                        <span class="fv-count">{root_count}</span>
                                     </button>
                                 }
                                 .into_view()
                             }
-                            None => view! {
-                                <div class="facet-panel-title">{root_label}</div>
+                            None => {
+                                let rid = root_id.clone();
+                                let is_sel = selected_val.as_deref() == Some(root_id.as_str());
+                                view! {
+                                    <button
+                                        class=if is_sel {
+                                            "facet-panel-title facet-panel-title-btn selected"
+                                        } else {
+                                            "facet-panel-title facet-panel-title-btn"
+                                        }
+                                        title="この軸全体で絞り込む"
+                                        on:click=move |_| {
+                                            // 1軸1フィルタ: 同軸の既存値を外して根に入れ替える（同値なら解除）
+                                            selected_tags.update(|t| {
+                                                let already = t.iter().any(|(tk, tv)| tk == &rid && tv == &rid);
+                                                t.retain(|(tk, _)| tk != &rid);
+                                                if !already {
+                                                    t.push((rid.clone(), rid.clone()));
+                                                }
+                                            });
+                                        }
+                                    >
+                                        <span class="fv-label">{root_label}</span>
+                                        <span class="fv-count">{root_count}</span>
+                                    </button>
+                                }
+                                .into_view()
                             }
-                            .into_view(),
                         };
 
                         let rid_vis = root_id.clone();
@@ -108,7 +142,7 @@ pub fn FacetSidebar(
                             <div class="facet-panel">
                                 <div class="facet-panel-header">
                                     {chevron}
-                                    {title}
+                                    {axis_btn}
                                 </div>
                                 {move || {
                                     if collapsed.with(|c| c.contains(&rid_vis)) {
@@ -118,8 +152,8 @@ pub fn FacetSidebar(
                                         ordered
                                             .iter()
                                             .map(|(node_id, node_label, depth, count)| {
-                                                let is_sel = selected_val.as_deref()
-                                                    == Some(node_id.as_str());
+                                                let is_sel =
+                                                    selected_val.as_deref() == Some(node_id.as_str());
                                                 let indent = format!(
                                                     "padding-left:{}rem",
                                                     0.5 + *depth as f32 * 0.85
@@ -137,6 +171,7 @@ pub fn FacetSidebar(
                                                             on:click=move |_| {
                                                                 let k = rid.clone();
                                                                 let v = nid.clone();
+                                                                // 1軸1フィルタ: 同軸の既存値を外して入れ替える（同値なら解除）
                                                                 selected_tags.update(|t| {
                                                                     let already = t.iter().any(|(tk, tv)| tk == &k && tv == &v);
                                                                     t.retain(|(tk, _)| tk != &k);
