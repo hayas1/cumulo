@@ -187,27 +187,6 @@ impl<CA> Taxonomy<CA> {
         }
     }
 
-    pub fn subtree_flat<'a>(
-        &'a self,
-        root_id: &'a Id<Category<CA>>,
-    ) -> Vec<(&'a Category<CA>, usize, bool, &'a Id<Category<CA>>)> {
-        let mut out = Vec::new();
-        self.subtree_flat_rec(root_id, 0, &mut out);
-        out
-    }
-
-    fn subtree_flat_rec<'a>(
-        &'a self,
-        parent_id: &'a Id<Category<CA>>,
-        depth: usize,
-        out: &mut Vec<(&'a Category<CA>, usize, bool, &'a Id<Category<CA>>)>,
-    ) {
-        for child in self.children_of(parent_id) {
-            let has_children = !self.children_of(&child.id).is_empty();
-            out.push((child, depth, has_children, parent_id));
-            self.subtree_flat_rec(&child.id, depth + 1, out);
-        }
-    }
 }
 
 impl<CA> Taxonomy<CA> {

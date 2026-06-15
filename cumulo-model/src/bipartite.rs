@@ -1,10 +1,13 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
+use crate::error::{Errors, ParseError, ValidationError};
 use crate::forest::Forest;
 use crate::id::Id;
 use crate::resource::{Catalog, Resource};
-use crate::error::{Errors, ParseError, ValidationError};
+
+/// フィルタ条件の最小単位 = (軸の根, 選択値)。
+pub type Tag<CA> = (Id<Category<CA>>, Id<Category<CA>>);
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Bipartite<RA, CA> {
@@ -76,10 +79,7 @@ impl<RA, CA> Bipartite<RA, CA> {
 }
 
 impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
-    pub fn filter_resources<'a>(
-        &'a self,
-        selected_tags: &[(Id<Category<CA>>, Id<Category<CA>>)],
-    ) -> Vec<&'a Resource<RA, CA>> {
+    pub fn filter_resources<'a>(&'a self, selected_tags: &[Tag<CA>]) -> Vec<&'a Resource<RA, CA>> {
         // 「少ないクリックでたどり着く」ため同一軸のフィルタは1つに限る運用なので、
         // タグは軸間 AND で素直に評価する。
         self.catalog
@@ -107,7 +107,10 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
     /// 根も値になりうるため根を除外しない。
     pub fn category_view(&self) -> CategoryView<'_, RA, CA> {
         let view = self.taxonomy.iter().collect();
-        CategoryView { bipartite: self, view }
+        CategoryView {
+            bipartite: self,
+            view,
+        }
     }
 }
 
@@ -207,13 +210,19 @@ mod tests {
         let bipartite = valid_bipartite(); // platform>{bigquery,bigtable}, env>prod; r1=[bigquery,prod]
         assert_eq!(
             bipartite
-                .filter_resources(&[(cid("platform"), cid("bigquery")), (cid("env"), cid("prod"))])
+                .filter_resources(&[
+                    (cid("platform"), cid("bigquery")),
+                    (cid("env"), cid("prod"))
+                ])
                 .len(),
             1
         );
         // 片方の軸を満たさない（platform=bigtable）と r1 は外れる
         assert!(bipartite
-            .filter_resources(&[(cid("platform"), cid("bigtable")), (cid("env"), cid("prod"))])
+            .filter_resources(&[
+                (cid("platform"), cid("bigtable")),
+                (cid("env"), cid("prod"))
+            ])
             .is_empty());
     }
 
@@ -456,11 +465,36 @@ mod tests {
         // catalog: r1 が platform=bigquery, env=prod という正しい参照を持つ
         Bipartite {
             taxonomy: Taxonomy(vec![
-                Category { id: cid("platform"), label: "Platform".into(), parent: None, attribute: () },
-                Category { id: cid("bigquery"), label: "BigQuery".into(), parent: Some(cid("platform")), attribute: () },
-                Category { id: cid("bigtable"), label: "Bigtable".into(), parent: Some(cid("platform")), attribute: () },
-                Category { id: cid("env"), label: "Env".into(), parent: None, attribute: () },
-                Category { id: cid("prod"), label: "prod".into(), parent: Some(cid("env")), attribute: () },
+                Category {
+                    id: cid("platform"),
+                    label: "Platform".into(),
+                    parent: None,
+                    attribute: (),
+                },
+                Category {
+                    id: cid("bigquery"),
+                    label: "BigQuery".into(),
+                    parent: Some(cid("platform")),
+                    attribute: (),
+                },
+                Category {
+                    id: cid("bigtable"),
+                    label: "Bigtable".into(),
+                    parent: Some(cid("platform")),
+                    attribute: (),
+                },
+                Category {
+                    id: cid("env"),
+                    label: "Env".into(),
+                    parent: None,
+                    attribute: (),
+                },
+                Category {
+                    id: cid("prod"),
+                    label: "prod".into(),
+                    parent: Some(cid("env")),
+                    attribute: (),
+                },
             ]),
             catalog: Catalog(vec![Resource {
                 id: rid("r1"),
@@ -491,9 +525,11 @@ mod tests {
             attribute: (),
         });
         let errs = b.validate().unwrap_err();
-        assert!(errs.contains(&ValidationError::Catalog(ForestError::DuplicateId {
-            id: "r1".into()
-        })));
+        assert!(
+            errs.contains(&ValidationError::Catalog(ForestError::DuplicateId {
+                id: "r1".into()
+            }))
+        );
     }
 
     // Taxonomy の森エラーが ValidationError::Taxonomy にラップされる
@@ -508,9 +544,11 @@ mod tests {
             attribute: (),
         });
         let errs = b.validate().unwrap_err();
-        assert!(errs.contains(&ValidationError::Taxonomy(ForestError::DuplicateId {
-            id: "bigquery".into()
-        })));
+        assert!(
+            errs.contains(&ValidationError::Taxonomy(ForestError::DuplicateId {
+                id: "bigquery".into()
+            }))
+        );
     }
 
     // B2: value が taxonomy に存在しない場合は CategoryValueMissing
@@ -532,9 +570,12 @@ mod tests {
     fn b3_root_value_is_selectable() {
         // axis（子なし根）唯一値として axis 自身を持つリソースが valid になることを確認
         let b: Bipartite<(), ()> = Bipartite {
-            taxonomy: Taxonomy(vec![
-                Category { id: cid("axis"), label: "Axis".into(), parent: None, attribute: () },
-            ]),
+            taxonomy: Taxonomy(vec![Category {
+                id: cid("axis"),
+                label: "Axis".into(),
+                parent: None,
+                attribute: (),
+            }]),
             catalog: Catalog(vec![Resource {
                 id: rid("r1"),
                 label: None,
@@ -566,9 +607,12 @@ mod tests {
     #[test]
     fn resource_with_no_categories_is_valid() {
         let b: Bipartite<(), ()> = Bipartite {
-            taxonomy: Taxonomy(vec![
-                Category { id: cid("axis"), label: "Axis".into(), parent: None, attribute: () },
-            ]),
+            taxonomy: Taxonomy(vec![Category {
+                id: cid("axis"),
+                label: "Axis".into(),
+                parent: None,
+                attribute: (),
+            }]),
             catalog: Catalog(vec![Resource {
                 id: rid("r1"),
                 label: None,
@@ -584,8 +628,18 @@ mod tests {
 
     fn valid_taxonomy() -> Taxonomy<()> {
         Taxonomy(vec![
-            Category { id: cid("platform"), label: "Platform".into(), parent: None, attribute: () },
-            Category { id: cid("bigquery"), label: "BigQuery".into(), parent: Some(cid("platform")), attribute: () },
+            Category {
+                id: cid("platform"),
+                label: "Platform".into(),
+                parent: None,
+                attribute: (),
+            },
+            Category {
+                id: cid("bigquery"),
+                label: "BigQuery".into(),
+                parent: Some(cid("platform")),
+                attribute: (),
+            },
         ])
     }
 
@@ -616,8 +670,10 @@ mod tests {
             attribute: (),
         }]);
         let err = Bipartite::try_new(catalog, valid_taxonomy()).unwrap_err();
-        assert!(err.iter().any(|e| matches!(e, ValidationError::CategoryValueMissing { resource, value }
-            if resource == "r1" && value == "ghost")));
+        assert!(err.iter().any(
+            |e| matches!(e, ValidationError::CategoryValueMissing { resource, value }
+            if resource == "r1" && value == "ghost")
+        ));
     }
 
     #[test]
@@ -625,8 +681,20 @@ mod tests {
         use crate::error::ValidationError;
         // catalog に重複 id
         let catalog = Catalog(vec![
-            Resource { id: rid("r1"), label: None, parent: None, categories: vec![], attribute: () },
-            Resource { id: rid("r1"), label: None, parent: None, categories: vec![], attribute: () },
+            Resource {
+                id: rid("r1"),
+                label: None,
+                parent: None,
+                categories: vec![],
+                attribute: (),
+            },
+            Resource {
+                id: rid("r1"),
+                label: None,
+                parent: None,
+                categories: vec![],
+                attribute: (),
+            },
         ]);
         let err = Bipartite::try_new(catalog, valid_taxonomy()).unwrap_err();
         assert!(err.iter().any(|e| matches!(e, ValidationError::Catalog(_))));
