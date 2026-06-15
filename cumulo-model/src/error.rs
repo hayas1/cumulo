@@ -58,8 +58,6 @@ pub enum ValidationError {
     Taxonomy(ForestError),
     /// 値が taxonomy に存在しない。
     CategoryValueMissing { resource: String, value: String },
-    /// 値が軸の根そのもの（非根でない）で、カテゴリ値として選べない。
-    CategoryValueNotSelectable { resource: String, value: String },
     /// 同一軸（root_of が同じ）に複数の値が付いている（1軸1値違反）。
     DuplicateAxis { resource: String, axis: String },
 }
@@ -71,12 +69,6 @@ impl fmt::Display for ValidationError {
             ValidationError::Taxonomy(e) => write!(f, "taxonomy: {e}"),
             ValidationError::CategoryValueMissing { resource, value } => {
                 write!(f, "resource '{resource}': category value '{value}' does not exist")
-            }
-            ValidationError::CategoryValueNotSelectable { resource, value } => {
-                write!(
-                    f,
-                    "resource '{resource}': category value '{value}' is a root and not selectable"
-                )
             }
             ValidationError::DuplicateAxis { resource, axis } => {
                 write!(f, "resource '{resource}': multiple values on axis '{axis}'")

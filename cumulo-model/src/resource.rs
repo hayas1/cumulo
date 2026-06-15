@@ -174,12 +174,13 @@ mod tests {
     }
 
     #[test]
-    fn ancestry_walks_to_root_exclusive() {
+    fn ancestry_walks_to_root_inclusive() {
         let c = test_catalog();
-        assert_eq!(c.ancestry(&id("bigquery")), vec![id("bigquery")]);
+        // 根も値になりうるため、ancestry は根を含めて返す
+        assert_eq!(c.ancestry(&id("bigquery")), vec![id("bigquery"), id("gcp")]);
         assert_eq!(
             c.ancestry(&id("gcp")),
-            Vec::<Id<Resource<(), ()>>>::new()
+            vec![id("gcp")]
         );
     }
 

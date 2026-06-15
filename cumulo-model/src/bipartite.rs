@@ -51,13 +51,9 @@ impl<RA, CA> Bipartite<RA, CA> {
                     });
                     continue;
                 }
-
-                // B3: value は非根（＝軸を持つ）。根そのものは選べない
+                // 軸 = value の根（root_of は total）。根も値になりうるので根自身が軸になる。
                 let Some(axis) = self.taxonomy.root_of(value) else {
-                    errors.push(ValidationError::CategoryValueNotSelectable {
-                        resource: rid.clone(),
-                        value: value.as_str().to_string(),
-                    });
+                    // B2 通過後はここに来ない（存在するノードの root_of は Some）
                     continue;
                 };
 
@@ -105,17 +101,11 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         self.taxonomy.ancestry(rv).iter().any(|a| a == v)
     }
 
-    /// カテゴリフォレストの non-root ノード（選択可能なカテゴリ値）へのビューを返す。
+    /// カテゴリフォレストの全ノード（根を含む）へのビューを返す。
+    /// 根も値になりうるため根を除外しない。
     pub fn category_view(&self) -> CategoryView<'_, RA, CA> {
-        let view = self
-            .taxonomy
-            .iter()
-            .filter(|a| a.parent.is_some())
-            .collect();
-        CategoryView {
-            bipartite: self,
-            view,
-        }
+        let view = self.taxonomy.iter().collect();
+        CategoryView { bipartite: self, view }
     }
 }
 
@@ -403,15 +393,16 @@ mod tests {
     }
 
     #[test]
-    fn category_view_excludes_roots() {
+    fn category_view_includes_all_nodes() {
         let f = test_forest();
         let bipartite: Bipartite<(), ()> = Bipartite {
             taxonomy: f,
             catalog: Catalog(vec![]),
         };
         let view = bipartite.category_view();
-        assert!(view.view.iter().all(|a| a.parent.is_some()));
-        assert!(!view.view.is_empty());
+        // 根も値になりうるため、view は根を含む全ノードを対象にする
+        assert!(view.view.iter().any(|a| a.parent.is_none()));
+        assert_eq!(view.view.len(), bipartite.taxonomy.iter().count());
     }
 
     #[test]
@@ -427,19 +418,16 @@ mod tests {
     }
 
     #[test]
-    fn category_view_empty_query_returns_all_non_roots() {
+    fn category_view_empty_query_returns_all_nodes() {
         let f = test_forest();
         let bipartite: Bipartite<(), ()> = Bipartite {
             taxonomy: f,
             catalog: Catalog(vec![]),
         };
         let all = bipartite.category_view().query("").view;
-        let all_non_roots = bipartite
-            .taxonomy
-            .iter()
-            .filter(|a| a.parent.is_some())
-            .count();
-        assert_eq!(all.len(), all_non_roots);
+        // 根も値になりうるため、空クエリは根を含む全ノードを返す
+        let all_nodes = bipartite.taxonomy.iter().count();
+        assert_eq!(all.len(), all_nodes);
     }
 
     // --- validate() のテスト ---
@@ -521,18 +509,24 @@ mod tests {
         )));
     }
 
-    // B3: value が軸の根そのものなら CategoryValueNotSelectable（非根でなければならない）
+    // 根値も選択可能（valid）— 根も値になりうる一様化方針
     #[test]
-    fn b3_root_value_is_not_selectable() {
-        use crate::error::ValidationError;
-        let mut b = valid_bipartite();
-        b.catalog[0].categories.push(cid("platform")); // platform は根
-        let errs = b.validate().unwrap_err();
-        assert!(errs.iter().any(|e| matches!(
-            e,
-            ValidationError::CategoryValueNotSelectable { resource, value }
-            if resource == "r1" && value == "platform"
-        )));
+    fn b3_root_value_is_selectable() {
+        // axis（子なし根）唯一値として axis 自身を持つリソースが valid になることを確認
+        let b: Bipartite<(), ()> = Bipartite {
+            taxonomy: Taxonomy(vec![
+                Category { id: cid("axis"), label: "Axis".into(), parent: None, attribute: () },
+            ]),
+            catalog: Catalog(vec![Resource {
+                id: rid("r1"),
+                label: None,
+                parent: None,
+                // 軸 axis の唯一値として根 axis 自身を選択できる
+                categories: vec![cid("axis")],
+                attribute: (),
+            }]),
+        };
+        assert!(b.validate().is_ok());
     }
 
     // B4: 同一軸に複数の値があれば DuplicateAxis
@@ -593,19 +587,19 @@ mod tests {
     }
 
     #[test]
-    fn try_new_returns_err_for_invalid_category_value() {
+    fn try_new_returns_err_for_missing_category_value() {
         use crate::error::ValidationError;
-        // "platform" は軸の根なのでカテゴリ値として選べない
+        // 存在しない値を指定すると CategoryValueMissing になる
         let catalog = Catalog(vec![Resource {
             id: rid("r1"),
             label: None,
             parent: None,
-            categories: vec![cid("platform")],
+            categories: vec![cid("ghost")],
             attribute: (),
         }]);
         let err = Bipartite::try_new(catalog, valid_taxonomy()).unwrap_err();
-        assert!(err.iter().any(|e| matches!(e, ValidationError::CategoryValueNotSelectable { resource, value }
-            if resource == "r1" && value == "platform")));
+        assert!(err.iter().any(|e| matches!(e, ValidationError::CategoryValueMissing { resource, value }
+            if resource == "r1" && value == "ghost")));
     }
 
     #[test]

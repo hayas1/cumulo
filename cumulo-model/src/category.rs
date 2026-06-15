@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use crate::forest::{Forest, ForestNode};
 use crate::id::Id;
 
-/// parent が None のノードが軸の根（＝カテゴリキー）となる。
-/// リソースの categories は { 根id → ノードid } で表現する。
+/// カテゴリ木の各ノード。categories は値 id のリストで、軸（根）は root_of で導出する。
+/// 根を含むすべてのノードが値になりうる（一様化方針）。
 /// `#[serde(bound)]` でデシリアライズ境界を明示し、flatten が生成する CA: Default 境界を除去する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(bound(serialize = "CA: Serialize", deserialize = "CA: Deserialize<'de>"))]
@@ -275,20 +275,34 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn ancestry_walks_to_root_exclusive() {
+    fn ancestry_walks_to_root_inclusive() {
         let f = test_forest();
+        // 根も値になりうるため、ancestry は根を含めて返す
         assert_eq!(
             f.ancestry(&id("bigquery")),
-            vec![id("bigquery"), id("gcp"), id("cloud")]
+            vec![id("bigquery"), id("gcp"), id("cloud"), id("platform")]
         );
         assert_eq!(
             f.ancestry(&id("cloud")),
-            vec![id("cloud")]
+            vec![id("cloud"), id("platform")]
         );
         assert_eq!(
             f.ancestry(&id("unknown")),
             Vec::<Id<Category<()>>>::new()
         );
+    }
+
+    #[test]
+    fn root_of_is_total_for_existing_nodes() {
+        use crate::forest::Forest;
+        let f = test_forest();
+        // root_of は存在するノードに対して total（根自身も Some を返す）
+        assert_eq!(f.root_of(&id("bigquery")), Some(id("platform")));
+        assert_eq!(f.root_of(&id("gcp")), Some(id("platform")));
+        assert_eq!(f.root_of(&id("cloud")), Some(id("platform")));
+        assert_eq!(f.root_of(&id("platform")), Some(id("platform")));
+        // 存在しない id は None
+        assert_eq!(f.root_of(&id("unknown")), None);
     }
 
     #[test]
