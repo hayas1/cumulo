@@ -154,15 +154,6 @@ function resourceLabel(r) {
   return parts.length > 0 ? parts.join(' / ') : '(名前なし)';
 }
 
-// ズーム軸以外の軸に属するカテゴリ値を { id, label, color } の配列で返す。
-// ノードの補足情報（satellite ドット）として使う。
-function otherAxisValues(r) {
-  if (!zoomDim || dimensions.length === 0) return [];
-  return (r.categories || [])
-    .filter(catId => rootOf(catId) !== zoomDim)
-    .map(catId => ({ id: catId, label: nodeLabel(catId), color: clusterColor(catId) }));
-}
-
 // ズーム軸ディメンションでの、フォレスト根から葉までの完全パス（上→下）を返す。
 // 例: platform で BigQuery → [Cloud, GCP, BigQuery]。フラットdimなら [value]。
 function zoomPath(r) {
@@ -285,7 +276,7 @@ function buildLevel(items, level) {
     .map(r => ({
       type: 'resource',
       resource: r,
-      children: otherAxisValues(r),
+      children: [],
       totalFreq: r.freq || 1,
       x: 0, y: 0, r: 0,
     }));
@@ -625,39 +616,6 @@ function drawResourceNode(parentG, node, rx, ry) {
     if (cb) cb(resourceId);
   });
 
-  // 補足カテゴリ（ズーム軸以外の軸の値）を satellite ドットとして親円の周囲に配置
-  const childOrbit = baseR + 6;
-  const childR = 3;
-  node.children.forEach((cat, ci) => {
-    const childAngle = (ci / Math.max(node.children.length, 1)) * 2 * Math.PI - Math.PI / 2;
-
-    const childG = nodeG.append('g')
-      .attr('class', 'child-node')
-      .attr('transform', `translate(${Math.cos(childAngle) * childOrbit},${Math.sin(childAngle) * childOrbit})`)
-      .style('opacity', 0)
-      .style('pointer-events', 'none');
-
-    childG.append('circle')
-      .attr('class', 'child-node-circle')
-      .attr('r', childR)
-      .attr('fill', cat.color)
-      .attr('fill-opacity', 0.9)
-      .attr('stroke', '#0d1117')
-      .attr('stroke-width', 0.6);
-
-    const childFs = 6;
-    childG.append('text')
-      .attr('class', 'child-label')
-      .attr('text-anchor', 'middle')
-      .attr('dy', childR + 7)
-      .attr('data-fs', childFs)
-      .attr('font-size', childFs / currentScale)
-      .attr('font-family', 'system-ui, sans-serif')
-      .attr('fill', cat.color)
-      .attr('pointer-events', 'none')
-      .style('opacity', 0)
-      .text(cat.label.length > 8 ? cat.label.slice(0, 7) + '…' : cat.label);
-  });
 }
 
 // ── フィルター透明度更新 ──────────────────────────────────────────────────────
