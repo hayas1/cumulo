@@ -9,6 +9,7 @@ let filteredIds = new Set();
 let dimensions = [];          // 完全なディメンション定義（親リンクを辿るのに使う）
 let zoomDim = '';             // ズーム軸のディメンションID（例: 'platform'）
 let maxDepth = 1;             // フォレストの最大ネスト深さ（LODに使用）
+let layoutScale = 1;          // layoutTopLevel の leafScale（LOD しきい値補正用）
 let currentScale = 1;
 let initialized = false;
 
@@ -301,6 +302,7 @@ function layoutTopLevel(clusters) {
   // トップレベルから比率で縮小する階層構造なので、根を広げることで末端まで伝播する。
   const maxLeaves = Math.max(...clusters.map(maxResourceChildCount), 3);
   const leafScale = Math.sqrt(maxLeaves / 3);
+  layoutScale = leafScale;
 
   const maxFreq = Math.max(...clusters.map(c => c.totalFreq), 1);
   const maxR = Math.min(W, H) * 0.22 * leafScale;
@@ -403,8 +405,11 @@ function layoutResourceNodes(nodes, parentX, parentY, parentR) {
 
 function clusterThreshold(depth) {
   // depth 0 → 0, depth 1 → 1.8, depth 2 → 4.5, depth 3 → 7.5 ...
+  // layoutScale 倍に広がった layout では同じ detail が layoutScale 倍少ないズームで見えるため、
+  // しきい値を layoutScale で割って正規化する。
   const steps = [0, 1.8, 4.5, 7.5];
-  return steps[depth] ?? steps[steps.length - 1];
+  const raw = steps[depth] ?? steps[steps.length - 1];
+  return raw / layoutScale;
 }
 
 // mini-node は「最深クラスタの1段先」に相当するしきい値
