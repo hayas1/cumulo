@@ -154,6 +154,15 @@ function resourceLabel(r) {
   return parts.length > 0 ? parts.join(' / ') : '(名前なし)';
 }
 
+// ズーム軸以外の軸に属するカテゴリ値を { id, label, color } の配列で返す。
+// ノードの補足情報（satellite ドット）として使う。
+function otherAxisValues(r) {
+  if (!zoomDim || dimensions.length === 0) return [];
+  return (r.categories || [])
+    .filter(catId => rootOf(catId) !== zoomDim)
+    .map(catId => ({ id: catId, label: nodeLabel(catId), color: clusterColor(catId) }));
+}
+
 // ズーム軸ディメンションでの、フォレスト根から葉までの完全パス（上→下）を返す。
 // 例: platform で BigQuery → [Cloud, GCP, BigQuery]。フラットdimなら [value]。
 function zoomPath(r) {
@@ -276,7 +285,7 @@ function buildLevel(items, level) {
     .map(r => ({
       type: 'resource',
       resource: r,
-      children: [],
+      children: otherAxisValues(r),
       totalFreq: r.freq || 1,
       x: 0, y: 0, r: 0,
     }));
@@ -598,18 +607,18 @@ function drawResourceNode(parentG, node, rx, ry) {
     .attr('stroke', '#0d1117')
     .attr('stroke-width', 1);
 
-  // 名前ラベル: 円の内側中央に表示
-  const labelFs = Math.max(5, Math.min(9, node.r * 0.45));
-  const maxChars = Math.max(3, Math.floor(node.r * 1.6 / (labelFs * 0.55)));
+  // 名前ラベル: 円の下に表示（円内に収めようとすると数文字で途切れるため）
+  const labelFs = 8;
   const rLabel = resourceLabel(r);
+  const maxChars = 22;
   const labelText = rLabel.length > maxChars ? rLabel.slice(0, maxChars - 1) + '…' : rLabel;
   nodeG.append('text')
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle')
-    .attr('dominant-baseline', 'middle')
+    .attr('dy', node.r + 10)
     .attr('data-fs', labelFs)
     .attr('font-size', labelFs / currentScale)
-    .attr('font-family', 'monospace')
+    .attr('font-family', 'system-ui, sans-serif')
     .attr('fill', '#e6edf3')
     .attr('pointer-events', 'none')
     .style('opacity', 0)
@@ -621,48 +630,38 @@ function drawResourceNode(parentG, node, rx, ry) {
     if (cb) cb(resourceId);
   });
 
-  // 子ノード: 親円の内側に配置
-  const childOrbit = baseR + 6;  // 内部軌道半径（baseR のすぐ外、container の内側）
-  node.children.forEach((child, ci) => {
-    const childId = child.id;
-    const childAngle = (ci / Math.max(node.children.length, 1)) * 2 * Math.PI;
-    const childR = Math.max(2, Math.min(4, (child.freq || 1) * 0.3 + 2));
+  // 補足カテゴリ（ズーム軸以外の軸の値）を satellite ドットとして親円の周囲に配置
+  const childOrbit = baseR + 6;
+  const childR = 3;
+  node.children.forEach((cat, ci) => {
+    const childAngle = (ci / Math.max(node.children.length, 1)) * 2 * Math.PI - Math.PI / 2;
 
     const childG = nodeG.append('g')
       .attr('class', 'child-node')
-      .attr('data-id', childId)
       .attr('transform', `translate(${Math.cos(childAngle) * childOrbit},${Math.sin(childAngle) * childOrbit})`)
       .style('opacity', 0)
-      .style('cursor', 'pointer');
+      .style('pointer-events', 'none');
 
     childG.append('circle')
       .attr('class', 'child-node-circle')
       .attr('r', childR)
-      .attr('fill', color)
-      .attr('fill-opacity', filteredIds.has(child.id) ? 0.9 : 0.15)
-      .attr('stroke', color)
-      .attr('stroke-width', 0.8)
-      .attr('stroke-opacity', 0.7);
+      .attr('fill', cat.color)
+      .attr('fill-opacity', 0.9)
+      .attr('stroke', '#0d1117')
+      .attr('stroke-width', 0.6);
 
-    // 子ノードのラベルも内側中央に
-    const childFs = Math.max(4, childR * 0.9);
+    const childFs = 6;
     childG.append('text')
       .attr('class', 'child-label')
       .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'middle')
+      .attr('dy', childR + 7)
       .attr('data-fs', childFs)
       .attr('font-size', childFs / currentScale)
-      .attr('font-family', 'monospace')
-      .attr('fill', '#e6edf3')
+      .attr('font-family', 'system-ui, sans-serif')
+      .attr('fill', cat.color)
       .attr('pointer-events', 'none')
       .style('opacity', 0)
-      .text(child.name.length > 6 ? child.name.slice(0, 5) + '…' : child.name);
-
-    childG.on('click', (event) => {
-      event.stopPropagation();
-      const cb = window.__cumuloCallbacks.onResourceSelect;
-      if (cb) cb(childId);
-    });
+      .text(cat.label.length > 8 ? cat.label.slice(0, 7) + '…' : cat.label);
   });
 }
 
