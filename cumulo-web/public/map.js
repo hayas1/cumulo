@@ -9,6 +9,7 @@ let filteredIds = new Set();
 let dimensions = [];          // 完全なディメンション定義（親リンクを辿るのに使う）
 let zoomDim = '';             // ズーム軸のディメンションID（例: 'platform'）
 let maxDepth = 1;             // フォレストの最大ネスト深さ（LODに使用）
+let layoutScale = 1;          // layoutTopLevel の leafScale（LOD しきい値補正用）
 let currentScale = 1;
 let initialized = false;
 
@@ -192,7 +193,9 @@ function applyTextScale(k) {
   g.selectAll('text').each(function () {
     const t = d3.select(this);
     const base = +t.attr('data-fs') || 10;
-    const screen = Math.max(LABEL_MIN, Math.min(LABEL_MAX, base * k));
+    // data-max-fs を指定した要素（ノードラベル等）は個別に上限を設定できる
+    const maxFs = +t.attr('data-max-fs') || LABEL_MAX;
+    const screen = Math.max(LABEL_MIN, Math.min(maxFs, base * k));
     t.attr('font-size', screen / k);
   });
 }
@@ -216,9 +219,21 @@ function zoomToNode(absX, absY, r) {
 // resetFilter=true のとき、ズームアウト（全体表示）に合わせて
 // 現在のズーム軸の絞り込みを解除する。ズーム軸切替では false で呼ぶ。
 function zoomToFit(resetFilter) {
-  if (!svg) return;
-  svg.transition().duration(600).ease(d3.easeCubicInOut)
-    .call(zoom.transform, d3.zoomIdentity);
+  if (!svg || !g) return;
+  // layout が可変サイズになったため、getBBox でコンテンツ実寸に合わせる。
+  // identity リセットだと拡張 layout が画面に収まらない。
+  const bbox = g.node().getBBox();
+  if (bbox.width > 0 && bbox.height > 0) {
+    const pad = 40;
+    const k = Math.min((W - pad * 2) / bbox.width, (H - pad * 2) / bbox.height);
+    const tx = W / 2 - k * (bbox.x + bbox.width / 2);
+    const ty = H / 2 - k * (bbox.y + bbox.height / 2);
+    svg.transition().duration(600).ease(d3.easeCubicInOut)
+      .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
+  } else {
+    svg.transition().duration(600).ease(d3.easeCubicInOut)
+      .call(zoom.transform, d3.zoomIdentity);
+  }
   const cb = window.__cumuloCallbacks.onZoomLevelChange;
   if (cb) cb(0);
   if (resetFilter) {
@@ -273,18 +288,34 @@ function buildLevel(items, level) {
 
 // ── レイアウト計算（x,y,r を絶対座標で設定） ──────────────────────────────────
 
+// B: あるクラスタのサブツリーで、直下にリソースを最も多く持つクラスタの子数を返す。
+// クラスタ半径を「最大密集クラスタに合わせて」全体スケールアップするための計算。
+function maxResourceChildCount(node) {
+  if (!node.subNodes || node.subNodes.length === 0) return 0;
+  if (node.subNodes[0].type === 'resource') return node.subNodes.length;
+  return Math.max(...node.subNodes.map(maxResourceChildCount));
+}
+
 function layoutTopLevel(clusters) {
   if (clusters.length === 0) return;
 
+  // B: 最も子リソースが集中しているクラスタに合わせてレイアウト全体をスケールする。
+  // 3個を「ふつう」の基準にし、それを超えると sqrt でスケールアップ。
+  // トップレベルから比率で縮小する階層構造なので、根を広げることで末端まで伝播する。
+  const maxLeaves = Math.max(...clusters.map(maxResourceChildCount), 3);
+  const leafScale = Math.sqrt(maxLeaves / 3);
+  layoutScale = leafScale;
+
   const maxFreq = Math.max(...clusters.map(c => c.totalFreq), 1);
-  const maxR = Math.min(W, H) * 0.22;
-  const minR = 60;
+  const maxR = Math.min(W, H) * 0.22 * leafScale;
+  const minR = 60 * leafScale;
+  const orbitR = Math.min(W, H) * 0.3 * leafScale;
 
   clusters.forEach((c, i) => {
     c.r = minR + (maxR - minR) * Math.sqrt(c.totalFreq / maxFreq);
     const angle = (i / clusters.length) * 2 * Math.PI - Math.PI / 2;
-    c.x = W / 2 + Math.cos(angle) * Math.min(W, H) * 0.3;
-    c.y = H / 2 + Math.sin(angle) * Math.min(W, H) * 0.3;
+    c.x = W / 2 + Math.cos(angle) * orbitR;
+    c.y = H / 2 + Math.sin(angle) * orbitR;
   });
 
   runForce(clusters, W / 2, H / 2, null);
@@ -348,19 +379,18 @@ function layoutResourceNodes(nodes, parentX, parentY, parentR) {
   nodes.forEach((n, i) => {
     const baseR = Math.max(4, Math.min(10, (n.resource.freq || 1) * 0.7 + 2.5));
     n._baseR = baseR;
-    if (n.children.length > 0) {
-      // 子を内包するための拡張半径: baseR + 子の軌道半径 + 子のサイズ + 余白
-      const childOrbit = baseR + 6;
-      const childR = 3;
-      n.r = childOrbit + childR + 4;
-    } else {
-      n.r = baseR;
-    }
+    // satellite ドットは円の外に配置するためコリジョン半径は baseR のまま。
+    // （以前は円内に子を収めるため膨らませていたが、その設計を廃止した）
+    n.r = baseR;
     const angle = i * goldenAngle;
     const dist = Math.min(0.28 * spread * Math.sqrt(i + 1), spread - n.r);
     n.x = parentX + Math.cos(angle) * Math.max(0, dist);
     n.y = parentY + Math.sin(angle) * Math.max(0, dist);
   });
+
+  // A: golden-angle による初期配置の後に collision で重なりを解消する。
+  // 初期配置だけでは多数ノードが外縁に密集してクリックできないため。
+  runForce(nodes, parentX, parentY, parentR);
 }
 
 // ── LOD しきい値 ──────────────────────────────────────────────────────────────
@@ -372,8 +402,11 @@ function layoutResourceNodes(nodes, parentX, parentY, parentR) {
 
 function clusterThreshold(depth) {
   // depth 0 → 0, depth 1 → 1.8, depth 2 → 4.5, depth 3 → 7.5 ...
+  // layoutScale 倍に広がった layout では同じ detail が layoutScale 倍少ないズームで見えるため、
+  // しきい値を layoutScale で割って正規化する。
   const steps = [0, 1.8, 4.5, 7.5];
-  return steps[depth] ?? steps[steps.length - 1];
+  const raw = steps[depth] ?? steps[steps.length - 1];
+  return raw / layoutScale;
 }
 
 // mini-node は「最深クラスタの1段先」に相当するしきい値
@@ -562,18 +595,19 @@ function drawResourceNode(parentG, node, rx, ry) {
     .attr('stroke', '#0d1117')
     .attr('stroke-width', 1);
 
-  // 名前ラベル: 円の内側中央に表示
-  const labelFs = Math.max(5, Math.min(9, node.r * 0.45));
-  const maxChars = Math.max(3, Math.floor(node.r * 1.6 / (labelFs * 0.55)));
+  // 名前ラベル: 円の中央に表示。ズームインすると円が大きくなり読めるようになる。
+  const labelFs = 5;
   const rLabel = resourceLabel(r);
+  const maxChars = 12;
   const labelText = rLabel.length > maxChars ? rLabel.slice(0, maxChars - 1) + '…' : rLabel;
   nodeG.append('text')
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'middle')
     .attr('data-fs', labelFs)
+    .attr('data-max-fs', 11)
     .attr('font-size', labelFs / currentScale)
-    .attr('font-family', 'monospace')
+    .attr('font-family', 'system-ui, sans-serif')
     .attr('fill', '#e6edf3')
     .attr('pointer-events', 'none')
     .style('opacity', 0)
@@ -585,49 +619,6 @@ function drawResourceNode(parentG, node, rx, ry) {
     if (cb) cb(resourceId);
   });
 
-  // 子ノード: 親円の内側に配置
-  const childOrbit = baseR + 6;  // 内部軌道半径（baseR のすぐ外、container の内側）
-  node.children.forEach((child, ci) => {
-    const childId = child.id;
-    const childAngle = (ci / Math.max(node.children.length, 1)) * 2 * Math.PI;
-    const childR = Math.max(2, Math.min(4, (child.freq || 1) * 0.3 + 2));
-
-    const childG = nodeG.append('g')
-      .attr('class', 'child-node')
-      .attr('data-id', childId)
-      .attr('transform', `translate(${Math.cos(childAngle) * childOrbit},${Math.sin(childAngle) * childOrbit})`)
-      .style('opacity', 0)
-      .style('cursor', 'pointer');
-
-    childG.append('circle')
-      .attr('class', 'child-node-circle')
-      .attr('r', childR)
-      .attr('fill', color)
-      .attr('fill-opacity', filteredIds.has(child.id) ? 0.9 : 0.15)
-      .attr('stroke', color)
-      .attr('stroke-width', 0.8)
-      .attr('stroke-opacity', 0.7);
-
-    // 子ノードのラベルも内側中央に
-    const childFs = Math.max(4, childR * 0.9);
-    childG.append('text')
-      .attr('class', 'child-label')
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'middle')
-      .attr('data-fs', childFs)
-      .attr('font-size', childFs / currentScale)
-      .attr('font-family', 'monospace')
-      .attr('fill', '#e6edf3')
-      .attr('pointer-events', 'none')
-      .style('opacity', 0)
-      .text(child.name.length > 6 ? child.name.slice(0, 5) + '…' : child.name);
-
-    childG.on('click', (event) => {
-      event.stopPropagation();
-      const cb = window.__cumuloCallbacks.onResourceSelect;
-      if (cb) cb(childId);
-    });
-  });
 }
 
 // ── フィルター透明度更新 ──────────────────────────────────────────────────────

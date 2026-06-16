@@ -6,17 +6,8 @@ mod storage;
 use components::app::App;
 use leptos::*;
 use leptos_router::*;
+use platform::Platform;
 use wasm_bindgen::prelude::*;
-
-// trunk build --public-url /cumulo/ sets TRUNK_PUBLIC_URL at compile time.
-// Strip the trailing slash so it becomes a valid router base (e.g. "/cumulo").
-// Returns "" when running locally (trunk serve uses "/"), which Router treats as no base.
-fn router_base() -> &'static str {
-    match option_env!("TRUNK_PUBLIC_URL") {
-        Some(url) if url != "/" && !url.is_empty() => url.trim_end_matches('/'),
-        _ => "",
-    }
-}
 
 #[wasm_bindgen(start)]
 pub fn main() {
@@ -25,7 +16,7 @@ pub fn main() {
 
     mount_to_body(|| {
         view! {
-            <Router base=router_base()>
+            <Router base=Platform::router_base()>
                 <App />
             </Router>
         }

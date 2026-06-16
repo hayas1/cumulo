@@ -27,7 +27,11 @@ jobs:
       - name: Install trunk
         run: cargo install trunk
       - name: Build
+        # --public-url は trunk のアセット書き換え用。CUMULO_BASE_PATH は同じ prefix を
+        # cargo ビルドへ渡し leptos_router の base に使う（trunk は public-url を cargo へ渡さない）。
         run: cd cumulo-web && trunk build --release --public-url /cumulo/
+        env:
+          CUMULO_BASE_PATH: /cumulo
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
