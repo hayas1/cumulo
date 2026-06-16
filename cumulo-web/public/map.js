@@ -193,7 +193,9 @@ function applyTextScale(k) {
   g.selectAll('text').each(function () {
     const t = d3.select(this);
     const base = +t.attr('data-fs') || 10;
-    const screen = Math.max(LABEL_MIN, Math.min(LABEL_MAX, base * k));
+    // data-max-fs を指定した要素（ノードラベル等）は個別に上限を設定できる
+    const maxFs = +t.attr('data-max-fs') || LABEL_MAX;
+    const screen = Math.max(LABEL_MIN, Math.min(maxFs, base * k));
     t.attr('font-size', screen / k);
   });
 }
@@ -593,16 +595,17 @@ function drawResourceNode(parentG, node, rx, ry) {
     .attr('stroke', '#0d1117')
     .attr('stroke-width', 1);
 
-  // 名前ラベル: 円の下に表示（円内に収めようとすると数文字で途切れるため）
-  const labelFs = 8;
+  // 名前ラベル: 円のすぐ下に小さなキャプションとして表示
+  const labelFs = 5;
   const rLabel = resourceLabel(r);
-  const maxChars = 22;
+  const maxChars = 16;
   const labelText = rLabel.length > maxChars ? rLabel.slice(0, maxChars - 1) + '…' : rLabel;
   nodeG.append('text')
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle')
-    .attr('dy', baseR + (node.children.length > 0 ? 16 : 10))
+    .attr('dy', baseR + 3)
     .attr('data-fs', labelFs)
+    .attr('data-max-fs', 11)
     .attr('font-size', labelFs / currentScale)
     .attr('font-family', 'system-ui, sans-serif')
     .attr('fill', '#e6edf3')
