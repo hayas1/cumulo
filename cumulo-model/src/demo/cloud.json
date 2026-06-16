@@ -4,20 +4,92 @@
   "store": {
     "catalog": [
       {
-        "id": "bq-prod",
-        "label": "auth / BigQuery (prod)",
+        "id": "bq-auth-users-prod",
+        "label": "auth / BigQuery — users (prod)",
         "freq": 12,
         "categories": ["bigquery", "auth", "prod"],
-        "console_url": "https://console.cloud.google.com/bigquery?project=auth-prod",
+        "console_url": "https://console.cloud.google.com/bigquery?project=auth-prod&ws=!1m4!1m3!3m2!1sauth-prod!2susers",
         "created_at": "2026-01-01T00:00:00Z"
       },
       {
-        "id": "bq-stg",
-        "label": "auth / BigQuery (stg)",
-        "freq": 4,
+        "id": "bq-auth-users-stg",
+        "label": "auth / BigQuery — users (stg)",
+        "freq": 5,
         "categories": ["bigquery", "auth", "stg"],
-        "console_url": "https://console.cloud.google.com/bigquery?project=auth-stg",
+        "console_url": "https://console.cloud.google.com/bigquery?project=auth-stg&ws=!1m4!1m3!3m2!1sauth-stg!2susers",
         "created_at": "2026-01-01T00:00:00Z"
+      },
+      {
+        "id": "bq-auth-audit-prod",
+        "label": "auth / BigQuery — audit_logs (prod)",
+        "freq": 8,
+        "categories": ["bigquery", "auth", "prod"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=auth-prod&ws=!1m4!1m3!3m2!1sauth-prod!2saudit_logs",
+        "created_at": "2026-01-15T00:00:00Z"
+      },
+      {
+        "id": "bq-auth-audit-stg",
+        "label": "auth / BigQuery — audit_logs (stg)",
+        "freq": 3,
+        "categories": ["bigquery", "auth", "stg"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=auth-stg&ws=!1m4!1m3!3m2!1sauth-stg!2saudit_logs",
+        "created_at": "2026-01-15T00:00:00Z"
+      },
+      {
+        "id": "bq-payment-txn-prod",
+        "label": "payment / BigQuery — transactions (prod)",
+        "freq": 14,
+        "categories": ["bigquery", "payment", "prod"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=payment-prod&ws=!1m4!1m3!3m2!1spayment-prod!2stransactions",
+        "created_at": "2026-01-01T00:00:00Z"
+      },
+      {
+        "id": "bq-payment-txn-stg",
+        "label": "payment / BigQuery — transactions (stg)",
+        "freq": 6,
+        "categories": ["bigquery", "payment", "stg"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=payment-stg&ws=!1m4!1m3!3m2!1spayment-stg!2stransactions",
+        "created_at": "2026-01-01T00:00:00Z"
+      },
+      {
+        "id": "bq-payment-settlements-prod",
+        "label": "payment / BigQuery — settlements (prod)",
+        "freq": 9,
+        "categories": ["bigquery", "payment", "prod"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=payment-prod&ws=!1m4!1m3!3m2!1spayment-prod!2ssettlements",
+        "created_at": "2026-02-01T00:00:00Z"
+      },
+      {
+        "id": "bq-payment-settlements-stg",
+        "label": "payment / BigQuery — settlements (stg)",
+        "freq": 4,
+        "categories": ["bigquery", "payment", "stg"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=payment-stg&ws=!1m4!1m3!3m2!1spayment-stg!2ssettlements",
+        "created_at": "2026-02-01T00:00:00Z"
+      },
+      {
+        "id": "bq-infra-cost-prod",
+        "label": "infra / BigQuery — cost_metrics (prod)",
+        "freq": 7,
+        "categories": ["bigquery", "infra", "prod"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=infra-prod&ws=!1m4!1m3!3m2!1sinfra-prod!2scost_metrics",
+        "created_at": "2026-02-15T00:00:00Z"
+      },
+      {
+        "id": "bq-infra-cost-stg",
+        "label": "infra / BigQuery — cost_metrics (stg)",
+        "freq": 2,
+        "categories": ["bigquery", "infra", "stg"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=infra-stg&ws=!1m4!1m3!3m2!1sinfra-stg!2scost_metrics",
+        "created_at": "2026-02-15T00:00:00Z"
+      },
+      {
+        "id": "bq-infra-access-prod",
+        "label": "infra / BigQuery — access_logs (prod)",
+        "freq": 10,
+        "categories": ["bigquery", "infra", "prod"],
+        "console_url": "https://console.cloud.google.com/bigquery?project=infra-prod&ws=!1m4!1m3!3m2!1sinfra-prod!2saccess_logs",
+        "created_at": "2026-03-01T00:00:00Z"
       },
       {
         "id": "bt-prod",
@@ -95,7 +167,7 @@
         "id": "dd-apm-tracing",
         "label": "auth / Datadog APM — Tracing",
         "freq": 9,
-        "categories": ["apm", "auth", "shared"],
+        "categories": ["apm", "auth"],
         "console_url": "https://app.datadoghq.com/apm/traces",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -103,7 +175,7 @@
         "id": "dd-apm-services",
         "label": "payment / Datadog APM — Service Page",
         "freq": 8,
-        "categories": ["apm", "payment", "shared"],
+        "categories": ["apm", "payment"],
         "console_url": "https://app.datadoghq.com/apm/services",
         "created_at": "2026-01-01T00:00:00Z"
       },
@@ -144,8 +216,7 @@
       { "id": "env",              "label": "環境",              "color": "#8899AA" },
       { "id": "prod",             "label": "prod",             "color": "#E24B4A", "parent": "env" },
       { "id": "stg",              "label": "stg",              "color": "#BA7517", "parent": "env" },
-      { "id": "dev",              "label": "dev",              "color": "#378ADD", "parent": "env" },
-      { "id": "shared",           "label": "shared",           "color": "#64748B", "parent": "env" }
+      { "id": "dev",              "label": "dev",              "color": "#378ADD", "parent": "env" }
     ]
   }
 }
