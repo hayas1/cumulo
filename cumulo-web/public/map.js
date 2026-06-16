@@ -216,9 +216,21 @@ function zoomToNode(absX, absY, r) {
 // resetFilter=true のとき、ズームアウト（全体表示）に合わせて
 // 現在のズーム軸の絞り込みを解除する。ズーム軸切替では false で呼ぶ。
 function zoomToFit(resetFilter) {
-  if (!svg) return;
-  svg.transition().duration(600).ease(d3.easeCubicInOut)
-    .call(zoom.transform, d3.zoomIdentity);
+  if (!svg || !g) return;
+  // layout が可変サイズになったため、getBBox でコンテンツ実寸に合わせる。
+  // identity リセットだと拡張 layout が画面に収まらない。
+  const bbox = g.node().getBBox();
+  if (bbox.width > 0 && bbox.height > 0) {
+    const pad = 40;
+    const k = Math.min((W - pad * 2) / bbox.width, (H - pad * 2) / bbox.height);
+    const tx = W / 2 - k * (bbox.x + bbox.width / 2);
+    const ty = H / 2 - k * (bbox.y + bbox.height / 2);
+    svg.transition().duration(600).ease(d3.easeCubicInOut)
+      .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k));
+  } else {
+    svg.transition().duration(600).ease(d3.easeCubicInOut)
+      .call(zoom.transform, d3.zoomIdentity);
+  }
   const cb = window.__cumuloCallbacks.onZoomLevelChange;
   if (cb) cb(0);
   if (resetFilter) {
@@ -273,18 +285,33 @@ function buildLevel(items, level) {
 
 // ── レイアウト計算（x,y,r を絶対座標で設定） ──────────────────────────────────
 
+// B: あるクラスタのサブツリーで、直下にリソースを最も多く持つクラスタの子数を返す。
+// クラスタ半径を「最大密集クラスタに合わせて」全体スケールアップするための計算。
+function maxResourceChildCount(node) {
+  if (!node.subNodes || node.subNodes.length === 0) return 0;
+  if (node.subNodes[0].type === 'resource') return node.subNodes.length;
+  return Math.max(...node.subNodes.map(maxResourceChildCount));
+}
+
 function layoutTopLevel(clusters) {
   if (clusters.length === 0) return;
 
+  // B: 最も子リソースが集中しているクラスタに合わせてレイアウト全体をスケールする。
+  // 3個を「ふつう」の基準にし、それを超えると sqrt でスケールアップ。
+  // トップレベルから比率で縮小する階層構造なので、根を広げることで末端まで伝播する。
+  const maxLeaves = Math.max(...clusters.map(maxResourceChildCount), 3);
+  const leafScale = Math.sqrt(maxLeaves / 3);
+
   const maxFreq = Math.max(...clusters.map(c => c.totalFreq), 1);
-  const maxR = Math.min(W, H) * 0.22;
-  const minR = 60;
+  const maxR = Math.min(W, H) * 0.22 * leafScale;
+  const minR = 60 * leafScale;
+  const orbitR = Math.min(W, H) * 0.3 * leafScale;
 
   clusters.forEach((c, i) => {
     c.r = minR + (maxR - minR) * Math.sqrt(c.totalFreq / maxFreq);
     const angle = (i / clusters.length) * 2 * Math.PI - Math.PI / 2;
-    c.x = W / 2 + Math.cos(angle) * Math.min(W, H) * 0.3;
-    c.y = H / 2 + Math.sin(angle) * Math.min(W, H) * 0.3;
+    c.x = W / 2 + Math.cos(angle) * orbitR;
+    c.y = H / 2 + Math.sin(angle) * orbitR;
   });
 
   runForce(clusters, W / 2, H / 2, null);
@@ -361,6 +388,10 @@ function layoutResourceNodes(nodes, parentX, parentY, parentR) {
     n.x = parentX + Math.cos(angle) * Math.max(0, dist);
     n.y = parentY + Math.sin(angle) * Math.max(0, dist);
   });
+
+  // A: golden-angle による初期配置の後に collision で重なりを解消する。
+  // 初期配置だけでは多数ノードが外縁に密集してクリックできないため。
+  runForce(nodes, parentX, parentY, parentR);
 }
 
 // ── LOD しきい値 ──────────────────────────────────────────────────────────────
