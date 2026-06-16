@@ -595,15 +595,15 @@ function drawResourceNode(parentG, node, rx, ry) {
     .attr('stroke', '#0d1117')
     .attr('stroke-width', 1);
 
-  // 名前ラベル: 円のすぐ下に小さなキャプションとして表示
+  // 名前ラベル: 円の中央に表示。ズームインすると円が大きくなり読めるようになる。
   const labelFs = 5;
   const rLabel = resourceLabel(r);
-  const maxChars = 16;
+  const maxChars = 12;
   const labelText = rLabel.length > maxChars ? rLabel.slice(0, maxChars - 1) + '…' : rLabel;
   nodeG.append('text')
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle')
-    .attr('dy', baseR + 3)
+    .attr('dominant-baseline', 'middle')
     .attr('data-fs', labelFs)
     .attr('data-max-fs', 11)
     .attr('font-size', labelFs / currentScale)
