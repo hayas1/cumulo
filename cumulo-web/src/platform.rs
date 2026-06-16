@@ -61,6 +61,24 @@ impl Platform {
         PALETTE[idx.min(PALETTE.len() - 1)].to_string()
     }
 
+    /// leptos_router の `base` に渡す path prefix を返す。
+    /// 値はビルド時の env `CUMULO_BASE_PATH` から取る。
+    /// trunk は `--public-url` を cargo ビルドへ渡さず、また自身の `TRUNK_*` env は
+    /// cargo 子プロセスへ素通ししないため、router base 用には独立した env を使う。
+    pub fn router_base() -> &'static str {
+        Self::normalize_base(option_env!("CUMULO_BASE_PATH"))
+    }
+
+    /// public_url を router base にできる形へ整える。
+    /// 末尾スラッシュは router base として不正なので除く。
+    /// ローカル（trunk serve, public_url 未指定 or "/"）では "" を返し、Router は base なしとして扱う。
+    fn normalize_base(public_url: Option<&str>) -> &str {
+        match public_url {
+            Some(url) if url != "/" && !url.is_empty() => url.trim_end_matches('/'),
+            _ => "",
+        }
+    }
+
     pub fn now_iso() -> String {
         js_sys::Date::new_0()
             .to_iso_string()
@@ -91,5 +109,28 @@ impl Platform {
         a.click();
         body.remove_child(&a).unwrap();
         Url::revoke_object_url(&url).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Platform;
+
+    #[test]
+    fn 末尾スラッシュを除いた_path_prefix_を返す() {
+        assert_eq!(Platform::normalize_base(Some("/cumulo/")), "/cumulo");
+    }
+
+    #[test]
+    fn スラッシュなしはそのまま返す() {
+        assert_eq!(Platform::normalize_base(Some("/cumulo")), "/cumulo");
+    }
+
+    #[test]
+    fn ローカルの_未指定_空_ルートは_base_なし() {
+        // trunk serve はアセットを "/" 配信するので base は付けない
+        assert_eq!(Platform::normalize_base(None), "");
+        assert_eq!(Platform::normalize_base(Some("")), "");
+        assert_eq!(Platform::normalize_base(Some("/")), "");
     }
 }
