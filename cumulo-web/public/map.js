@@ -386,14 +386,9 @@ function layoutResourceNodes(nodes, parentX, parentY, parentR) {
   nodes.forEach((n, i) => {
     const baseR = Math.max(4, Math.min(10, (n.resource.freq || 1) * 0.7 + 2.5));
     n._baseR = baseR;
-    if (n.children.length > 0) {
-      // 子を内包するための拡張半径: baseR + 子の軌道半径 + 子のサイズ + 余白
-      const childOrbit = baseR + 6;
-      const childR = 3;
-      n.r = childOrbit + childR + 4;
-    } else {
-      n.r = baseR;
-    }
+    // satellite ドットは円の外に配置するためコリジョン半径は baseR のまま。
+    // （以前は円内に子を収めるため膨らませていたが、その設計を廃止した）
+    n.r = baseR;
     const angle = i * goldenAngle;
     const dist = Math.min(0.28 * spread * Math.sqrt(i + 1), spread - n.r);
     n.x = parentX + Math.cos(angle) * Math.max(0, dist);
@@ -615,7 +610,7 @@ function drawResourceNode(parentG, node, rx, ry) {
   nodeG.append('text')
     .attr('class', 'node-label')
     .attr('text-anchor', 'middle')
-    .attr('dy', node.r + 10)
+    .attr('dy', baseR + (node.children.length > 0 ? 16 : 10))
     .attr('data-fs', labelFs)
     .attr('font-size', labelFs / currentScale)
     .attr('font-family', 'system-ui, sans-serif')
