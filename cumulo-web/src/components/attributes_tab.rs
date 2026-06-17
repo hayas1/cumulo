@@ -4,10 +4,10 @@ use cumulo_model::{Bipartite, Category, Forest};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
-use leptos::*;
+use leptos::prelude::*;
 use leptos_icons::Icon;
 use std::collections::HashSet;
-use std::rc::Rc;
+use std::sync::Arc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
@@ -77,13 +77,13 @@ impl DimTabActions {
 #[derive(Copy, Clone)]
 struct ConfirmState {
     msg: RwSignal<Option<&'static str>>,
-    action: RwSignal<Option<Rc<dyn Fn()>>>,
+    action: RwSignal<Option<Arc<dyn Fn() + Send + Sync>>>,
 }
 
 impl ConfirmState {
-    fn prompt(self, msg: &'static str, action: impl Fn() + 'static) {
+    fn prompt(self, msg: &'static str, action: impl Fn() + Send + Sync + 'static) {
         self.msg.set(Some(msg));
-        self.action.set(Some(Rc::new(action)));
+        self.action.set(Some(Arc::new(action)));
     }
 
     fn close(self) {
@@ -131,25 +131,25 @@ impl UiHelper {
 pub fn AttributesTab(
     bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
 ) -> impl IntoView {
-    let editing_id = create_rw_signal(Option::<CategoryId>::None);
-    let id_ref = create_node_ref::<Input>();
-    let label_ref = create_node_ref::<Input>();
-    let color_ref = create_node_ref::<Input>();
-    let preview_color = create_rw_signal(String::new());
+    let editing_id = RwSignal::new(Option::<CategoryId>::None);
+    let id_ref = NodeRef::<Input>::new();
+    let label_ref = NodeRef::<Input>::new();
+    let color_ref = NodeRef::<Input>::new();
+    let preview_color = RwSignal::new(String::new());
 
-    let collapsed = create_rw_signal(HashSet::<CategoryId>::new());
-    let dragging = create_rw_signal(Option::<CategoryId>::None);
-    let drag_over = create_rw_signal(Option::<(CategoryId, u8)>::None);
+    let collapsed = RwSignal::new(HashSet::<CategoryId>::new());
+    let dragging = RwSignal::new(Option::<CategoryId>::None);
+    let drag_over = RwSignal::new(Option::<(CategoryId, u8)>::None);
 
     let confirm = ConfirmState {
-        msg: create_rw_signal(None),
-        action: create_rw_signal(None),
+        msg: RwSignal::new(None),
+        action: RwSignal::new(None),
     };
     let acts = DimTabActions(bipartite);
 
-    let delete_target = create_rw_signal(Option::<(CategoryId, bool)>::None);
+    let delete_target = RwSignal::new(Option::<(CategoryId, bool)>::None);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let Some(eid) = editing_id.get() else {
             preview_color.set(String::new());
             return;
@@ -272,7 +272,7 @@ pub fn AttributesTab(
                                                 </button>
                                             </div>
                                         }
-                                        .into_view()
+                                        .into_any()
                                     } else {
                                         let rid_click = root_id_header.clone();
                                         view! {
@@ -293,7 +293,7 @@ pub fn AttributesTab(
                                                 <span class="dim-id-text">{root.id.to_string()}</span>
                                             </button>
                                         }
-                                        .into_view()
+                                        .into_any()
                                     }}
 
                                     // Root drop zone: dragging シグナルだけを追跡する独立した reactive closure。
@@ -336,9 +336,9 @@ pub fn AttributesTab(
                                                         "⬚ 直下へ"
                                                     </div>
                                                 }
-                                                .into_view()
+                                                .into_any()
                                             } else {
-                                                view! { <span /> }.into_view()
+                                                view! { <span /> }.into_any()
                                             }
                                         }
                                     }
@@ -360,9 +360,9 @@ pub fn AttributesTab(
                                                 "×"
                                             </button>
                                         }
-                                        .into_view()
+                                        .into_any()
                                     } else {
-                                        view! { <span /> }.into_view()
+                                        view! { <span /> }.into_any()
                                     }}
                                 </div>
 
@@ -370,7 +370,7 @@ pub fn AttributesTab(
                                     {order
                                         .into_iter()
                                         .map(|(node_id, depth, has_children)| {
-                                            let row_ref = create_node_ref::<Div>();
+                                            let row_ref = NodeRef::<Div>::new();
                                             let n = s
                                                 .taxonomy
                                                 .iter()
@@ -408,10 +408,10 @@ pub fn AttributesTab(
                                                         {if is_collapsed { "▶" } else { "▼" }}
                                                     </button>
                                                 }
-                                                .into_view()
+                                                .into_any()
                                             } else {
                                                 view! { <span class="dim-caret-spacer" /> }
-                                                    .into_view()
+                                                    .into_any()
                                             };
 
                                             let v_drag = node_id.clone();
@@ -479,7 +479,7 @@ pub fn AttributesTab(
                                                         </button>
                                                     </div>
                                                 }
-                                                .into_view()
+                                                .into_any()
                                             } else {
                                                 let nid_style = node_id.clone();
                                                 let nid_click = node_id.clone();
@@ -564,7 +564,7 @@ pub fn AttributesTab(
                                                         "×"
                                                     </button>
                                                 }
-                                                .into_view()
+                                                .into_any()
                                             };
 
                                             view! {
@@ -765,7 +765,7 @@ pub fn AttributesTab(
                                             "サブツリーごと"
                                         </button>
                                     }
-                                    .into_view()
+                                    .into_any()
                                 } else {
                                     view! {
                                         <button
@@ -779,7 +779,7 @@ pub fn AttributesTab(
                                             "削除"
                                         </button>
                                     }
-                                    .into_view()
+                                    .into_any()
                                 }}
                             </div>
                         </div>

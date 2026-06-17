@@ -2,7 +2,7 @@ use super::facet_sidebar::FacetSidebar;
 use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Forest, Resource};
 use icondata as icon;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_icons::Icon;
 
 #[component]
@@ -11,7 +11,7 @@ pub fn FacetView(
     selected_tags: RwSignal<Filters>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let filtered_ids = create_memo(move |_| {
+    let filtered_ids = Memo::new(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();
         s.filter_resources(&tags)
@@ -43,7 +43,7 @@ pub fn FacetView(
                                     "マッチするリソースがありません"
                                 </div>
                             }
-                            .into_view();
+                            .into_any();
                         }
 
                         view! {
@@ -131,7 +131,7 @@ pub fn FacetView(
                                     .collect::<Vec<_>>()}
                             </div>
                         }
-                        .into_view()
+                        .into_any()
                     }}
                 </main>
             </div>

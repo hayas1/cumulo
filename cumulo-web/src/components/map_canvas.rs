@@ -1,7 +1,7 @@
 use crate::map_bridge;
 use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute, ResourceId};
 use cumulo_model::Bipartite;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn MapCanvas(
@@ -12,7 +12,7 @@ pub fn MapCanvas(
     zoom_level: RwSignal<u32>,
 ) -> impl IntoView {
     // ── Effect 1: D3初期化（一度だけ。シグナル依存なし）──────────────────────
-    create_effect(move |_| {
+    Effect::new(move |_| {
         map_bridge::init_map("main-svg");
 
         // JS からの id は空文字列になり得るため、空なら無視する
@@ -42,7 +42,7 @@ pub fn MapCanvas(
     });
 
     // ── Effect 2: リソースデータ更新 ─────────────────────────────────────────
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let resources = &bipartite.get().catalog;
         if let Ok(json) = serde_json::to_string(resources) {
             map_bridge::update_entities(&json);
@@ -50,7 +50,7 @@ pub fn MapCanvas(
     });
 
     // ── Effect 3b: ディメンション（カラー定義含む）更新 ──────────────────────
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let dimensions = bipartite.get().taxonomy;
         if let Ok(json) = serde_json::to_string(&dimensions) {
             map_bridge::update_attributes(&json);
@@ -58,7 +58,7 @@ pub fn MapCanvas(
     });
 
     // ── Effect 4: フィルター更新 ──────────────────────────────────────────────
-    create_effect(move |_| {
+    Effect::new(move |_| {
         // map.js は [[axis, value], ...] の配列を期待するため、Filters を組に変換して渡す
         let tags: Vec<(CategoryId, CategoryId)> =
             selected_tags.with(|f| f.iter().map(|(k, v)| (k.clone(), v.clone())).collect());
@@ -68,7 +68,7 @@ pub fn MapCanvas(
     });
 
     // ── Effect 5: ズーム軸（ディメンション）更新 ──────────────────────────────
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let dim = zoom_dim.get();
         let payload = serde_json::json!({ "dim": dim });
         map_bridge::update_zoom_dim(&payload.to_string());

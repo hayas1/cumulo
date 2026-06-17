@@ -1,7 +1,7 @@
 use crate::platform::{CategoryAttribute, Platform, ResourceAttribute, ResourceId};
 use cumulo_model::{Bipartite, Forest, Resource};
 use icondata as icon;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_icons::Icon;
 
 #[component]
@@ -10,7 +10,7 @@ pub fn DetailPanel(
     selected_id: RwSignal<Option<ResourceId>>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let resource = create_memo(move |_| {
+    let resource = Memo::new(move |_| {
         let id = selected_id.get()?;
         let s = bipartite.get();
         s.catalog.iter().find(|r| r.id == id).cloned()

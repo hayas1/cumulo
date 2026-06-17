@@ -5,7 +5,9 @@ use crate::storage::AppStorage;
 use cumulo_model::ExportData;
 use cumulo_model::{Bipartite, Resource};
 use icondata as icon;
-use leptos::*;
+use leptos::html::Input;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_icons::Icon;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
@@ -18,9 +20,9 @@ pub fn SettingsModal(
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
-    let active_tab = create_rw_signal("data".to_string());
-    let file_input_ref = create_node_ref::<html::Input>();
-    let confirm_clear = create_rw_signal(false);
+    let active_tab = RwSignal::new("data".to_string());
+    let file_input_ref = NodeRef::<Input>::new();
+    let confirm_clear = RwSignal::new(false);
 
     let do_export = move || {
         let s = bipartite.get_untracked();
@@ -133,10 +135,10 @@ pub fn SettingsModal(
                             match tab.as_str() {
                                 "dim" => view! {
                                     <AttributesTab bipartite=bipartite />
-                                }.into_view(),
+                                }.into_any(),
                                 "resource" => view! {
                                     <EntitiesTab bipartite=bipartite editing=editing settings_open=open return_to_settings=return_to_settings />
-                                }.into_view(),
+                                }.into_any(),
                                 "data" => view! {
                                     <div class="settings-section">
                                         <h3 class="settings-section-title">"エクスポート"</h3>
@@ -162,8 +164,8 @@ pub fn SettingsModal(
                                             "エクスポートして消去"
                                         </button>
                                     </div>
-                                }.into_view(),
-                                _ => view! { <div /> }.into_view(),
+                                }.into_any(),
+                                _ => view! { <div /> }.into_any(),
                             }
                         }}
                     </div>

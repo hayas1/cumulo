@@ -1,7 +1,7 @@
 use crate::map_bridge;
 use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Resource};
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Controls(
@@ -10,13 +10,13 @@ pub fn Controls(
     zoom_level: ReadSignal<u32>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let entity_count = create_memo(move |_| {
+    let entity_count = Memo::new(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();
         s.filter_resources(&tags).len()
     });
 
-    let total_count = create_memo(move |_| bipartite.get().catalog.len());
+    let total_count = Memo::new(move |_| bipartite.get().catalog.len());
 
     view! {
         <div class="controls-bar">
