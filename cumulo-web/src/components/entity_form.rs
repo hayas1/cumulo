@@ -3,7 +3,7 @@ use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Forest, Resource, Taxonomy};
 
 use leptos::html::Input;
-use leptos::*;
+use leptos::prelude::*;
 use std::collections::HashMap;
 
 enum DimTreeItem {
@@ -92,16 +92,16 @@ pub fn EntityForm(
     bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let form_label = create_rw_signal(String::new());
-    let form_url = create_rw_signal(String::new());
-    let form_freq = create_rw_signal(1u32);
-    let form_dims = create_rw_signal(HashMap::<CategoryId, CategoryId>::new());
+    let form_label = RwSignal::new(String::new());
+    let form_url = RwSignal::new(String::new());
+    let form_freq = RwSignal::new(1u32);
+    let form_dims = RwSignal::new(HashMap::<CategoryId, CategoryId>::new());
 
-    let label_ref = create_node_ref::<Input>();
-    let url_ref = create_node_ref::<Input>();
-    let freq_ref = create_node_ref::<Input>();
+    let label_ref = NodeRef::<Input>::new();
+    let url_ref = NodeRef::<Input>::new();
+    let freq_ref = NodeRef::<Input>::new();
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let Some(r) = editing.get() else { return };
 
         form_label.set(r.label.clone().unwrap_or_default());
@@ -273,7 +273,7 @@ pub fn EntityForm(
                                                                     {label}
                                                                 </span>
                                                             </div>
-                                                        }.into_view()
+                                                        }.into_any()
                                                     }
                                                     DimTreeItem::Leaves { depth, nodes } => {
                                                         let row_style = format!(
@@ -317,7 +317,7 @@ pub fn EntityForm(
                                                                     }
                                                                 }).collect::<Vec<_>>()}
                                                             </div>
-                                                        }.into_view()
+                                                        }.into_any()
                                                     }
                                                 })
                                                 .collect::<Vec<_>>()}

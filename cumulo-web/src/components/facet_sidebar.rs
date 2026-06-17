@@ -1,6 +1,6 @@
 use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute};
 use cumulo_model::{Bipartite, Forest};
-use leptos::*;
+use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
@@ -13,7 +13,7 @@ pub fn FacetSidebar(
     zoom_dim: Option<RwSignal<CategoryId>>,
 ) -> impl IntoView {
     // 折りたたまれているパネルの根id を管理（ノード単位ではなくパネル単位）
-    let collapsed = create_rw_signal(HashSet::<CategoryId>::new());
+    let collapsed = RwSignal::new(HashSet::<CategoryId>::new());
 
     view! {
         <aside class="facet-sidebar">
@@ -97,7 +97,7 @@ pub fn FacetSidebar(
                                         <span class="fv-count">{root_count}</span>
                                     </button>
                                 }
-                                .into_view()
+                                .into_any()
                             }
                             None => {
                                 let rid = root_id.clone();
@@ -119,7 +119,7 @@ pub fn FacetSidebar(
                                         <span class="fv-count">{root_count}</span>
                                     </button>
                                 }
-                                .into_view()
+                                .into_any()
                             }
                         };
 

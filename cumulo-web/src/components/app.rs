@@ -8,22 +8,23 @@ use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Forest, Resource};
 
 use icondata as icon;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_icons::Icon;
-use leptos_router::*;
+use leptos_router::components::{A, Route, Routes};
+use leptos_router::path;
 
 #[component]
 pub fn App() -> impl IntoView {
     let bipartite =
-        create_rw_signal::<Bipartite<ResourceAttribute, CategoryAttribute>>(AppStorage::load());
-    let selected_tags = create_rw_signal(Filters::default());
-    let editing = create_rw_signal(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
-    let settings_open = create_rw_signal(false);
-    let import_toast = create_rw_signal(Option::<String>::None);
-    let return_to_settings = create_rw_signal(false);
+        RwSignal::<Bipartite<ResourceAttribute, CategoryAttribute>>::new(AppStorage::load());
+    let selected_tags = RwSignal::new(Filters::default());
+    let editing = RwSignal::new(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
+    let settings_open = RwSignal::new(false);
+    let import_toast = RwSignal::new(Option::<String>::None);
+    let return_to_settings = RwSignal::new(false);
 
     // When the resource form closes and it was opened from settings, reopen settings.
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if editing.get().is_none() && return_to_settings.get_untracked() {
             return_to_settings.set(false);
             settings_open.set(true);
@@ -33,10 +34,10 @@ pub fn App() -> impl IntoView {
     view! {
         <div class="app">
             <header class="app-header">
-                <A href="/" class="app-logo">"☁ Cumulo"</A>
+                <A href="/" attr:class="app-logo">"☁ Cumulo"</A>
                 <nav class="app-nav">
-                    <A href="/facet" class="nav-link">"ファセット"</A>
-                    <A href="/map" class="nav-link">"マップ"</A>
+                    <A href="/facet" attr:class="nav-link">"ファセット"</A>
+                    <A href="/map" attr:class="nav-link">"マップ"</A>
                 </nav>
                 <button
                     class="header-settings-btn"
@@ -50,14 +51,14 @@ pub fn App() -> impl IntoView {
             <Palette bipartite=bipartite.read_only() selected_tags=selected_tags />
 
             <div class="route-content">
-                <Routes>
-                    <Route path="/" view=move || view! {
+                <Routes fallback=|| view! { <div class="route-404">"ページが見つかりません"</div> }>
+                    <Route path=path!("/") view=move || view! {
                         <FacetView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
                     }/>
-                    <Route path="/facet" view=move || view! {
+                    <Route path=path!("/facet") view=move || view! {
                         <FacetView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
                     }/>
-                    <Route path="/map" view=move || view! {
+                    <Route path=path!("/map") view=move || view! {
                         <MapView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
                     }/>
                 </Routes>
@@ -87,11 +88,11 @@ fn MapView(
     selected_tags: RwSignal<Filters>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let selected_entity_id = create_rw_signal(Option::<ResourceId>::None);
-    let zoom_level = create_rw_signal(0u32);
+    let selected_entity_id = RwSignal::new(Option::<ResourceId>::None);
+    let zoom_level = RwSignal::new(0u32);
     // ズーム軸＝軸（根カテゴリ）。既定は最初の根。セレクタの候補も根なので既定も根に揃える。
     // taxonomy が空の場合は表示対象がないため、使われないダミー id を割り当てる
-    let zoom_dim = create_rw_signal({
+    let zoom_dim = RwSignal::new({
         let s = bipartite.get_untracked();
         s.taxonomy
             .roots()

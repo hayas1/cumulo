@@ -1,17 +1,17 @@
 use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute};
 use cumulo_model::{Bipartite, Forest};
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Palette(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_tags: RwSignal<Filters>,
 ) -> impl IntoView {
-    let input_text = create_rw_signal(String::new());
-    let focused_index = create_rw_signal(Option::<usize>::None);
-    let is_focused = create_rw_signal(false);
+    let input_text = RwSignal::new(String::new());
+    let focused_index = RwSignal::new(Option::<usize>::None);
+    let is_focused = RwSignal::new(false);
 
-    let suggestions = create_memo(move |_| {
+    let suggestions = Memo::new(move |_| {
         let s = bipartite.get();
         let input = input_text.get();
 

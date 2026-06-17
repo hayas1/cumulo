@@ -3,18 +3,18 @@ use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Resource};
 
 use icondata as icon;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_icons::Icon;
-use std::rc::Rc;
+use std::sync::Arc;
 
 fn ask_confirm(
     msg: &'static str,
-    action: impl Fn() + 'static,
+    action: impl Fn() + Send + Sync + 'static,
     confirm_msg: RwSignal<Option<&'static str>>,
-    confirm_action: RwSignal<Option<Rc<dyn Fn()>>>,
+    confirm_action: RwSignal<Option<Arc<dyn Fn() + Send + Sync>>>,
 ) {
     confirm_msg.set(Some(msg));
-    confirm_action.set(Some(Rc::new(action)));
+    confirm_action.set(Some(Arc::new(action)));
 }
 
 #[component]
@@ -24,8 +24,8 @@ pub fn EntitiesTab(
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
-    let confirm_msg = create_rw_signal(Option::<&'static str>::None);
-    let confirm_action: RwSignal<Option<Rc<dyn Fn()>>> = create_rw_signal(None);
+    let confirm_msg = RwSignal::new(Option::<&'static str>::None);
+    let confirm_action: RwSignal<Option<Arc<dyn Fn() + Send + Sync>>> = RwSignal::new(None);
 
     let close_confirm = move || {
         confirm_msg.set(None);
@@ -52,7 +52,7 @@ pub fn EntitiesTab(
                     return view! {
                         <p class="resource-tab-empty">"リソースがありません"</p>
                     }
-                    .into_view();
+                    .into_any();
                 }
 
                 s.catalog
@@ -100,7 +100,7 @@ pub fn EntitiesTab(
                         }
                     })
                     .collect::<Vec<_>>()
-                    .into_view()
+                    .into_any()
             }}
         </div>
 
