@@ -34,7 +34,10 @@ pub fn App() -> impl IntoView {
     view! {
         <div class="app">
             <header class="app-header">
-                <A href=Platform::href("/") attr:class="app-logo">"☁ Cumulo"</A>
+                <A href=Platform::href("/") attr:class="app-logo">
+                    <span class="app-logo-icon" aria-hidden="true" inner_html=include_str!("../../public/favicon.svg") />
+                    "Cumulo"
+                </A>
                 <nav class="app-nav">
                     <A href=Platform::href("/facet") attr:class="nav-link">"ファセット"</A>
                     <A href=Platform::href("/map") attr:class="nav-link">"マップ"</A>
