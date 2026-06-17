@@ -10,7 +10,7 @@ use cumulo_model::{Bipartite, Forest, Resource};
 use icondata as icon;
 use leptos::prelude::*;
 use leptos_icons::Icon;
-use leptos_router::components::{A, Route, Routes};
+use leptos_router::components::{Route, Routes, A};
 use leptos_router::path;
 
 #[component]
