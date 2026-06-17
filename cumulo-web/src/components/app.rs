@@ -34,10 +34,10 @@ pub fn App() -> impl IntoView {
     view! {
         <div class="app">
             <header class="app-header">
-                <A href="/" attr:class="app-logo">"☁ Cumulo"</A>
+                <A href="" attr:class="app-logo">"☁ Cumulo"</A>
                 <nav class="app-nav">
-                    <A href="/facet" attr:class="nav-link">"ファセット"</A>
-                    <A href="/map" attr:class="nav-link">"マップ"</A>
+                    <A href="facet" attr:class="nav-link">"ファセット"</A>
+                    <A href="map" attr:class="nav-link">"マップ"</A>
                 </nav>
                 <button
                     class="header-settings-btn"
