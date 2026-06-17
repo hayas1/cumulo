@@ -69,6 +69,19 @@ impl Platform {
         Self::normalize_base(option_env!("CUMULO_BASE_PATH"))
     }
 
+    /// `<A href>` に渡す絶対パスを返す。`route` は `path!("/facet")` 等のルート定義に対応する。
+    /// leptos_router の `<A>` は絶対パス（先頭 '/'）を base 前置せず素通しし、相対パスは
+    /// 現在ルートからの不安定な解決になるため、base を自前で前置した絶対パスを組む。
+    pub fn href(route: &str) -> String {
+        Self::join_base(Self::router_base(), route)
+    }
+
+    /// base と route を結合する純粋ロジック。
+    /// 不変条件: base は末尾スラッシュなし（normalize_base 保証）、route は先頭スラッシュあり。
+    fn join_base(base: &str, route: &str) -> String {
+        format!("{base}{route}")
+    }
+
     /// public_url を router base にできる形へ整える。
     /// 末尾スラッシュは router base として不正なので除く。
     /// ローカル（trunk serve, public_url 未指定 or "/"）では "" を返し、Router は base なしとして扱う。
@@ -132,5 +145,18 @@ mod tests {
         assert_eq!(Platform::normalize_base(None), "");
         assert_eq!(Platform::normalize_base(Some("")), "");
         assert_eq!(Platform::normalize_base(Some("/")), "");
+    }
+
+    #[test]
+    fn href_は_base_を前置した絶対パスを返す() {
+        // 絶対パスなら現在地に依らず base 配下の同じルートへ解決される
+        assert_eq!(Platform::join_base("/cumulo", "/facet"), "/cumulo/facet");
+        assert_eq!(Platform::join_base("/cumulo", "/"), "/cumulo/");
+    }
+
+    #[test]
+    fn href_は_base_なしでもルートを保つ() {
+        assert_eq!(Platform::join_base("", "/facet"), "/facet");
+        assert_eq!(Platform::join_base("", "/"), "/");
     }
 }
