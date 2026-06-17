@@ -3,7 +3,7 @@ use super::{
     facet_sidebar::FacetSidebar, facet_view::FacetView, map_canvas::MapCanvas, palette::Palette,
     settings_modal::SettingsModal,
 };
-use crate::platform::{CategoryAttribute, Filters, ResourceAttribute, ResourceId};
+use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute, ResourceId};
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Forest, Resource};
 
@@ -34,10 +34,13 @@ pub fn App() -> impl IntoView {
     view! {
         <div class="app">
             <header class="app-header">
-                <A href="" attr:class="app-logo">"☁ Cumulo"</A>
+                <A href=Platform::href("/") attr:class="app-logo">
+                    <span class="app-logo-icon" aria-hidden="true" inner_html=include_str!("../../public/favicon.svg") />
+                    "Cumulo"
+                </A>
                 <nav class="app-nav">
-                    <A href="facet" attr:class="nav-link">"ファセット"</A>
-                    <A href="map" attr:class="nav-link">"マップ"</A>
+                    <A href=Platform::href("/facet") attr:class="nav-link">"ファセット"</A>
+                    <A href=Platform::href("/map") attr:class="nav-link">"マップ"</A>
                 </nav>
                 <button
                     class="header-settings-btn"
