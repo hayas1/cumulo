@@ -28,30 +28,37 @@ function clusterColor(key) {
 // ── パブリックAPI ─────────────────────────────────────────────────────────────
 
 window.cumuloInitMap = function (svgId) {
-  const el = document.getElementById(svgId);
-  if (!el) return;
+  // requestAnimationFrame で DOM レイアウト確定後に初期化する。
+  // Effect が同期的に発火するケースで getBoundingClientRect が 0 を返す問題と、
+  // ルート再マウント時に他の更新 Effect より先に発火して古い SVG 参照を掴む問題を両方回避する。
+  initialized = false;
+  requestAnimationFrame(function () {
+    const el = document.getElementById(svgId);
+    if (!el) return;
 
-  const rect = el.getBoundingClientRect();
-  W = rect.width || 900;
-  H = rect.height || 600;
+    const rect = el.getBoundingClientRect();
+    W = rect.width || 900;
+    H = rect.height || 600;
 
-  svg = d3.select('#' + svgId)
-    .attr('width', W)
-    .attr('height', H);
+    svg = d3.select('#' + svgId)
+      .attr('width', W)
+      .attr('height', H);
 
-  svg.on('click', function (event) {
-    if (event.target === svg.node()) zoomToFit(true);
+    svg.on('click', function (event) {
+      if (event.target === svg.node()) zoomToFit(true);
+    });
+
+    zoom = d3.zoom()
+      .scaleExtent([0.2, 20])
+      .on('zoom', onZoom);
+
+    svg.call(zoom);
+    g = svg.append('g').attr('class', 'zoom-group');
+
+    initialized = true;
+    render();
+    zoomToFit(false);
   });
-
-  zoom = d3.zoom()
-    .scaleExtent([0.2, 20])
-    .on('zoom', onZoom);
-
-  svg.call(zoom);
-  g = svg.append('g').attr('class', 'zoom-group');
-
-  initialized = true;
-  render();
 };
 
 window.cumuloUpdateResources = function (json) {
