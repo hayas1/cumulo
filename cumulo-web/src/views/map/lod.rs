@@ -83,11 +83,11 @@ impl Lod {
         scale >= self.lod_node_label()
     }
 
-    /// テキストのオンスクリーンサイズを読める帯に収め、k で逆補正したフォントサイズを返す。
-    /// `base*k` が本来の画面サイズ。LABEL_MIN〜max_fs にクランプしてから /k する。
-    pub fn text_font_size(base_fs: f64, max_fs: f64, k: f64) -> f64 {
-        let screen = (base_fs * k).clamp(LABEL_MIN, max_fs);
-        screen / k
+    /// テキストのオンスクリーンサイズを読める帯に収め、拡大率で逆補正したフォントサイズを返す。
+    /// `base*scale` が本来の画面サイズ。LABEL_MIN〜max_fs にクランプしてから /scale する。
+    pub fn text_font_size(base_fs: f64, max_fs: f64, scale: f64) -> f64 {
+        let screen = (base_fs * scale).clamp(LABEL_MIN, max_fs);
+        screen / scale
     }
 
     /// ノードラベル等で max_fs 未指定のときの既定上限。

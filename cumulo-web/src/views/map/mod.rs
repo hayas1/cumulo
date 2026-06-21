@@ -4,7 +4,7 @@
 //! - `page`: ルートに割り当てる画面コンポーネント [`MapView`]
 //! - `canvas`: SVG 描画コンポーネント
 //! - `controls`: ズーム/件数バー
-//! - `force` / `layout` / `lod` / `zoom`: 描画のための純粋計算（d3.js の置き換え）
+//! - `force` / `layout` / `lod` / `zoom`: 描画のための純粋計算（力学配置・LOD・ズーム）
 
 pub mod canvas;
 pub mod controls;

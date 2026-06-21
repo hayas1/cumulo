@@ -329,7 +329,7 @@ impl<'a> LayoutEngine<'a> {
             }
         }
 
-        // d3.group と同じく初出順を保ってグルーピングする。
+        // 初出順を保ってグルーピングする（安定なグループ順）。
         let mut groups: Vec<(PathSeg, Vec<Item>)> = Vec::new();
         for it in deeper {
             let key = it.path[level].clone();

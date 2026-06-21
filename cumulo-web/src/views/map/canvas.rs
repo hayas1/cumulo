@@ -1,4 +1,4 @@
-//! マップ可視化コンポーネント。d3.js / map.js を置き換え、レイアウト計算（同 view の layout）の
+//! マップ可視化コンポーネント。レイアウト計算（同 view の layout）の
 //! 結果を Leptos の view! で SVG として宣言的に描画する。ズーム/パンは [`ZoomController`] が担う。
 
 use std::collections::HashSet;
@@ -21,7 +21,7 @@ struct NodeRenderer {
     selected_entity: RwSignal<Option<ResourceId>>,
     selected_tags: RwSignal<Filters>,
     zoom_level: RwSignal<u32>,
-    /// ズーム倍率 k のみを購読する Memo。パン（x,y のみ変化）では k 不変なので
+    /// 拡大率（scale）のみを購読する Memo。パン（x,y のみ変化）では拡大率不変なので
     /// PartialEq でデデュープされ、LOD/フォントの再計算・DOM 書き込みが発生しない。
     scale: Memo<f64>,
     lod: Lod,
@@ -105,8 +105,10 @@ impl NodeRenderer {
         let count_base_fs = if depth == 0 { 11.0 } else { 9.0 };
         let count_dy = label_base_fs / 2.0 + 14.0;
 
-        let label_fs = move || Lod::text_font_size(label_base_fs, Lod::default_max_fs(), scale.get());
-        let count_fs = move || Lod::text_font_size(count_base_fs, Lod::default_max_fs(), scale.get());
+        let label_fs =
+            move || Lod::text_font_size(label_base_fs, Lod::default_max_fs(), scale.get());
+        let count_fs =
+            move || Lod::text_font_size(count_base_fs, Lod::default_max_fs(), scale.get());
         let label_opacity = move || lod.cluster_label_opacity(depth, scale.get());
         // ラベルと件数は同じフェード値を使う
         let count_opacity = label_opacity;
@@ -182,8 +184,13 @@ impl NodeRenderer {
         let filtered = self.filtered;
 
         let id_for_fill = n.id.clone();
-        let circle_opacity =
-            move || if filtered.with(|s| s.contains(&id_for_fill)) { 0.85 } else { 0.1 };
+        let circle_opacity = move || {
+            if filtered.with(|s| s.contains(&id_for_fill)) {
+                0.85
+            } else {
+                0.1
+            }
+        };
 
         let node_visible = move || lod.node_visible(scale.get());
         let node_opacity = move || if node_visible() { "1" } else { "0" };
@@ -257,8 +264,8 @@ pub fn MapCanvas(
     /// 全体表示（フィルタ解除込み）。背景クリックと「全体表示」ボタンで共有する。
     fit_action: Callback<()>,
 ) -> impl IntoView {
-    // ズーム倍率 k のみの派生シグナル。パン中（k 不変）はノードの再描画を起こさない。
-    let scale = Memo::new(move |_| controller.transform.get().k);
+    // 拡大率（scale）のみの派生シグナル。パン中（拡大率不変）はノードの再描画を起こさない。
+    let scale = Memo::new(move |_| controller.transform.get().scale);
 
     // フィルタ一致リソース集合（円の不透明度に使う）
     let filtered = Memo::new(move |_| {
@@ -290,8 +297,16 @@ pub fn MapCanvas(
             if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
                 if let Some(el) = doc.get_element_by_id("main-svg") {
                     let rect = el.get_bounding_client_rect();
-                    let w = if rect.width() > 0.0 { rect.width() } else { 900.0 };
-                    let h = if rect.height() > 0.0 { rect.height() } else { 600.0 };
+                    let w = if rect.width() > 0.0 {
+                        rect.width()
+                    } else {
+                        900.0
+                    };
+                    let h = if rect.height() > 0.0 {
+                        rect.height()
+                    } else {
+                        600.0
+                    };
                     controller.viewport.set((w, h));
                 }
             }

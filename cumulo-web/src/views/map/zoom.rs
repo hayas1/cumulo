@@ -1,20 +1,21 @@
-//! ズーム/パンの状態と操作。d3-zoom の代替。
+//! パン・ズームのビュー変換の状態と操作。
 //!
-//! 画面変換は `translate(x,y) scale(k)` の [`Transform`] で表し、scaleExtent でクランプする。
-//! プログラム的なズーム遷移は requestAnimationFrame で easeCubicInOut 補間する。
+//! 画面変換は `translate(x,y) scale(s)` の [`Transform`] で表し、拡大率を範囲内へクランプする。
+//! プログラム的なズーム遷移は requestAnimationFrame で 3 次イージング補間する。
 
 use leptos::prelude::*;
 
 use super::layout::Bounds;
 
-/// d3.zoom の scaleExtent([0.2, 20]) に対応するズーム下限・上限。
+/// 拡大率の下限・上限（許容スケール範囲）。
 pub const SCALE_MIN: f64 = 0.2;
 pub const SCALE_MAX: f64 = 20.0;
 
 /// SVG の `translate(x,y) scale(k)` に対応する画面変換。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Transform {
-    pub k: f64,
+    /// 拡大率（スケール係数）。world→screen の一様スケール。
+    pub scale: f64,
     pub x: f64,
     pub y: f64,
 }
@@ -27,50 +28,50 @@ impl Default for Transform {
 
 impl Transform {
     pub const IDENTITY: Transform = Transform {
-        k: 1.0,
+        scale: 1.0,
         x: 0.0,
         y: 0.0,
     };
 
     /// `<g>` の transform 属性値。
     pub fn to_svg(self) -> String {
-        format!("translate({},{}) scale({})", self.x, self.y, self.k)
+        format!("translate({},{}) scale({})", self.x, self.y, self.scale)
     }
 
-    fn clamp_scale(k: f64) -> f64 {
-        k.clamp(SCALE_MIN, SCALE_MAX)
+    fn clamp_scale(scale: f64) -> f64 {
+        scale.clamp(SCALE_MIN, SCALE_MAX)
     }
 
-    /// 画面点 (px,py) を固定したまま倍率を k1（クランプ後）へ変更する。
-    pub fn scale_to_about(&self, k1: f64, px: f64, py: f64) -> Transform {
-        let k1 = Self::clamp_scale(k1);
+    /// 画面点 (px,py) を固定したまま拡大率を target（クランプ後）へ変更する。
+    pub fn scale_to_about(&self, target: f64, px: f64, py: f64) -> Transform {
+        let target = Self::clamp_scale(target);
         // モデル座標（変換前）を固定点として保つ
-        let mx = (px - self.x) / self.k;
-        let my = (py - self.y) / self.k;
+        let mx = (px - self.x) / self.scale;
+        let my = (py - self.y) / self.scale;
         Transform {
-            k: k1,
-            x: px - k1 * mx,
-            y: py - k1 * my,
+            scale: target,
+            x: px - target * mx,
+            y: py - target * my,
         }
     }
 
-    /// 画面点 (px,py) を中心に倍率を factor 倍する。
+    /// 画面点 (px,py) を中心に拡大率を factor 倍する。
     pub fn scale_by_about(&self, factor: f64, px: f64, py: f64) -> Transform {
-        self.scale_to_about(self.k * factor, px, py)
+        self.scale_to_about(self.scale * factor, px, py)
     }
 
     /// 画面上の平行移動量 (dx,dy) を加える。
     pub fn translated(&self, dx: f64, dy: f64) -> Transform {
         Transform {
-            k: self.k,
+            scale: self.scale,
             x: self.x + dx,
             y: self.y + dy,
         }
     }
 
-    /// 2 つの変換の間を「視覚的に一様」に補間する（d3.interpolateZoom 相当）。
-    /// 倍率 k は対数（幾何）補間し、ビューポート中心が指すモデル座標を線形に動かす。
-    /// k を線形補間すると拡大の見かけ速度が不均一になりカクついて見えるため。
+    /// 2 つの変換の間を「視覚的に一様」に補間する。
+    /// 拡大率は対数（幾何）補間し、ビューポート中心が指すモデル座標を線形に動かす。
+    /// 拡大率を線形補間すると拡大の見かけ速度が不均一になりカクついて見えるため。
     /// `t` は呼び出し側でイージング済みの 0〜1。端点では from / to を厳密に返す。
     pub fn interpolate_view(from: Transform, to: Transform, t: f64, w: f64, h: f64) -> Transform {
         if t <= 0.0 {
@@ -80,22 +81,22 @@ impl Transform {
             return to;
         }
         // 各変換でビューポート中心が指すモデル座標
-        let cx0 = (w / 2.0 - from.x) / from.k;
-        let cy0 = (h / 2.0 - from.y) / from.k;
-        let cx1 = (w / 2.0 - to.x) / to.k;
-        let cy1 = (h / 2.0 - to.y) / to.k;
-        // 倍率は幾何補間、中心は線形補間
-        let k = from.k * (to.k / from.k).powf(t);
+        let cx0 = (w / 2.0 - from.x) / from.scale;
+        let cy0 = (h / 2.0 - from.y) / from.scale;
+        let cx1 = (w / 2.0 - to.x) / to.scale;
+        let cy1 = (h / 2.0 - to.y) / to.scale;
+        // 拡大率は幾何補間、中心は線形補間
+        let scale = from.scale * (to.scale / from.scale).powf(t);
         let cx = cx0 + (cx1 - cx0) * t;
         let cy = cy0 + (cy1 - cy0) * t;
         Transform {
-            k,
-            x: w / 2.0 - k * cx,
-            y: h / 2.0 - k * cy,
+            scale,
+            x: w / 2.0 - scale * cx,
+            y: h / 2.0 - scale * cy,
         }
     }
 
-    /// d3.easeCubicInOut。
+    /// 3 次の ease-in-out（加減速を滑らかにするイージング）。
     fn ease_cubic_in_out(t: f64) -> f64 {
         let t = t * 2.0;
         if t <= 1.0 {
@@ -111,18 +112,18 @@ impl Transform {
         if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
             return Transform::IDENTITY;
         }
-        let k = Self::clamp_scale(
+        let scale = Self::clamp_scale(
             ((w - pad * 2.0) / bounds.width()).min((h - pad * 2.0) / bounds.height()),
         );
         let (cx, cy) = bounds.center();
         Transform {
-            k,
-            x: w / 2.0 - k * cx,
-            y: h / 2.0 - k * cy,
+            scale,
+            x: w / 2.0 - scale * cx,
+            y: h / 2.0 - scale * cy,
         }
     }
 
-    /// ホイール/ピンチ 1 イベント分のズーム倍率（d3.zoom の wheelDelta 相当）。
+    /// ホイール/ピンチ 1 イベント分の拡大率（倍率）。
     /// deltaMode で単位を切り替え、ピンチ（ctrlKey 付き wheel）は ×10 で増感する。
     /// delta_y が負（上スクロール）で 1 より大きい倍率（ズームイン）になる。
     pub fn wheel_factor(delta_y: f64, delta_mode: u32, ctrl_key: bool) -> f64 {
@@ -138,11 +139,11 @@ impl Transform {
     /// 絶対座標 (ax,ay) を中心に半径 r のクラスタを画面の約 85% に収める変換。
     pub fn focus_node(ax: f64, ay: f64, r: f64, w: f64, h: f64) -> Transform {
         let natural = (w.min(h) * 0.85) / (r * 2.0);
-        let k = Self::clamp_scale(natural);
+        let scale = Self::clamp_scale(natural);
         Transform {
-            k,
-            x: w / 2.0 - k * ax,
-            y: h / 2.0 - k * ay,
+            scale,
+            x: w / 2.0 - scale * ax,
+            y: h / 2.0 - scale * ay,
         }
     }
 }
@@ -212,7 +213,7 @@ impl ZoomController {
 
     /// ホイール/ピンチ 1 イベント分の倍率を画面点 (px,py) 中心で適用する。
     /// 同一フレーム内の連続イベントは倍率を掛け合わせ、rAF で 1 回だけ反映する。
-    /// トラックパッドはフレーム内に複数回発火するため、これで k 変化に伴う
+    /// トラックパッドはフレーム内に複数回発火するため、これで拡大率変化に伴う
     /// ノード再描画をフレームあたり高々 1 回に抑える。
     pub fn zoom_by(&self, factor: f64, px: f64, py: f64) {
         self.wheel_accum.update(|f| *f *= factor);
@@ -335,8 +336,8 @@ mod tests {
         let (px, py) = (300.0, 200.0);
         let z = t.scale_to_about(4.0, px, py);
         // 固定点のモデル座標を両変換で screen に戻すと同じ画面位置になる
-        let screen_x = z.k * ((px - t.x) / t.k) + z.x;
-        let screen_y = z.k * ((py - t.y) / t.k) + z.y;
+        let screen_x = z.scale * ((px - t.x) / t.scale) + z.x;
+        let screen_y = z.scale * ((py - t.y) / t.scale) + z.y;
         assert!((screen_x - px).abs() < 1e-9);
         assert!((screen_y - py).abs() < 1e-9);
     }
@@ -345,8 +346,8 @@ mod tests {
     #[test]
     fn scale_is_clamped_to_extent() {
         let t = Transform::IDENTITY;
-        assert_eq!(t.scale_to_about(1000.0, 0.0, 0.0).k, SCALE_MAX);
-        assert_eq!(t.scale_to_about(0.001, 0.0, 0.0).k, SCALE_MIN);
+        assert_eq!(t.scale_to_about(1000.0, 0.0, 0.0).scale, SCALE_MAX);
+        assert_eq!(t.scale_to_about(0.001, 0.0, 0.0).scale, SCALE_MIN);
     }
 
     // fit は内容中心を viewport 中心に合わせる。
@@ -360,8 +361,8 @@ mod tests {
         };
         let t = Transform::fit(bounds, 400.0, 400.0, 0.0);
         // 中心 (50,50) が viewport 中心 (200,200) に来る
-        assert!((t.k * 50.0 + t.x - 200.0).abs() < 1e-9);
-        assert!((t.k * 50.0 + t.y - 200.0).abs() < 1e-9);
+        assert!((t.scale * 50.0 + t.x - 200.0).abs() < 1e-9);
+        assert!((t.scale * 50.0 + t.y - 200.0).abs() < 1e-9);
     }
 
     // 退化した境界は identity を返す（0 除算回避）。
@@ -420,10 +421,10 @@ mod tests {
         let (ax, ay, r) = (100.0, 50.0, 10.0);
         let t = Transform::focus_node(ax, ay, r, w, h);
         // クリック点が viewport 中心に来る
-        assert!((t.k * ax + t.x - w / 2.0).abs() < 1e-9);
-        assert!((t.k * ay + t.y - h / 2.0).abs() < 1e-9);
+        assert!((t.scale * ax + t.x - w / 2.0).abs() < 1e-9);
+        assert!((t.scale * ay + t.y - h / 2.0).abs() < 1e-9);
         // 倍率は min(w,h)*0.85/(2r)
-        assert!((t.k - (h * 0.85 / (2.0 * r))).abs() < 1e-9);
+        assert!((t.scale - (h * 0.85 / (2.0 * r))).abs() < 1e-9);
     }
 
     // フォーカス倍率も scaleExtent でクランプされる（極小・極大クラスタ）。
@@ -431,12 +432,12 @@ mod tests {
     fn focus_node_scale_is_clamped() {
         // 半径が小さすぎると上限へ
         assert_eq!(
-            Transform::focus_node(0.0, 0.0, 0.01, 400.0, 300.0).k,
+            Transform::focus_node(0.0, 0.0, 0.01, 400.0, 300.0).scale,
             SCALE_MAX
         );
         // 半径が大きすぎると下限へ
         assert_eq!(
-            Transform::focus_node(0.0, 0.0, 100000.0, 400.0, 300.0).k,
+            Transform::focus_node(0.0, 0.0, 100000.0, 400.0, 300.0).scale,
             SCALE_MIN
         );
     }
@@ -455,12 +456,12 @@ mod tests {
     #[test]
     fn interpolate_view_hits_endpoints() {
         let from = Transform {
-            k: 1.0,
+            scale: 1.0,
             x: 0.0,
             y: 0.0,
         };
         let to = Transform {
-            k: 4.0,
+            scale: 4.0,
             x: -300.0,
             y: -300.0,
         };
@@ -476,17 +477,17 @@ mod tests {
     #[test]
     fn interpolate_view_scales_geometrically() {
         let from = Transform {
-            k: 1.0,
+            scale: 1.0,
             x: 0.0,
             y: 0.0,
         };
         let to = Transform {
-            k: 4.0,
+            scale: 4.0,
             x: -300.0,
             y: -300.0,
         };
         let mid = Transform::interpolate_view(from, to, 0.5, 400.0, 400.0);
-        assert!((mid.k - 2.0).abs() < 1e-9); // sqrt(1*4)=2、線形なら 2.5
+        assert!((mid.scale - 2.0).abs() < 1e-9); // sqrt(1*4)=2、線形なら 2.5
     }
 
     // 補間中もビューポート中心が指すモデル座標は from→to の中心を線形に辿る。
@@ -494,18 +495,18 @@ mod tests {
     fn interpolate_view_moves_center_smoothly() {
         let (w, h) = (400.0, 400.0);
         let from = Transform {
-            k: 1.0,
+            scale: 1.0,
             x: 0.0,
             y: 0.0,
         };
         let to = Transform {
-            k: 4.0,
+            scale: 4.0,
             x: -300.0,
             y: -300.0,
         };
         let mid = Transform::interpolate_view(from, to, 0.5, w, h);
         // from の中心モデル=200、to の中心モデル=(200+300)/4=125、その中点=162.5
-        let center_model = (w / 2.0 - mid.x) / mid.k;
+        let center_model = (w / 2.0 - mid.x) / mid.scale;
         assert!((center_model - 162.5).abs() < 1e-9);
     }
 
@@ -513,13 +514,13 @@ mod tests {
     #[test]
     fn pan_translates_by_pointer_delta() {
         let start = Transform {
-            k: 2.0,
+            scale: 2.0,
             x: 10.0,
             y: 20.0,
         };
         let pan = Pan::begin(100.0, 100.0, start);
         let moved = pan.transform_at(130.0, 90.0);
-        assert_eq!(moved.k, 2.0);
+        assert_eq!(moved.scale, 2.0);
         assert_eq!(moved.x, 10.0 + 30.0);
         assert_eq!(moved.y, 20.0 - 10.0);
     }

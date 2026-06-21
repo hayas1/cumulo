@@ -1,6 +1,6 @@
 use crate::category::attributes_tab::AttributesTab;
-use crate::resource::entities_tab::EntitiesTab;
 use crate::platform::{CategoryAttribute, Platform, ResourceAttribute};
+use crate::resource::entities_tab::EntitiesTab;
 use crate::storage::AppStorage;
 use cumulo_model::ExportData;
 use cumulo_model::{Bipartite, Resource};

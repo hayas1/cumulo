@@ -3,7 +3,7 @@
 //! - `page`: ルートに割り当てる画面コンポーネント [`FacetView`]
 //! - `sidebar`: 軸/値の絞り込みサイドバー（マップ view からも再利用する）
 
-pub mod sidebar;
 mod page;
+pub mod sidebar;
 
 pub use page::FacetView;
