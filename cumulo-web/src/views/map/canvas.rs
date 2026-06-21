@@ -21,6 +21,9 @@ struct NodeRenderer {
     selected_entity: RwSignal<Option<ResourceId>>,
     selected_tags: RwSignal<Filters>,
     zoom_level: RwSignal<u32>,
+    /// ズーム倍率 k のみを購読する Memo。パン（x,y のみ変化）では k 不変なので
+    /// PartialEq でデデュープされ、LOD/フォントの再計算・DOM 書き込みが発生しない。
+    scale: Memo<f64>,
     lod: Lod,
 }
 
@@ -43,7 +46,7 @@ impl NodeRenderer {
         let depth = c.depth;
         let radius = c.placement.r;
         let color = c.color.clone();
-        let tr = self.controller.transform;
+        let scale = self.scale;
         let lod = self.lod;
 
         // 配下リソース id（フィルタ濃淡用）
@@ -102,13 +105,13 @@ impl NodeRenderer {
         let count_base_fs = if depth == 0 { 11.0 } else { 9.0 };
         let count_dy = label_base_fs / 2.0 + 14.0;
 
-        let label_fs = move || Lod::text_font_size(label_base_fs, Lod::default_max_fs(), tr.get().k);
-        let count_fs = move || Lod::text_font_size(count_base_fs, Lod::default_max_fs(), tr.get().k);
-        let label_opacity = move || lod.cluster_label_opacity(depth, tr.get().k);
+        let label_fs = move || Lod::text_font_size(label_base_fs, Lod::default_max_fs(), scale.get());
+        let count_fs = move || Lod::text_font_size(count_base_fs, Lod::default_max_fs(), scale.get());
+        let label_opacity = move || lod.cluster_label_opacity(depth, scale.get());
         // ラベルと件数は同じフェード値を使う
         let count_opacity = label_opacity;
 
-        let group_visible = move || lod.cluster_visible(depth, tr.get().k);
+        let group_visible = move || lod.cluster_visible(depth, scale.get());
         let group_opacity = move || if group_visible() { "1" } else { "0" };
         let group_pointer = move || if group_visible() { "auto" } else { "none" };
 
@@ -174,7 +177,7 @@ impl NodeRenderer {
 
         let radius = n.placement.r;
         let color = n.color.clone();
-        let tr = self.controller.transform;
+        let scale = self.scale;
         let lod = self.lod;
         let filtered = self.filtered;
 
@@ -182,13 +185,13 @@ impl NodeRenderer {
         let circle_opacity =
             move || if filtered.with(|s| s.contains(&id_for_fill)) { 0.85 } else { 0.1 };
 
-        let node_visible = move || lod.node_visible(tr.get().k);
+        let node_visible = move || lod.node_visible(scale.get());
         let node_opacity = move || if node_visible() { "1" } else { "0" };
         let node_pointer = move || if node_visible() { "auto" } else { "none" };
 
-        let label_visible = move || lod.node_label_visible(tr.get().k);
+        let label_visible = move || lod.node_label_visible(scale.get());
         let label_opacity = move || if label_visible() { "1" } else { "0" };
-        let label_fs = move || Lod::text_font_size(5.0, 11.0, tr.get().k);
+        let label_fs = move || Lod::text_font_size(5.0, 11.0, scale.get());
 
         // 名前は円中央に表示。長い場合は 12 文字で切り詰める。
         let label_text = {
@@ -254,6 +257,9 @@ pub fn MapCanvas(
     /// 全体表示（フィルタ解除込み）。背景クリックと「全体表示」ボタンで共有する。
     fit_action: Callback<()>,
 ) -> impl IntoView {
+    // ズーム倍率 k のみの派生シグナル。パン中（k 不変）はノードの再描画を起こさない。
+    let scale = Memo::new(move |_| controller.transform.get().k);
+
     // フィルタ一致リソース集合（円の不透明度に使う）
     let filtered = Memo::new(move |_| {
         let b = bipartite.get();
@@ -338,15 +344,11 @@ pub fn MapCanvas(
         pan.set(None);
     };
 
-    // ホイールでカーソル位置を中心にズーム
+    // ホイール/ピンチ。rAF コアレスは ZoomController が担うので、ここは倍率算出と委譲のみ。
     let on_wheel = move |ev: WheelEvent| {
         ev.prevent_default();
         let factor = Transform::wheel_factor(ev.delta_y(), ev.delta_mode(), ev.ctrl_key());
-        let next = controller
-            .transform
-            .get_untracked()
-            .scale_by_about(factor, ev.offset_x() as f64, ev.offset_y() as f64);
-        controller.set_immediate(next);
+        controller.zoom_by(factor, ev.offset_x() as f64, ev.offset_y() as f64);
     };
 
     // 背景クリック（ノードは stopPropagation するのでここには来ない）→ 全体表示
@@ -379,6 +381,7 @@ pub fn MapCanvas(
                             selected_entity,
                             selected_tags,
                             zoom_level,
+                            scale,
                             lod: l.lod,
                         };
                         renderer.nodes(&l.tree, None)

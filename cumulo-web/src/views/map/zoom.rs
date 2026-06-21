@@ -191,6 +191,10 @@ pub struct ZoomController {
     pub content_bounds: RwSignal<Option<Bounds>>,
     /// 進行中アニメーションの世代。新しい遷移が始まると古い rAF ループを止める。
     anim_gen: RwSignal<u64>,
+    /// ホイール/ピンチを rAF で間引くための、未反映の累積倍率・アンカー・予約フラグ。
+    wheel_accum: RwSignal<f64>,
+    wheel_anchor: RwSignal<(f64, f64)>,
+    wheel_pending: RwSignal<bool>,
 }
 
 impl ZoomController {
@@ -200,7 +204,32 @@ impl ZoomController {
             viewport: RwSignal::new((900.0, 600.0)),
             content_bounds: RwSignal::new(None),
             anim_gen: RwSignal::new(0),
+            wheel_accum: RwSignal::new(1.0),
+            wheel_anchor: RwSignal::new((0.0, 0.0)),
+            wheel_pending: RwSignal::new(false),
         }
+    }
+
+    /// ホイール/ピンチ 1 イベント分の倍率を画面点 (px,py) 中心で適用する。
+    /// 同一フレーム内の連続イベントは倍率を掛け合わせ、rAF で 1 回だけ反映する。
+    /// トラックパッドはフレーム内に複数回発火するため、これで k 変化に伴う
+    /// ノード再描画をフレームあたり高々 1 回に抑える。
+    pub fn zoom_by(&self, factor: f64, px: f64, py: f64) {
+        self.wheel_accum.update(|f| *f *= factor);
+        self.wheel_anchor.set((px, py));
+        if self.wheel_pending.get_untracked() {
+            return;
+        }
+        self.wheel_pending.set(true);
+        let this = *self;
+        request_animation_frame(move || {
+            let f = this.wheel_accum.get_untracked();
+            let (px, py) = this.wheel_anchor.get_untracked();
+            this.wheel_accum.set(1.0);
+            this.wheel_pending.set(false);
+            let next = this.transform.get_untracked().scale_by_about(f, px, py);
+            this.set_immediate(next);
+        });
     }
 
     fn viewport_size(&self) -> (f64, f64) {
@@ -218,7 +247,16 @@ impl ZoomController {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn tween_step(self, from: Transform, to: Transform, w: f64, h: f64, dur: f64, gen: u64, start: f64) {
+    fn tween_step(
+        self,
+        from: Transform,
+        to: Transform,
+        w: f64,
+        h: f64,
+        dur: f64,
+        gen: u64,
+        start: f64,
+    ) {
         // 新しい遷移が始まっていたらこのループは破棄する
         if self.anim_gen.get_untracked() != gen {
             return;
@@ -335,7 +373,10 @@ mod tests {
             max_x: 10.0,
             max_y: 10.0,
         };
-        assert_eq!(Transform::fit(bounds, 400.0, 400.0, 40.0), Transform::IDENTITY);
+        assert_eq!(
+            Transform::fit(bounds, 400.0, 400.0, 40.0),
+            Transform::IDENTITY
+        );
     }
 
     // easeCubicInOut は端点と中点で期待値を取る。
@@ -389,7 +430,10 @@ mod tests {
     #[test]
     fn focus_node_scale_is_clamped() {
         // 半径が小さすぎると上限へ
-        assert_eq!(Transform::focus_node(0.0, 0.0, 0.01, 400.0, 300.0).k, SCALE_MAX);
+        assert_eq!(
+            Transform::focus_node(0.0, 0.0, 0.01, 400.0, 300.0).k,
+            SCALE_MAX
+        );
         // 半径が大きすぎると下限へ
         assert_eq!(
             Transform::focus_node(0.0, 0.0, 100000.0, 400.0, 300.0).k,
@@ -410,9 +454,20 @@ mod tests {
     // interpolate_view は端点で from / to を厳密に返す。
     #[test]
     fn interpolate_view_hits_endpoints() {
-        let from = Transform { k: 1.0, x: 0.0, y: 0.0 };
-        let to = Transform { k: 4.0, x: -300.0, y: -300.0 };
-        assert_eq!(Transform::interpolate_view(from, to, 0.0, 400.0, 400.0), from);
+        let from = Transform {
+            k: 1.0,
+            x: 0.0,
+            y: 0.0,
+        };
+        let to = Transform {
+            k: 4.0,
+            x: -300.0,
+            y: -300.0,
+        };
+        assert_eq!(
+            Transform::interpolate_view(from, to, 0.0, 400.0, 400.0),
+            from
+        );
         assert_eq!(Transform::interpolate_view(from, to, 1.0, 400.0, 400.0), to);
     }
 
@@ -420,8 +475,16 @@ mod tests {
     // これがカクつき修正の核心（線形だと 2.5 になってしまう）。
     #[test]
     fn interpolate_view_scales_geometrically() {
-        let from = Transform { k: 1.0, x: 0.0, y: 0.0 };
-        let to = Transform { k: 4.0, x: -300.0, y: -300.0 };
+        let from = Transform {
+            k: 1.0,
+            x: 0.0,
+            y: 0.0,
+        };
+        let to = Transform {
+            k: 4.0,
+            x: -300.0,
+            y: -300.0,
+        };
         let mid = Transform::interpolate_view(from, to, 0.5, 400.0, 400.0);
         assert!((mid.k - 2.0).abs() < 1e-9); // sqrt(1*4)=2、線形なら 2.5
     }
@@ -430,8 +493,16 @@ mod tests {
     #[test]
     fn interpolate_view_moves_center_smoothly() {
         let (w, h) = (400.0, 400.0);
-        let from = Transform { k: 1.0, x: 0.0, y: 0.0 };
-        let to = Transform { k: 4.0, x: -300.0, y: -300.0 };
+        let from = Transform {
+            k: 1.0,
+            x: 0.0,
+            y: 0.0,
+        };
+        let to = Transform {
+            k: 4.0,
+            x: -300.0,
+            y: -300.0,
+        };
         let mid = Transform::interpolate_view(from, to, 0.5, w, h);
         // from の中心モデル=200、to の中心モデル=(200+300)/4=125、その中点=162.5
         let center_model = (w / 2.0 - mid.x) / mid.k;

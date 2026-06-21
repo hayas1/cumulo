@@ -155,7 +155,10 @@ impl Bounds {
         self.max_y - self.min_y
     }
     pub fn center(&self) -> (f64, f64) {
-        ((self.min_x + self.max_x) / 2.0, (self.min_y + self.max_y) / 2.0)
+        (
+            (self.min_x + self.max_x) / 2.0,
+            (self.min_y + self.max_y) / 2.0,
+        )
     }
     fn union(self, other: Bounds) -> Bounds {
         Bounds {
@@ -456,12 +459,7 @@ impl<'a> LayoutEngine<'a> {
     }
 
     /// リソース葉の衛星配置。golden-angle 初期配置のあと衝突解消する。
-    fn layout_resource_nodes(
-        nodes: &mut [MapNode],
-        parent_x: f64,
-        parent_y: f64,
-        parent_r: f64,
-    ) {
+    fn layout_resource_nodes(nodes: &mut [MapNode], parent_x: f64, parent_y: f64, parent_r: f64) {
         let golden = 137.508_f64.to_radians();
         let spread = parent_r * 0.68;
 
@@ -513,7 +511,12 @@ mod tests {
         s.try_into().unwrap()
     }
 
-    fn cat(id: &str, label: &str, parent: Option<&str>, color: &str) -> Category<CategoryAttribute> {
+    fn cat(
+        id: &str,
+        label: &str,
+        parent: Option<&str>,
+        color: &str,
+    ) -> Category<CategoryAttribute> {
         Category {
             id: cid(id),
             label: label.into(),
@@ -559,7 +562,10 @@ mod tests {
         let r = res("r1", &["bigquery"], 1);
         assert_eq!(
             engine.zoom_path(&r),
-            vec![PathSeg::Category(cid("gcp")), PathSeg::Category(cid("bigquery"))]
+            vec![
+                PathSeg::Category(cid("gcp")),
+                PathSeg::Category(cid("bigquery"))
+            ]
         );
     }
 
