@@ -3,6 +3,7 @@ use super::{
     facet_sidebar::FacetSidebar, facet_view::FacetView, map_canvas::MapCanvas, palette::Palette,
     settings_modal::SettingsModal,
 };
+use crate::map::zoom::ZoomController;
 use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute, ResourceId};
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Forest, Resource};
@@ -104,6 +105,18 @@ fn MapView(
             .unwrap_or_else(crate::platform::Platform::new_node_id)
     });
 
+    // ズーム状態は Controls（ボタン）と MapCanvas（描画・操作）で共有する。
+    let controller = ZoomController::new();
+
+    // 全体表示は「ズーム軸の絞り込み解除」と「ズームレベル 0」を伴う。
+    // 「全体表示」ボタンと背景クリックの両方から呼べるよう Callback にまとめる。
+    let fit_action = Callback::new(move |()| {
+        controller.zoom_to_fit();
+        zoom_level.set(0);
+        let zd = zoom_dim.get_untracked();
+        selected_tags.update(|t| t.remove_root(&zd));
+    });
+
     view! {
         <div class="map-view">
             <Controls
@@ -111,6 +124,8 @@ fn MapView(
                 selected_tags=selected_tags
                 zoom_level=zoom_level.read_only()
                 editing=editing
+                controller=controller
+                fit_action=fit_action
             />
             <div class="map-area">
                 <FacetSidebar bipartite=bipartite selected_tags=selected_tags zoom_dim=zoom_dim />
@@ -120,6 +135,8 @@ fn MapView(
                     zoom_dim=zoom_dim
                     selected_entity=selected_entity_id
                     zoom_level=zoom_level
+                    controller=controller
+                    fit_action=fit_action
                 />
                 <DetailPanel bipartite=bipartite selected_id=selected_entity_id editing=editing />
             </div>

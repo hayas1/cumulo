@@ -1,4 +1,4 @@
-use crate::map_bridge;
+use crate::map::zoom::ZoomController;
 use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Resource};
 use leptos::prelude::*;
@@ -9,6 +9,9 @@ pub fn Controls(
     selected_tags: RwSignal<Filters>,
     zoom_level: ReadSignal<u32>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
+    controller: ZoomController,
+    /// 全体表示（フィルタ解除込み）。MapCanvas の背景クリックと共有する。
+    fit_action: Callback<()>,
 ) -> impl IntoView {
     let entity_count = Memo::new(move |_| {
         let s = bipartite.get();
@@ -41,21 +44,21 @@ pub fn Controls(
                     <button
                         class="zoom-btn"
                         title="ズームアウト"
-                        on:click=|_| map_bridge::zoom_out()
+                        on:click=move |_| controller.zoom_out()
                     >
                         "−"
                     </button>
                     <button
                         class="zoom-btn"
                         title="ズームイン"
-                        on:click=|_| map_bridge::zoom_in()
+                        on:click=move |_| controller.zoom_in()
                     >
                         "+"
                     </button>
                     <button
                         class="zoom-btn zoom-fit"
                         title="全体表示"
-                        on:click=|_| map_bridge::zoom_to_fit()
+                        on:click=move |_| fit_action.run(())
                     >
                         "⊡"
                     </button>
