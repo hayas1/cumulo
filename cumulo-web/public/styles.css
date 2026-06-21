@@ -37,7 +37,10 @@ body {
   font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
+  /* iOS Safari は 100vh がツールバーを除いた高さを指し、横画面で可視領域より縦に長くなって
+     上端のヘッダ/Palette が画面外へ押し出される。dvh は実可視領域に追従する（vh はフォールバック）。 */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -47,6 +50,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 .route-content {
