@@ -7,8 +7,15 @@
 const LABEL_MIN: f64 = 9.0;
 const LABEL_MAX: f64 = 24.0;
 
-/// 階層深さに配分するしきい値の基準列（layoutScale で正規化する前の生値）。
+/// 階層深さに配分するしきい値の基準列（layout_scale で正規化する前の生値）。
 const THRESHOLD_STEPS: [f64; 4] = [0.0, 1.8, 4.5, 7.5];
+
+/// リソース名ラベルが見え始める拡大率＝node_threshold の何倍か。
+const NODE_LABEL_THRESHOLD_FACTOR: f64 = 1.3;
+/// クラスタラベルのフェードイン幅の上限（show からの加算）。
+const LABEL_FADE_IN_SPAN: f64 = 0.6;
+/// クラスタラベルのフェードアウト開始位置（hide に対する割合）。
+const LABEL_FADE_OUT_RATIO: f64 = 0.75;
 
 /// レイアウトの広がり（layout_scale）と最大深さ（max_depth）に基づく LOD 計算器。
 #[derive(Clone, Copy, Debug)]
@@ -42,7 +49,7 @@ impl Lod {
 
     /// リソース名ラベルが見え始める拡大率しきい値。
     pub fn node_label_threshold(&self) -> f64 {
-        self.node_threshold() * 1.3
+        self.node_threshold() * NODE_LABEL_THRESHOLD_FACTOR
     }
 
     /// depth のクラスタ本体を表示するか。
@@ -60,8 +67,8 @@ impl Lod {
         if scale < show {
             return 0.0;
         }
-        let fade_in = (show + 0.6).min((show + hide) / 2.0);
-        let fade_out = (hide * 0.75).max(fade_in);
+        let fade_in = (show + LABEL_FADE_IN_SPAN).min((show + hide) / 2.0);
+        let fade_out = (hide * LABEL_FADE_OUT_RATIO).max(fade_in);
         if scale < fade_in {
             return (scale - show) / (fade_in - show);
         }

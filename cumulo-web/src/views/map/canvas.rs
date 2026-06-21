@@ -13,6 +13,34 @@ use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
 use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute, ResourceId};
 
+/// リソース名ラベルの最大表示文字数（超過分は … で切り詰める）。
+const MAX_LABEL_CHARS: usize = 12;
+
+// ── フィルタ一致状態で切り替える不透明度 ───────────────────────────────────────
+/// リソース円: 一致 / 非一致。
+const RESOURCE_OPACITY_MATCH: f64 = 0.85;
+const RESOURCE_OPACITY_DIM: f64 = 0.1;
+/// クラスタ背景の塗り: 一致 / 非一致。
+const CLUSTER_FILL_OPACITY_MATCH: f64 = 0.16;
+const CLUSTER_FILL_OPACITY_DIM: f64 = 0.03;
+/// クラスタ枠の不透明度: 一致 / 非一致。
+const CLUSTER_STROKE_OPACITY_MATCH: f64 = 1.0;
+const CLUSTER_STROKE_OPACITY_DIM: f64 = 0.2;
+
+// ── ラベルの基準フォントサイズ（クラスタ半径から算出、scale 補正前）────────────
+/// クラスタ名: 半径をこの値で割る（トップ / 子）。下限は MIN。
+const CLUSTER_LABEL_FS_DIVISOR_TOP: f64 = 4.0;
+const CLUSTER_LABEL_FS_DIVISOR_SUB: f64 = 3.5;
+const CLUSTER_LABEL_FS_MIN_TOP: f64 = 13.0;
+const CLUSTER_LABEL_FS_MIN_SUB: f64 = 8.0;
+/// クラスタ件数ラベルのフォントサイズ（トップ / 子）と、ラベルからの縦オフセット px。
+const CLUSTER_COUNT_FS_TOP: f64 = 11.0;
+const CLUSTER_COUNT_FS_SUB: f64 = 9.0;
+const CLUSTER_COUNT_DY_OFFSET: f64 = 14.0;
+/// リソース名ラベルのフォントサイズと上限。
+const RESOURCE_LABEL_FS: f64 = 5.0;
+const RESOURCE_LABEL_FS_MAX: f64 = 11.0;
+
 /// レイアウト 1 ノードを描画する際に必要な共有状態。すべてシグナルなので `Copy`。
 #[derive(Clone, Copy)]
 struct NodeRenderer {
@@ -57,12 +85,15 @@ impl NodeRenderer {
         let filtered = self.filtered;
 
         // 背景円の塗り/枠は「配下にフィルタ一致があるか」で濃淡を変える
-        let bg_fill = {
-            let color = color.clone();
+        let bg_fill_opacity = {
             let ids = desc_ids.clone();
             move || {
                 let has = filtered.with(|s| ids.iter().any(|id| s.contains(id)));
-                format!("{}{}", color, if has { "28" } else { "08" })
+                if has {
+                    CLUSTER_FILL_OPACITY_MATCH
+                } else {
+                    CLUSTER_FILL_OPACITY_DIM
+                }
             }
         };
         let bg_stroke_opacity = {
@@ -70,9 +101,9 @@ impl NodeRenderer {
             move || {
                 let has = filtered.with(|s| ids.iter().any(|id| s.contains(id)));
                 if has {
-                    1.0
+                    CLUSTER_STROKE_OPACITY_MATCH
                 } else {
-                    0.2
+                    CLUSTER_STROKE_OPACITY_DIM
                 }
             }
         };
@@ -98,12 +129,16 @@ impl NodeRenderer {
         let label = c.label.clone();
         let leaf_count = c.leaf_count;
         let label_base_fs = if depth == 0 {
-            (radius / 4.0).max(13.0)
+            (radius / CLUSTER_LABEL_FS_DIVISOR_TOP).max(CLUSTER_LABEL_FS_MIN_TOP)
         } else {
-            (radius / 3.5).max(8.0)
+            (radius / CLUSTER_LABEL_FS_DIVISOR_SUB).max(CLUSTER_LABEL_FS_MIN_SUB)
         };
-        let count_base_fs = if depth == 0 { 11.0 } else { 9.0 };
-        let count_dy = label_base_fs / 2.0 + 14.0;
+        let count_base_fs = if depth == 0 {
+            CLUSTER_COUNT_FS_TOP
+        } else {
+            CLUSTER_COUNT_FS_SUB
+        };
+        let count_dy = label_base_fs / 2.0 + CLUSTER_COUNT_DY_OFFSET;
 
         let label_fs =
             move || Lod::text_font_size(label_base_fs, Lod::default_max_fs(), scale.get());
@@ -117,10 +152,6 @@ impl NodeRenderer {
         let group_opacity = move || if group_visible() { "1" } else { "0" };
         let group_pointer = move || if group_visible() { "auto" } else { "none" };
 
-        let stroke_width = if depth == 0 { 2.0 } else { 1.2 };
-        let dash = if depth > 0 { "5,3" } else { "" };
-        let font_weight = if depth == 0 { "700" } else { "600" };
-
         let children = self.nodes(&c.sub_nodes, Some(c.placement));
 
         view! {
@@ -133,22 +164,16 @@ impl NodeRenderer {
                 <circle
                     class="cluster-bg"
                     r=radius
-                    fill=bg_fill
+                    fill=color.clone()
+                    fill-opacity=bg_fill_opacity
                     stroke=color.clone()
-                    stroke-width=stroke_width
-                    stroke-dasharray=dash
                     stroke-opacity=bg_stroke_opacity
-                    style:cursor="pointer"
                     on:click=on_click
                 />
                 <text
                     class="cluster-label"
-                    text-anchor="middle"
                     dy="0.2em"
                     fill=color.clone()
-                    font-weight=font_weight
-                    font-family="system-ui, sans-serif"
-                    pointer-events="none"
                     font-size=label_fs
                     style:opacity=move || label_opacity().to_string()
                 >
@@ -156,12 +181,8 @@ impl NodeRenderer {
                 </text>
                 <text
                     class="cluster-count"
-                    text-anchor="middle"
                     dy=count_dy
                     fill=color
-                    fill-opacity="0.65"
-                    font-family="system-ui, sans-serif"
-                    pointer-events="none"
                     font-size=count_fs
                     style:opacity=move || count_opacity().to_string()
                 >
@@ -186,9 +207,9 @@ impl NodeRenderer {
         let id_for_fill = n.id.clone();
         let circle_opacity = move || {
             if filtered.with(|s| s.contains(&id_for_fill)) {
-                0.85
+                RESOURCE_OPACITY_MATCH
             } else {
-                0.1
+                RESOURCE_OPACITY_DIM
             }
         };
 
@@ -198,13 +219,14 @@ impl NodeRenderer {
 
         let label_visible = move || lod.node_label_visible(scale.get());
         let label_opacity = move || if label_visible() { "1" } else { "0" };
-        let label_fs = move || Lod::text_font_size(5.0, 11.0, scale.get());
+        let label_fs =
+            move || Lod::text_font_size(RESOURCE_LABEL_FS, RESOURCE_LABEL_FS_MAX, scale.get());
 
-        // 名前は円中央に表示。長い場合は 12 文字で切り詰める。
+        // 名前は円中央に表示。長い場合は MAX_LABEL_CHARS で切り詰める。
         let label_text = {
             let full = n.label.clone();
-            if full.chars().count() > 12 {
-                let head: String = full.chars().take(11).collect();
+            if full.chars().count() > MAX_LABEL_CHARS {
+                let head: String = full.chars().take(MAX_LABEL_CHARS - 1).collect();
                 format!("{head}…")
             } else {
                 full
@@ -224,7 +246,6 @@ impl NodeRenderer {
                 transform=transform
                 style:opacity=node_opacity
                 style:pointer-events=node_pointer
-                style:cursor="pointer"
                 on:click=on_click
             >
                 <circle
@@ -232,19 +253,8 @@ impl NodeRenderer {
                     r=radius
                     fill=color
                     fill-opacity=circle_opacity
-                    stroke="#0d1117"
-                    stroke-width="1"
                 />
-                <text
-                    class="node-label"
-                    text-anchor="middle"
-                    dominant-baseline="middle"
-                    font-family="system-ui, sans-serif"
-                    fill="#e6edf3"
-                    pointer-events="none"
-                    font-size=label_fs
-                    style:opacity=label_opacity
-                >
+                <text class="node-label" font-size=label_fs style:opacity=label_opacity>
                     {label_text}
                 </text>
             </g>

@@ -26,23 +26,28 @@ impl Body {
     }
 }
 
-/// シミュレーションが固定で使う係数。
-mod constant {
-    /// 斥力の強さ（負＝反発）。
-    pub const REPULSION: f64 = -30.0;
-    /// 衝突半径に加える余白 px。
-    pub const COLLISION_PADDING: f64 = 5.0;
-    /// 衝突解消の強さ。
-    pub const COLLISION_STRENGTH: f64 = 0.9;
-    /// 中心への引き寄せの強さ。
-    pub const CENTER_STRENGTH: f64 = 0.3;
-    /// 速度減衰係数（毎 tick 乗算）。
-    pub const VELOCITY_DECAY: f64 = 0.4;
-    /// 斥力の最小距離二乗（近接時の発散を防ぐ下限）。
-    pub const DISTANCE_MIN_SQ: f64 = 1.0;
-    /// シミュレーションの反復回数。
-    pub const TICKS: usize = 250;
-}
+// ── シミュレーションが固定で使う係数 ──────────────────────────────────────────
+/// 斥力の強さ（負＝反発）。
+const REPULSION: f64 = -30.0;
+/// 衝突半径に加える余白 px。
+const COLLISION_PADDING: f64 = 5.0;
+/// 衝突解消の強さ。
+const COLLISION_STRENGTH: f64 = 0.9;
+/// 中心への引き寄せの強さ。
+const CENTER_STRENGTH: f64 = 0.3;
+/// 速度減衰係数（毎 tick 乗算）。
+const VELOCITY_DECAY: f64 = 0.4;
+/// 斥力の最小距離二乗（近接時の発散を防ぐ下限）。
+const DISTANCE_MIN_SQ: f64 = 1.0;
+/// シミュレーションの反復回数。
+const TICKS: usize = 250;
+/// 半径境界: 中心からこの比 × bound_r を超えたノードを円内へ戻す。
+const BOUND_RADIUS_RATIO: f64 = 0.82;
+/// alpha の最小値と、そこまで減衰させる目安 tick 数（alpha_decay の算出に使う）。
+const ALPHA_MIN: f64 = 0.001;
+const ALPHA_DECAY_TICKS: f64 = 300.0;
+/// jitter（微小ゆらぎ）の振幅。
+const JITTER_SCALE: f64 = 1e-6;
 
 /// 微小ゆらぎ（jitter）に使う線形合同法乱数。seed=1 から決定論的に進める。
 struct Lcg {
@@ -65,7 +70,7 @@ impl Lcg {
 
     /// 座標が完全一致したときに微小なずれを与える（重なり時の発散回避）。
     fn jitter(&mut self) -> f64 {
-        (self.next_unit() - 0.5) * 1e-6
+        (self.next_unit() - 0.5) * JITTER_SCALE
     }
 }
 
@@ -85,8 +90,8 @@ impl Simulation {
     /// `bodies` は初期位置 (x,y) を設定済みであること。`bound_r` が Some のときだけ
     /// 半径 bound_r*0.82 の円内へ各ノードを押し戻す（半径境界）。
     pub fn new(bodies: Vec<Body>, cx: f64, cy: f64, bound_r: Option<f64>) -> Self {
-        // alphaDecay = 1 - alphaMin^(1/300) = 1 - 0.001^(1/300)
-        let alpha_decay = 1.0 - 0.001_f64.powf(1.0 / 300.0);
+        // alpha_decay = 1 - alpha_min^(1/ticks): tick ごとに alpha を幾何的に減衰させる。
+        let alpha_decay = 1.0 - ALPHA_MIN.powf(1.0 / ALPHA_DECAY_TICKS);
         Simulation {
             bodies,
             cx,
@@ -100,7 +105,7 @@ impl Simulation {
 
     /// 250 tick 走らせ、確定した配置を返す。
     pub fn run(mut self) -> Vec<Body> {
-        for _ in 0..constant::TICKS {
+        for _ in 0..TICKS {
             self.tick();
         }
         self.bodies
@@ -129,8 +134,8 @@ impl Simulation {
             sx += b.x;
             sy += b.y;
         }
-        let shift_x = (sx / n as f64 - self.cx) * constant::CENTER_STRENGTH;
-        let shift_y = (sy / n as f64 - self.cy) * constant::CENTER_STRENGTH;
+        let shift_x = (sx / n as f64 - self.cx) * CENTER_STRENGTH;
+        let shift_y = (sy / n as f64 - self.cy) * CENTER_STRENGTH;
         for b in &mut self.bodies {
             b.x -= shift_x;
             b.y -= shift_y;
@@ -157,10 +162,10 @@ impl Simulation {
                     dy = self.rng.jitter();
                 }
                 let mut l = dx * dx + dy * dy;
-                if l < constant::DISTANCE_MIN_SQ {
-                    l = (constant::DISTANCE_MIN_SQ * l).sqrt();
+                if l < DISTANCE_MIN_SQ {
+                    l = (DISTANCE_MIN_SQ * l).sqrt();
                 }
-                let w = constant::REPULSION * alpha / l;
+                let w = REPULSION * alpha / l;
                 acc_vx += dx * w;
                 acc_vy += dy * w;
             }
@@ -173,12 +178,12 @@ impl Simulation {
     fn apply_collision(&mut self) {
         let n = self.bodies.len();
         for i in 0..n {
-            let ri = self.bodies[i].r + constant::COLLISION_PADDING;
+            let ri = self.bodies[i].r + COLLISION_PADDING;
             let ri2 = ri * ri;
             let xi = self.bodies[i].x + self.bodies[i].vx;
             let yi = self.bodies[i].y + self.bodies[i].vy;
             for j in (i + 1)..n {
-                let rj = self.bodies[j].r + constant::COLLISION_PADDING;
+                let rj = self.bodies[j].r + COLLISION_PADDING;
                 let r = ri + rj;
                 let mut x = xi - (self.bodies[j].x + self.bodies[j].vx);
                 let mut y = yi - (self.bodies[j].y + self.bodies[j].vy);
@@ -195,7 +200,7 @@ impl Simulation {
                     l += y * y;
                 }
                 let dist = l.sqrt();
-                let factor = (r - dist) / dist * constant::COLLISION_STRENGTH;
+                let factor = (r - dist) / dist * COLLISION_STRENGTH;
                 x *= factor;
                 y *= factor;
                 let rj2 = rj * rj;
@@ -218,7 +223,7 @@ impl Simulation {
             let dx = b.x - self.cx;
             let dy = b.y - self.cy;
             let dist = (dx * dx + dy * dy).sqrt().max(1e-6);
-            let limit = bound_r * 0.82 - b.r;
+            let limit = bound_r * BOUND_RADIUS_RATIO - b.r;
             if limit > 0.0 && dist > limit {
                 b.x = self.cx + dx / dist * limit;
                 b.y = self.cy + dy / dist * limit;
@@ -229,9 +234,9 @@ impl Simulation {
     /// 速度減衰と位置更新。
     fn integrate(&mut self) {
         for b in &mut self.bodies {
-            b.vx *= constant::VELOCITY_DECAY;
+            b.vx *= VELOCITY_DECAY;
             b.x += b.vx;
-            b.vy *= constant::VELOCITY_DECAY;
+            b.vy *= VELOCITY_DECAY;
             b.y += b.vy;
         }
     }

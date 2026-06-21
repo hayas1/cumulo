@@ -17,6 +17,31 @@ pub const DEFAULT_COLOR: &str = "#6b8099";
 /// ズーム軸に値を持たないリソースを集約するクラスタの表示名。
 pub const OTHER_LABEL: &str = "その他";
 
+// ── レイアウト調整パラメータ ──────────────────────────────────────────────────
+/// レイアウト全体スケールの基準にする「ふつう」の密集クラスタ葉数。
+const BASELINE_LEAVES: usize = 3;
+/// トップレベルクラスタ半径の上限（min(w,h) に対する比）。
+const TOP_MAX_RADIUS_FACTOR: f64 = 0.22;
+/// トップレベルクラスタ半径の下限（px、leaf_scale 適用前）。
+const TOP_MIN_RADIUS: f64 = 60.0;
+/// トップレベルクラスタを並べる円の半径（min(w,h) に対する比）。
+const TOP_ORBIT_FACTOR: f64 = 0.3;
+/// 子クラスタ半径の上限・下限（親半径に対する比）と下限の絶対値 px。
+const CHILD_MAX_RADIUS_FACTOR: f64 = 0.40;
+const CHILD_MIN_RADIUS_FACTOR: f64 = 0.12;
+const CHILD_MIN_RADIUS: f64 = 8.0;
+/// 子を親円内に並べる円の半径（親半径に対する比）。
+const CHILD_ORBIT_FACTOR: f64 = 0.45;
+/// リソース葉の黄金角配置（度）と、広がり（親半径比）・充填密度。
+const GOLDEN_ANGLE_DEG: f64 = 137.508;
+const SATELLITE_SPREAD_FACTOR: f64 = 0.68;
+const SATELLITE_PACKING: f64 = 0.28;
+/// リソース円半径 = clamp(MIN, MAX, BASE + PER_FREQ * freq)。
+const RESOURCE_MIN_RADIUS: f64 = 4.0;
+const RESOURCE_MAX_RADIUS: f64 = 10.0;
+const RESOURCE_RADIUS_BASE: f64 = 2.5;
+const RESOURCE_RADIUS_PER_FREQ: f64 = 0.7;
+
 type Res = Resource<ResourceAttribute, CategoryAttribute>;
 
 /// ズーム軸パスの 1 セグメント。値なしリソースは [`PathSeg::Other`] に集約される。
@@ -384,15 +409,15 @@ impl<'a> LayoutEngine<'a> {
             .map(MapNode::max_resource_child_count)
             .max()
             .unwrap_or(0)
-            .max(3) as f64;
-        let leaf_scale = (max_leaves / 3.0).sqrt();
+            .max(BASELINE_LEAVES) as f64;
+        let leaf_scale = (max_leaves / BASELINE_LEAVES as f64).sqrt();
 
         let (w, h) = (self.width, self.height);
         let min_wh = w.min(h);
         let max_freq = nodes.iter().map(MapNode::total_freq).fold(1.0, f64::max);
-        let max_r = min_wh * 0.22 * leaf_scale;
-        let min_r = 60.0 * leaf_scale;
-        let orbit_r = min_wh * 0.3 * leaf_scale;
+        let max_r = min_wh * TOP_MAX_RADIUS_FACTOR * leaf_scale;
+        let min_r = TOP_MIN_RADIUS * leaf_scale;
+        let orbit_r = min_wh * TOP_ORBIT_FACTOR * leaf_scale;
 
         let len = nodes.len() as f64;
         for (i, node) in nodes.iter_mut().enumerate() {
@@ -430,8 +455,8 @@ impl<'a> LayoutEngine<'a> {
         }
 
         let max_freq = nodes.iter().map(MapNode::total_freq).fold(1.0, f64::max);
-        let max_r = parent_r * 0.40;
-        let min_r = (parent_r * 0.12).max(8.0);
+        let max_r = parent_r * CHILD_MAX_RADIUS_FACTOR;
+        let min_r = (parent_r * CHILD_MIN_RADIUS_FACTOR).max(CHILD_MIN_RADIUS);
 
         let len = nodes.len().max(1) as f64;
         for (i, node) in nodes.iter_mut().enumerate() {
@@ -441,8 +466,8 @@ impl<'a> LayoutEngine<'a> {
             let v = min_r + (max_r - min_r) * (freq / max_freq).sqrt();
             p.r = min_r.max(max_r.min(v));
             let angle = (i as f64 / len) * 2.0 * PI;
-            p.x = parent_x + angle.cos() * parent_r * 0.45;
-            p.y = parent_y + angle.sin() * parent_r * 0.45;
+            p.x = parent_x + angle.cos() * parent_r * CHILD_ORBIT_FACTOR;
+            p.y = parent_y + angle.sin() * parent_r * CHILD_ORBIT_FACTOR;
         }
 
         Self::simulate_forces(nodes, parent_x, parent_y, Some(parent_r));
@@ -460,20 +485,22 @@ impl<'a> LayoutEngine<'a> {
 
     /// リソース葉の衛星配置。golden-angle 初期配置のあと衝突解消する。
     fn layout_resource_nodes(nodes: &mut [MapNode], parent_x: f64, parent_y: f64, parent_r: f64) {
-        let golden = 137.508_f64.to_radians();
-        let spread = parent_r * 0.68;
+        let golden = GOLDEN_ANGLE_DEG.to_radians();
+        let spread = parent_r * SATELLITE_SPREAD_FACTOR;
 
         for (i, node) in nodes.iter_mut().enumerate() {
             let freq = match node {
                 MapNode::Resource(n) => n.freq,
                 _ => 1.0,
             };
-            // JS: clamp(4, 10, freq*0.7+2.5)。min<max が保証される定数なので素直に書ける。
-            let base_r = 4.0_f64.max(10.0_f64.min(freq * 0.7 + 2.5));
+            // clamp(MIN, MAX, BASE + PER_FREQ*freq)。min<max が保証される定数なので素直に書ける。
+            let base_r = RESOURCE_MIN_RADIUS.max(
+                RESOURCE_MAX_RADIUS.min(freq * RESOURCE_RADIUS_PER_FREQ + RESOURCE_RADIUS_BASE),
+            );
             let p = node.placement_mut();
             p.r = base_r;
             let angle = i as f64 * golden;
-            let dist = (0.28 * spread * ((i as f64) + 1.0).sqrt()).min(spread - p.r);
+            let dist = (SATELLITE_PACKING * spread * ((i as f64) + 1.0).sqrt()).min(spread - p.r);
             p.x = parent_x + angle.cos() * dist.max(0.0);
             p.y = parent_y + angle.sin() * dist.max(0.0);
         }

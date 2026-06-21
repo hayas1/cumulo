@@ -11,7 +11,25 @@ use super::layout::Bounds;
 pub const SCALE_MIN: f64 = 0.2;
 pub const SCALE_MAX: f64 = 20.0;
 
-/// SVG の `translate(x,y) scale(k)` に対応する画面変換。
+/// +/- ボタン 1 回あたりのズーム倍率。
+const ZOOM_STEP_FACTOR: f64 = 1.5;
+/// 全体表示でビューポート端に残す余白 px。
+const FIT_PADDING: f64 = 40.0;
+/// focus_node でクラスタが占める画面の割合（短辺比）。
+const FOCUS_FILL_RATIO: f64 = 0.85;
+
+/// プログラム的ズーム遷移の所要時間（ms）。
+const ZOOM_STEP_MS: f64 = 300.0;
+const FIT_MS: f64 = 600.0;
+const FOCUS_MS: f64 = 800.0;
+
+/// ホイール量 → 倍率指数の単位係数（deltaMode 別）。
+const WHEEL_UNIT_LINE: f64 = 0.05;
+const WHEEL_UNIT_PIXEL: f64 = 0.002;
+/// ピンチ（ctrlKey 付き wheel）の増感倍率。
+const WHEEL_PINCH_GAIN: f64 = 10.0;
+
+/// SVG の `translate(x,y) scale(s)` に対応する画面変換。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Transform {
     /// 拡大率（スケール係数）。world→screen の一様スケール。
@@ -128,17 +146,17 @@ impl Transform {
     /// delta_y が負（上スクロール）で 1 より大きい倍率（ズームイン）になる。
     pub fn wheel_factor(delta_y: f64, delta_mode: u32, ctrl_key: bool) -> f64 {
         let unit = match delta_mode {
-            1 => 0.05,  // line
-            0 => 0.002, // pixel
-            _ => 1.0,   // page
+            1 => WHEEL_UNIT_LINE,
+            0 => WHEEL_UNIT_PIXEL,
+            _ => 1.0, // page
         };
-        let ctrl = if ctrl_key { 10.0 } else { 1.0 };
+        let ctrl = if ctrl_key { WHEEL_PINCH_GAIN } else { 1.0 };
         2_f64.powf(-delta_y * unit * ctrl)
     }
 
     /// 絶対座標 (ax,ay) を中心に半径 r のクラスタを画面の約 85% に収める変換。
     pub fn focus_node(ax: f64, ay: f64, r: f64, w: f64, h: f64) -> Transform {
-        let natural = (w.min(h) * 0.85) / (r * 2.0);
+        let natural = (w.min(h) * FOCUS_FILL_RATIO) / (r * 2.0);
         let scale = Self::clamp_scale(natural);
         Transform {
             scale,
@@ -282,40 +300,40 @@ impl ZoomController {
         self.transform.set(transform);
     }
 
-    /// 中心を保ったまま 1.5 倍ズームイン。
+    /// 中心を保ったまま 1 段ズームイン。
     pub fn zoom_in(&self) {
         let (w, h) = self.viewport_size();
-        let target = self
-            .transform
-            .get_untracked()
-            .scale_by_about(1.5, w / 2.0, h / 2.0);
-        self.animate_to(target, 300.0);
+        let target =
+            self.transform
+                .get_untracked()
+                .scale_by_about(ZOOM_STEP_FACTOR, w / 2.0, h / 2.0);
+        self.animate_to(target, ZOOM_STEP_MS);
     }
 
-    /// 中心を保ったまま 1/1.5 倍ズームアウト。
+    /// 中心を保ったまま 1 段ズームアウト。
     pub fn zoom_out(&self) {
         let (w, h) = self.viewport_size();
-        let target = self
-            .transform
-            .get_untracked()
-            .scale_by_about(1.0 / 1.5, w / 2.0, h / 2.0);
-        self.animate_to(target, 300.0);
+        let target =
+            self.transform
+                .get_untracked()
+                .scale_by_about(1.0 / ZOOM_STEP_FACTOR, w / 2.0, h / 2.0);
+        self.animate_to(target, ZOOM_STEP_MS);
     }
 
     /// 内容全体が収まるよう遷移する。境界未確定時は identity へ。
     pub fn zoom_to_fit(&self) {
         let (w, h) = self.viewport_size();
         let target = match self.content_bounds.get_untracked() {
-            Some(bounds) => Transform::fit(bounds, w, h, 40.0),
+            Some(bounds) => Transform::fit(bounds, w, h, FIT_PADDING),
             None => Transform::IDENTITY,
         };
-        self.animate_to(target, 600.0);
+        self.animate_to(target, FIT_MS);
     }
 
     /// クラスタへフォーカスして 1 段掘り下げる。
     pub fn zoom_to_node(&self, ax: f64, ay: f64, r: f64) {
         let (w, h) = self.viewport_size();
-        self.animate_to(Transform::focus_node(ax, ay, r, w, h), 800.0);
+        self.animate_to(Transform::focus_node(ax, ay, r, w, h), FOCUS_MS);
     }
 }
 
