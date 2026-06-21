@@ -1,7 +1,7 @@
 //! リソース群をズーム軸の階層クラスタへ配置するレイアウト計算。
 //!
-//! map.js の buildLevel / layoutTopLevel / layoutChildren / layoutResourceNodes と
-//! ラベル・色の導出を移植する。座標はすべて「ルート座標系の絶対値」で持ち、
+//! 階層クラスタの構築・配置（トップレベル/子/リソース葉）とラベル・色の導出を行う。
+//! 座標はすべて「ルート座標系の絶対値」で持ち、
 //! 入れ子描画時の相対変換は描画層（view）が行う。
 
 use std::f64::consts::PI;
@@ -317,7 +317,7 @@ impl<'a> LayoutEngine<'a> {
         }
     }
 
-    /// items を level でグルーピングしながら葉まで入れ子にする（map.js buildLevel）。
+    /// items を level でグルーピングしながら葉まで入れ子にする。
     fn build_level(&self, items: Vec<Item>, level: usize) -> Vec<MapNode> {
         let mut leaves: Vec<Item> = Vec::new();
         let mut deeper: Vec<Item> = Vec::new();
@@ -404,7 +404,7 @@ impl<'a> LayoutEngine<'a> {
             p.y = h / 2.0 + angle.sin() * orbit_r;
         }
 
-        Self::run_force(nodes, w / 2.0, h / 2.0, None);
+        Self::simulate_forces(nodes, w / 2.0, h / 2.0, None);
 
         for node in nodes.iter_mut() {
             let (cx, cy, cr) = {
@@ -445,7 +445,7 @@ impl<'a> LayoutEngine<'a> {
             p.y = parent_y + angle.sin() * parent_r * 0.45;
         }
 
-        Self::run_force(nodes, parent_x, parent_y, Some(parent_r));
+        Self::simulate_forces(nodes, parent_x, parent_y, Some(parent_r));
 
         for node in nodes.iter_mut() {
             let (cx, cy, cr) = {
@@ -478,11 +478,11 @@ impl<'a> LayoutEngine<'a> {
             p.y = parent_y + angle.sin() * dist.max(0.0);
         }
 
-        Self::run_force(nodes, parent_x, parent_y, Some(parent_r));
+        Self::simulate_forces(nodes, parent_x, parent_y, Some(parent_r));
     }
 
-    /// runForce: ノードの現在位置から Body を作りシミュレーションし、x,y を書き戻す。
-    fn run_force(nodes: &mut [MapNode], cx: f64, cy: f64, bound_r: Option<f64>) {
+    /// ノードの現在位置から Body を作り力学シミュレーションし、確定した x,y を書き戻す。
+    fn simulate_forces(nodes: &mut [MapNode], cx: f64, cy: f64, bound_r: Option<f64>) {
         let bodies: Vec<Body> = nodes
             .iter()
             .map(|n| {

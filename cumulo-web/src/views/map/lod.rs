@@ -1,9 +1,9 @@
-//! ズーム倍率に応じた詳細度（Level of Detail）の計算。
+//! ズーム拡大率に応じた詳細度（Level of Detail）の計算。
 //!
-//! map.js の clusterThreshold / lod* / clusterLabelOpacity / updateLOD / applyTextScale を
-//! 純粋関数として移植する。Leptos 側はこの計算結果を要素の opacity / font-size へ反映する。
+//! クラスタ/ノードの表示しきい値・ラベルのフェード・テキストの逆スケール補正を純粋関数で求める。
+//! Leptos 側はこの計算結果を要素の opacity / font-size へ反映する。
 
-/// ラベルのオンスクリーン下限・既定上限 px（applyTextScale）。
+/// ラベルのオンスクリーン下限・既定上限 px。
 const LABEL_MIN: f64 = 9.0;
 const LABEL_MAX: f64 = 24.0;
 
@@ -35,13 +35,14 @@ impl Lod {
         raw / self.layout_scale
     }
 
-    /// mini-node（リソース円）が見え始めるしきい値＝最深クラスタの 1 段先。
-    pub fn lod_nodes(&self) -> f64 {
+    /// リソース円（mini-node）が見え始める拡大率しきい値＝最深クラスタの 1 段先。
+    pub fn node_threshold(&self) -> f64 {
         self.cluster_threshold(self.max_depth)
     }
 
-    pub fn lod_node_label(&self) -> f64 {
-        self.lod_nodes() * 1.3
+    /// リソース名ラベルが見え始める拡大率しきい値。
+    pub fn node_label_threshold(&self) -> f64 {
+        self.node_threshold() * 1.3
     }
 
     /// depth のクラスタ本体を表示するか。
@@ -54,7 +55,7 @@ impl Lod {
         let show = self.cluster_threshold(depth);
         let mut hide = self.cluster_threshold(depth + 1);
         if hide == 0.0 {
-            hide = self.lod_nodes();
+            hide = self.node_threshold();
         }
         if scale < show {
             return 0.0;
@@ -75,12 +76,12 @@ impl Lod {
 
     /// リソース円を表示するか。
     pub fn node_visible(&self, scale: f64) -> bool {
-        scale >= self.lod_nodes()
+        scale >= self.node_threshold()
     }
 
     /// リソース名ラベルを表示するか。
     pub fn node_label_visible(&self, scale: f64) -> bool {
-        scale >= self.lod_node_label()
+        scale >= self.node_label_threshold()
     }
 
     /// テキストのオンスクリーンサイズを読める帯に収め、拡大率で逆補正したフォントサイズを返す。
@@ -128,12 +129,12 @@ mod tests {
         assert_eq!(lod.cluster_label_opacity(1, 10.0), 0.0); // hide 超
     }
 
-    // テキストは画面サイズ下限を割らず、上限も超えない（/k 逆補正後の値で検証）。
+    // テキストは画面サイズ下限を割らず、上限も超えない（/scale 逆補正後の値で検証）。
     #[test]
     fn text_font_size_clamps_onscreen_size() {
-        // base=5, k=1 → screen=5 だが下限 9 にクランプ → font=9
+        // base=5, scale=1 → screen=5 だが下限 9 にクランプ → font=9
         assert_eq!(Lod::text_font_size(5.0, 24.0, 1.0), 9.0);
-        // base=10, k=10 → screen=100 だが上限 24 → font=24/10=2.4
+        // base=10, scale=10 → screen=100 だが上限 24 → font=24/10=2.4
         assert!((Lod::text_font_size(10.0, 24.0, 10.0) - 2.4).abs() < 1e-9);
     }
 
@@ -142,6 +143,6 @@ mod tests {
     fn zero_layout_scale_does_not_panic() {
         let lod = Lod::new(1, 0.0);
         let _ = lod.cluster_threshold(1);
-        let _ = lod.lod_nodes();
+        let _ = lod.node_threshold();
     }
 }
