@@ -8,8 +8,8 @@ use std::f64::consts::PI;
 
 use cumulo_model::{Forest, Resource, Taxonomy};
 
-use crate::map::force::{Body, Simulation};
-use crate::map::lod::Lod;
+use super::force::{Body, Simulation};
+use super::lod::Lod;
 use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute, ResourceId};
 
 /// 値が見つからないノードの既定色。

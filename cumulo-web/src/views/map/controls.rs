@@ -1,4 +1,4 @@
-use crate::map::zoom::ZoomController;
+use super::zoom::ZoomController;
 use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Resource};
 use leptos::prelude::*;

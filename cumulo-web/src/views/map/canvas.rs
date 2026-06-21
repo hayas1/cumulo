@@ -1,4 +1,4 @@
-//! マップ可視化コンポーネント。d3.js / map.js を置き換え、レイアウト計算（[`crate::map`]）の
+//! マップ可視化コンポーネント。d3.js / map.js を置き換え、レイアウト計算（同 view の layout）の
 //! 結果を Leptos の view! で SVG として宣言的に描画する。ズーム/パンは [`ZoomController`] が担う。
 
 use std::collections::HashSet;
@@ -8,9 +8,9 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{MouseEvent, PointerEvent, WheelEvent};
 
-use crate::map::layout::{Cluster, Layout, LayoutEngine, MapNode, Placement, ResourceNode};
-use crate::map::lod::Lod;
-use crate::map::zoom::{Pan, Transform, ZoomController};
+use super::layout::{Cluster, Layout, LayoutEngine, MapNode, Placement, ResourceNode};
+use super::lod::Lod;
+use super::zoom::{Pan, Transform, ZoomController};
 use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute, ResourceId};
 
 /// レイアウト 1 ノードを描画する際に必要な共有状態。すべてシグナルなので `Copy`。

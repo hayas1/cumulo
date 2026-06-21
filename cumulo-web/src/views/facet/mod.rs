@@ -1,4 +1,9 @@
-use super::facet_sidebar::FacetSidebar;
+//! ファセット（リスト）view。サイドバーで軸/値を選び、一覧として見せる枠。
+//! この module の看板である画面コンポーネント [`FacetView`] はここ（module root）に置く。
+
+pub mod sidebar;
+
+use self::sidebar::FacetSidebar;
 use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
 use cumulo_model::{Bipartite, Forest, Resource};
 use icondata as icon;

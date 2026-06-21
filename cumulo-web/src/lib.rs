@@ -1,9 +1,12 @@
-mod components;
-mod map;
+mod app;
+mod category;
 mod platform;
+mod resource;
+mod shared;
 mod storage;
+mod views;
 
-use components::app::App;
+use app::App;
 use leptos::prelude::*;
 use leptos_router::components::Router;
 use platform::Platform;

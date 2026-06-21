@@ -5,7 +5,7 @@
 
 use leptos::prelude::*;
 
-use crate::map::layout::Bounds;
+use super::layout::Bounds;
 
 /// d3.zoom の scaleExtent([0.2, 20]) に対応するズーム下限・上限。
 pub const SCALE_MIN: f64 = 0.2;
