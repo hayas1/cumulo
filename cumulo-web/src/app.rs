@@ -8,8 +8,19 @@ use cumulo_model::{Bipartite, Resource};
 use icondata as icon;
 use leptos::prelude::*;
 use leptos_icons::Icon;
-use leptos_router::components::{Route, Routes, A};
+use leptos_router::components::{Route, Router, Routes, A};
 use leptos_router::path;
+
+/// マウントのエントリ。App を Router で包むだけの最上位ラッパ。
+/// Router 依存をここに閉じ込め、lib.rs は mount するだけに保つ。
+#[component]
+pub fn Root() -> impl IntoView {
+    view! {
+        <Router base=Platform::router_base()>
+            <App />
+        </Router>
+    }
+}
 
 #[component]
 pub fn App() -> impl IntoView {
