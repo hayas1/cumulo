@@ -1,4 +1,6 @@
-use crate::platform::{CategoryAttribute, CategoryId, Color, Platform, ResourceAttribute};
+use crate::category::{CategoryAttribute, CategoryId, Color, DEFAULT_COLOR};
+use crate::platform::Platform;
+use crate::resource::ResourceAttribute;
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Category, Forest};
 
@@ -688,7 +690,7 @@ pub fn AttributesTab(
                         s.taxonomy.push(Category {
                             id: new_id.clone(),
                             label: String::new(),
-                            attribute: CategoryAttribute { color: Color::from_hex("#8899AA") },
+                            attribute: CategoryAttribute { color: Some(DEFAULT_COLOR) },
                             parent: None,
                         });
                     });

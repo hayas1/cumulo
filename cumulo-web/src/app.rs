@@ -1,5 +1,7 @@
-use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
+use crate::category::{CategoryAttribute, Filters};
+use crate::platform::Platform;
 use crate::resource::form::EntityForm;
+use crate::resource::ResourceAttribute;
 use crate::shared::{palette::Palette, settings_modal::SettingsModal};
 use crate::storage::AppStorage;
 use crate::views::{facet::FacetView, map::MapView};

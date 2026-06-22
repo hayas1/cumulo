@@ -1,4 +1,6 @@
-use crate::platform::{CategoryAttribute, Platform, ResourceAttribute, ResourceId};
+use crate::category::CategoryAttribute;
+use crate::platform::Platform;
+use crate::resource::{ResourceAttribute, ResourceId};
 use cumulo_model::{Bipartite, Forest, Resource};
 use icondata as icon;
 use leptos::prelude::*;

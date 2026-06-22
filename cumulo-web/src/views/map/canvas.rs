@@ -11,7 +11,8 @@ use web_sys::{MouseEvent, PointerEvent, WheelEvent};
 use super::layout::{Cluster, Layout, LayoutEngine, MapNode, Placement, ResourceNode};
 use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
-use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute, ResourceId};
+use crate::category::{CategoryAttribute, CategoryId, Filters};
+use crate::resource::{ResourceAttribute, ResourceId};
 
 /// リソース名ラベルの最大表示文字数（超過分は … で切り詰める）。
 const MAX_LABEL_CHARS: usize = 12;

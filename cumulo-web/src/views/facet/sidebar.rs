@@ -1,4 +1,5 @@
-use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute};
+use crate::category::{CategoryAttribute, CategoryId, Filters};
+use crate::resource::ResourceAttribute;
 use cumulo_model::{Bipartite, Forest};
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};

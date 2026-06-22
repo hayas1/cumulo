@@ -3,8 +3,10 @@
 use super::canvas::MapCanvas;
 use super::controls::Controls;
 use super::zoom::ZoomController;
-use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute, ResourceId};
+use crate::category::{CategoryAttribute, Filters};
+use crate::platform::Platform;
 use crate::resource::detail_panel::DetailPanel;
+use crate::resource::{ResourceAttribute, ResourceId};
 use crate::views::facet::sidebar::FacetSidebar;
 use cumulo_model::{Bipartite, Forest, Resource};
 use leptos::prelude::*;

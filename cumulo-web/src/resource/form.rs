@@ -1,4 +1,6 @@
-use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
+use crate::category::{CategoryAttribute, CategoryId};
+use crate::platform::Platform;
+use crate::resource::ResourceAttribute;
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Forest, Resource, Taxonomy};
 

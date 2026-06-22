@@ -1,7 +1,9 @@
 //! ファセット画面（ルート `/` `/facet`）。サイドバーで絞り込み、一致リソースを一覧表示する枠。
 
 use super::sidebar::FacetSidebar;
-use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
+use crate::category::{CategoryAttribute, Filters};
+use crate::platform::Platform;
+use crate::resource::ResourceAttribute;
 use cumulo_model::{Bipartite, Forest, Resource};
 use icondata as icon;
 use leptos::prelude::*;

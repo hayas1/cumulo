@@ -10,7 +10,8 @@ use cumulo_model::{Forest, Resource, Taxonomy};
 
 use super::force::{Body, Simulation};
 use super::lod::Lod;
-use crate::platform::{CategoryAttribute, CategoryId, ResourceAttribute, ResourceId};
+use crate::category::{CategoryAttribute, CategoryId};
+use crate::resource::{ResourceAttribute, ResourceId};
 
 /// 値が見つからないノードの既定色。
 pub const DEFAULT_COLOR: &str = "#6b8099";
@@ -530,7 +531,7 @@ impl<'a> LayoutEngine<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::platform::Color;
+    use crate::category::Color;
     use cumulo_model::{Catalog, Category, Id};
 
     fn cid(s: &str) -> CategoryId {

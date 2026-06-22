@@ -1,5 +1,7 @@
 use super::zoom::ZoomController;
-use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
+use crate::category::{CategoryAttribute, Filters};
+use crate::platform::Platform;
+use crate::resource::ResourceAttribute;
 use cumulo_model::{Bipartite, Resource};
 use leptos::prelude::*;
 

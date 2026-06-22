@@ -1,4 +1,5 @@
-use crate::platform::{CategoryAttribute, ResourceAttribute};
+use crate::category::CategoryAttribute;
+use crate::resource::ResourceAttribute;
 use cumulo_model::Bipartite;
 use cumulo_model::ExportData;
 use gloo_storage::{LocalStorage, Storage as GlooStorage};
