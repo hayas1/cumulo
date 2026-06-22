@@ -531,7 +531,7 @@ impl<'a> LayoutEngine<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::category::Color;
+    use crate::shared::Color;
     use cumulo_model::{Catalog, Category, Id};
 
     fn cid(s: &str) -> CategoryId {

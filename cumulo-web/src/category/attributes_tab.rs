@@ -1,6 +1,7 @@
-use crate::category::{CategoryAttribute, CategoryId, Color, DEFAULT_COLOR};
+use crate::category::{CategoryAttribute, CategoryId, DEFAULT_COLOR};
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
+use crate::shared::Color;
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Category, Forest};
 

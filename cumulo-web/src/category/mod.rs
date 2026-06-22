@@ -3,4 +3,4 @@
 pub mod attribute;
 pub mod attributes_tab;
 
-pub use attribute::{CategoryAttribute, CategoryId, Color, Filters, DEFAULT_COLOR};
+pub use attribute::{CategoryAttribute, CategoryId, Filters, DEFAULT_COLOR};

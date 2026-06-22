@@ -3,8 +3,9 @@ use js_sys::Array;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-use crate::category::{CategoryAttribute, CategoryId, Color};
+use crate::category::{CategoryAttribute, CategoryId};
 use crate::resource::{ResourceAttribute, ResourceId};
+use crate::shared::Color;
 
 /// ブラウザ固有の副作用（ID 生成、色生成、ダウンロード、URL 開放）をまとめる。
 /// js_sys / web_sys を使うため core クレートには含めない。
