@@ -33,7 +33,7 @@ fn descendants_dfs(forest: &Taxonomy<CategoryAttribute>, root_id: &CategoryId) -
             flat.push((
                 n.id.clone(),
                 n.label.clone(),
-                n.attribute.color.clone(),
+                n.attribute.color.map(|c| c.to_hex()).unwrap_or_default(),
                 depth,
                 has_children,
                 parent_id.clone(),

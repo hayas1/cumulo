@@ -316,12 +316,13 @@ impl<'a> LayoutEngine<'a> {
         }
     }
 
-    /// カテゴリ id の色。color 属性が空なら既定色。
+    /// カテゴリ id の色を CSS 文字列で返す。色が未指定なら既定色。
     fn category_color(&self, id: &CategoryId) -> String {
-        match self.taxonomy.node(id) {
-            Some(c) if !c.attribute.color.is_empty() => c.attribute.color.clone(),
-            _ => DEFAULT_COLOR.to_string(),
-        }
+        self.taxonomy
+            .node(id)
+            .and_then(|c| c.attribute.color)
+            .map(|col| col.to_hex())
+            .unwrap_or_else(|| DEFAULT_COLOR.to_string())
     }
 
     /// クラスタキーの表示ラベル。
@@ -529,6 +530,7 @@ impl<'a> LayoutEngine<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::platform::Color;
     use cumulo_model::{Catalog, Category, Id};
 
     fn cid(s: &str) -> CategoryId {
@@ -549,7 +551,7 @@ mod tests {
             label: label.into(),
             parent: parent.map(cid),
             attribute: CategoryAttribute {
-                color: color.into(),
+                color: Color::from_hex(color),
             },
         }
     }

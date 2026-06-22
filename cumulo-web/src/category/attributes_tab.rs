@@ -1,4 +1,4 @@
-use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
+use crate::platform::{CategoryAttribute, CategoryId, Color, Platform, ResourceAttribute};
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Category, Forest};
 
@@ -66,7 +66,9 @@ impl DimTabActions {
                 &old_id,
                 new_id.try_into().unwrap(),
                 &new_label,
-                CategoryAttribute { color: new_color },
+                CategoryAttribute {
+                    color: Color::from_hex(&new_color),
+                },
             )
         });
         AppStorage::save(&self.0.get_untracked());
@@ -158,7 +160,7 @@ pub fn AttributesTab(
         let Some(n) = s.taxonomy.iter().find(|n| n.id == eid) else {
             return;
         };
-        preview_color.set(n.attribute.color.clone());
+        preview_color.set(n.attribute.color.map(|c| c.to_hex()).unwrap_or_default());
         if let Some(el) = id_ref.get() {
             el.set_value(&n.id);
         }
@@ -166,7 +168,7 @@ pub fn AttributesTab(
             el.set_value(&n.label);
         }
         if let Some(el) = color_ref.get() {
-            el.set_value(&n.attribute.color);
+            el.set_value(&n.attribute.color.map(|c| c.to_hex()).unwrap_or_default());
         }
     });
 
@@ -377,7 +379,8 @@ pub fn AttributesTab(
                                                 .find(|n| n.id == node_id)
                                                 .cloned()
                                                 .unwrap();
-                                            let node_color = n.attribute.color.clone();
+                                            let node_color =
+                                                n.attribute.color.map(|c| c.to_hex()).unwrap_or_default();
                                             let node_label_text = if n.label.is_empty() {
                                                 n.id.to_string()
                                             } else {
@@ -460,9 +463,9 @@ pub fn AttributesTab(
                                                                 let color = Platform::random_color();
                                                                 if let Some(el) = color_ref.get_untracked()
                                                                 {
-                                                                    el.set_value(&color);
+                                                                    el.set_value(&color.to_hex());
                                                                 }
-                                                                preview_color.set(color);
+                                                                preview_color.set(color.to_hex());
                                                             }
                                                         >
                                                             <Icon
@@ -536,7 +539,7 @@ pub fn AttributesTab(
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
                                                                     attribute: CategoryAttribute {
-                                                                        color: Platform::random_color(),
+                                                                        color: Some(Platform::random_color()),
                                                                     },
                                                                     parent: Some(parent.clone()),
                                                                 });
@@ -657,7 +660,7 @@ pub fn AttributesTab(
                                                     id: new_id.clone(),
                                                     label: String::new(),
                                                     attribute: CategoryAttribute {
-                                                        color: Platform::random_color(),
+                                                        color: Some(Platform::random_color()),
                                                     },
                                                     parent: Some(root_id_add.clone()),
                                                 });
@@ -685,7 +688,7 @@ pub fn AttributesTab(
                         s.taxonomy.push(Category {
                             id: new_id.clone(),
                             label: String::new(),
-                            attribute: CategoryAttribute { color: "#8899AA".to_string() },
+                            attribute: CategoryAttribute { color: Color::from_hex("#8899AA") },
                             parent: None,
                         });
                     });

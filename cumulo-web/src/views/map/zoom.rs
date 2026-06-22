@@ -3,6 +3,8 @@
 //! 画面変換は `translate(x,y) scale(s)` の [`Transform`] で表し、拡大率を範囲内へクランプする。
 //! プログラム的なズーム遷移は requestAnimationFrame で 3 次イージング補間する。
 
+use std::time::Duration;
+
 use leptos::prelude::*;
 
 use super::layout::Bounds;
@@ -18,10 +20,10 @@ const FIT_PADDING: f64 = 40.0;
 /// focus_node でクラスタが占める画面の割合（短辺比）。
 const FOCUS_FILL_RATIO: f64 = 0.85;
 
-/// プログラム的ズーム遷移の所要時間（ms）。
-const ZOOM_STEP_MS: f64 = 300.0;
-const FIT_MS: f64 = 600.0;
-const FOCUS_MS: f64 = 800.0;
+/// プログラム的ズーム遷移の所要時間。
+const ZOOM_STEP_DURATION: Duration = Duration::from_millis(300);
+const FIT_DURATION: Duration = Duration::from_millis(600);
+const FOCUS_DURATION: Duration = Duration::from_millis(800);
 
 /// ホイール量 → 倍率指数の単位係数（deltaMode 別）。
 const WHEEL_UNIT_LINE: f64 = 0.05;
@@ -255,14 +257,14 @@ impl ZoomController {
         self.viewport.get_untracked()
     }
 
-    /// 現在の変換から target へ duration_ms かけて補間遷移する。
-    fn animate_to(&self, target: Transform, duration_ms: f64) {
+    /// 現在の変換から target へ duration かけて補間遷移する。
+    fn animate_to(&self, target: Transform, duration: Duration) {
         let gen = self.anim_gen.get_untracked() + 1;
         self.anim_gen.set(gen);
         let from = self.transform.get_untracked();
         let (w, h) = self.viewport_size();
         let start = js_sys::Date::now();
-        self.tween_step(from, target, w, h, duration_ms, gen, start);
+        self.tween_step(from, target, w, h, duration, gen, start);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -272,7 +274,7 @@ impl ZoomController {
         to: Transform,
         w: f64,
         h: f64,
-        dur: f64,
+        duration: Duration,
         gen: u64,
         start: f64,
     ) {
@@ -280,17 +282,19 @@ impl ZoomController {
         if self.anim_gen.get_untracked() != gen {
             return;
         }
+        // start / now はブラウザの時計（ms）。経過 / 所要時間で進捗 t を求める。
         let now = js_sys::Date::now();
-        let t = if dur <= 0.0 {
+        let duration_ms = duration.as_secs_f64() * 1000.0;
+        let t = if duration_ms <= 0.0 {
             1.0
         } else {
-            ((now - start) / dur).clamp(0.0, 1.0)
+            ((now - start) / duration_ms).clamp(0.0, 1.0)
         };
         let eased = Transform::ease_cubic_in_out(t);
         self.transform
             .set(Transform::interpolate_view(from, to, eased, w, h));
         if t < 1.0 {
-            request_animation_frame(move || self.tween_step(from, to, w, h, dur, gen, start));
+            request_animation_frame(move || self.tween_step(from, to, w, h, duration, gen, start));
         }
     }
 
@@ -307,7 +311,7 @@ impl ZoomController {
             self.transform
                 .get_untracked()
                 .scale_by_about(ZOOM_STEP_FACTOR, w / 2.0, h / 2.0);
-        self.animate_to(target, ZOOM_STEP_MS);
+        self.animate_to(target, ZOOM_STEP_DURATION);
     }
 
     /// 中心を保ったまま 1 段ズームアウト。
@@ -317,7 +321,7 @@ impl ZoomController {
             self.transform
                 .get_untracked()
                 .scale_by_about(1.0 / ZOOM_STEP_FACTOR, w / 2.0, h / 2.0);
-        self.animate_to(target, ZOOM_STEP_MS);
+        self.animate_to(target, ZOOM_STEP_DURATION);
     }
 
     /// 内容全体が収まるよう遷移する。境界未確定時は identity へ。
@@ -327,13 +331,13 @@ impl ZoomController {
             Some(bounds) => Transform::fit(bounds, w, h, FIT_PADDING),
             None => Transform::IDENTITY,
         };
-        self.animate_to(target, FIT_MS);
+        self.animate_to(target, FIT_DURATION);
     }
 
     /// クラスタへフォーカスして 1 段掘り下げる。
     pub fn zoom_to_node(&self, ax: f64, ay: f64, r: f64) {
         let (w, h) = self.viewport_size();
-        self.animate_to(Transform::focus_node(ax, ay, r, w, h), FOCUS_MS);
+        self.animate_to(Transform::focus_node(ax, ay, r, w, h), FOCUS_DURATION);
     }
 }
 

@@ -77,7 +77,8 @@ pub fn FacetView(
                                             .iter()
                                             .map(|(k, v)| {
                                                 let color = s.taxonomy.node(v)
-                                                    .map(|n| n.attribute.color.clone())
+                                                    .and_then(|n| n.attribute.color)
+                                                    .map(|c| c.to_hex())
                                                     .unwrap_or_default();
                                                 let label = s.taxonomy.node(v)
                                                     .map(|n| n.label.clone())
