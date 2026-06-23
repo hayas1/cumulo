@@ -1,6 +1,6 @@
 use crate::category::{CategoryAttribute, CategoryId, Filters};
 use crate::resource::ResourceAttribute;
-use cumulo_model::{Bipartite, Forest};
+use cumulo_model::{Bipartite, Forest, Selection};
 use leptos::prelude::*;
 
 #[component]
@@ -17,10 +17,10 @@ pub fn Palette(
         let input = input_text.get();
 
         let mut result: Vec<(CategoryId, CategoryId)> = s
-            .category_view()
+            .category_selection()
             .query(&input)
-            .view
-            .into_iter()
+            .items()
+            .iter()
             .filter_map(|attr| Some((s.taxonomy.root_of(&attr.id)?, attr.id.clone())))
             .collect();
         result.truncate(10);

@@ -1,8 +1,6 @@
 //! マップ可視化コンポーネント。レイアウト計算（同 view の layout）の
 //! 結果を Leptos の view! で SVG として宣言的に描画する。ズーム/パンは [`ZoomController`] が担う。
 
-use std::collections::HashSet;
-
 use cumulo_model::Bipartite;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
@@ -46,7 +44,8 @@ const RESOURCE_LABEL_FS_MAX: f64 = 11.0;
 #[derive(Clone, Copy)]
 struct NodeRenderer {
     controller: ZoomController,
-    filtered: Memo<HashSet<ResourceId>>,
+    /// データ源。膜（フィルタ一致）は web で id 集合を持たず bipartite.matches() で都度判定する。
+    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_entity: RwSignal<Option<ResourceId>>,
     selected_tags: RwSignal<Filters>,
     zoom_level: RwSignal<u32>,
@@ -78,18 +77,20 @@ impl NodeRenderer {
         let scale = self.scale;
         let lod = self.lod;
 
-        // 配下リソース id（フィルタ濃淡用）
+        // 配下リソース id（フィルタ濃淡用）。これはレイアウト構造に由来する固有データで、
+        // フィルタの materialize ではない。一致は bipartite.matches() で都度判定する。
         let mut desc_ids = Vec::new();
         for sub in &c.sub_nodes {
             sub.collect_resource_ids(&mut desc_ids);
         }
-        let filtered = self.filtered;
+        let bipartite = self.bipartite;
+        let tags = self.selected_tags;
 
         // 背景円の塗り/枠は「配下にフィルタ一致があるか」で濃淡を変える
         let bg_fill_opacity = {
             let ids = desc_ids.clone();
             move || {
-                let has = filtered.with(|s| ids.iter().any(|id| s.contains(id)));
+                let has = bipartite.with(|b| tags.with(|t| ids.iter().any(|id| b.matches(id, t))));
                 if has {
                     CLUSTER_FILL_OPACITY_MATCH
                 } else {
@@ -100,7 +101,7 @@ impl NodeRenderer {
         let bg_stroke_opacity = {
             let ids = desc_ids;
             move || {
-                let has = filtered.with(|s| ids.iter().any(|id| s.contains(id)));
+                let has = bipartite.with(|b| tags.with(|t| ids.iter().any(|id| b.matches(id, t))));
                 if has {
                     CLUSTER_STROKE_OPACITY_MATCH
                 } else {
@@ -203,11 +204,12 @@ impl NodeRenderer {
         let color = n.color.clone();
         let scale = self.scale;
         let lod = self.lod;
-        let filtered = self.filtered;
+        let bipartite = self.bipartite;
+        let tags = self.selected_tags;
 
         let id_for_fill = n.id.clone();
         let circle_opacity = move || {
-            if filtered.with(|s| s.contains(&id_for_fill)) {
+            if bipartite.with(|b| tags.with(|t| b.matches(&id_for_fill, t))) {
                 RESOURCE_OPACITY_MATCH
             } else {
                 RESOURCE_OPACITY_DIM
@@ -277,16 +279,6 @@ pub fn MapCanvas(
 ) -> impl IntoView {
     // 拡大率（scale）のみの派生シグナル。パン中（拡大率不変）はノードの再描画を起こさない。
     let scale = Memo::new(move |_| controller.transform.get().scale);
-
-    // フィルタ一致リソース集合（円の不透明度に使う）
-    let filtered = Memo::new(move |_| {
-        let b = bipartite.get();
-        let tags = selected_tags.get();
-        b.filter_resources(&tags)
-            .into_iter()
-            .map(|r| r.id.clone())
-            .collect::<HashSet<ResourceId>>()
-    });
 
     // レイアウト（座標は filter 非依存。catalog / zoom_dim / viewport にのみ依存）
     let layout = RwSignal::new(Layout {
@@ -403,7 +395,7 @@ pub fn MapCanvas(
                         let l = layout.get();
                         let renderer = NodeRenderer {
                             controller,
-                            filtered,
+                            bipartite,
                             selected_entity,
                             selected_tags,
                             zoom_level,

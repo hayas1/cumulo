@@ -2,7 +2,7 @@ use super::zoom::ZoomController;
 use crate::category::{CategoryAttribute, Filters};
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
-use cumulo_model::{Bipartite, Resource};
+use cumulo_model::{Bipartite, Resource, Selection};
 use leptos::prelude::*;
 
 #[component]
@@ -18,7 +18,7 @@ pub fn Controls(
     let entity_count = Memo::new(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();
-        s.filter_resources(&tags).len()
+        s.filtered(&tags).len()
     });
 
     let total_count = Memo::new(move |_| bipartite.get().catalog.len());

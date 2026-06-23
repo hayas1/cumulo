@@ -3,7 +3,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::category::{Category, Taxonomy};
 use crate::error::{Errors, ParseError, ValidationError};
 use crate::filters::Filters;
-use crate::forest::Forest;
+use crate::forest::{Forest, ForestNode};
 use crate::id::Id;
 use crate::resource::{Catalog, Resource};
 
@@ -77,12 +77,28 @@ impl<RA, CA> Bipartite<RA, CA> {
 }
 
 impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
-    pub fn filter_resources<'a>(&'a self, filters: &Filters<CA>) -> Vec<&'a Resource<RA, CA>> {
-        // Filters は軸ごとに値が1つなので、各軸の条件を素直に AND で評価する。
-        self.catalog
+    /// filters を適用したリソースの選択（[`CategorySelection`] と同型の [`Selection`]）。
+    /// 同じ絞り込みを「一覧」と「id 集合（膜検査）」の両方で使えるよう 1 つにまとめる。
+    pub fn filtered(&self, filters: &Filters<CA>) -> ResourceSelection<'_, RA, CA> {
+        let items = self
+            .catalog
             .iter()
-            .filter(|r| filters.iter().all(|(k, v)| self.tag_matches(r, k, v)))
-            .collect()
+            .filter(|r| self.matches_resource(r, filters))
+            .collect();
+        ResourceSelection { items }
+    }
+
+    /// リソース id 単体が filters に一致するか（存在しない id は false）。
+    /// web 側で一致 id 集合を持たずに、bipartite から直接「膜」を判定するための述語。
+    pub fn matches(&self, id: &Id<Resource<RA, CA>>, filters: &Filters<CA>) -> bool {
+        self.catalog
+            .node(id)
+            .is_some_and(|r| self.matches_resource(r, filters))
+    }
+
+    /// Filters は軸ごとに値が1つなので、各軸の条件を素直に AND で評価する。
+    fn matches_resource(&self, r: &Resource<RA, CA>, filters: &Filters<CA>) -> bool {
+        filters.iter().all(|(k, v)| self.tag_matches(r, k, v))
     }
 
     fn tag_matches(
@@ -100,14 +116,84 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         self.taxonomy.ancestry(rv).iter().any(|a| a == v)
     }
 
-    /// カテゴリフォレストの全ノード（根を含む）へのビューを返す。
+    /// カテゴリフォレストの全ノード（根を含む）の選択を返す。`query()` で絞り込む。
     /// 根も値になりうるため根を除外しない。
-    pub fn category_view(&self) -> CategoryView<'_, RA, CA> {
-        let view = self.taxonomy.iter().collect();
-        CategoryView {
-            bipartite: self,
-            view,
+    pub fn category_selection(&self) -> CategorySelection<'_, CA> {
+        CategorySelection {
+            items: self.taxonomy.iter().collect(),
         }
+    }
+}
+
+/// 絞り込み済みの要素を借用で保持する「選択」。一覧・件数を共通 API で提供する。
+/// 借用なので、シグナル等に保持したい場合は items() から必要な所有値を取り出す。
+pub trait Selection {
+    type Item: ForestNode;
+
+    /// 選択された要素（借用）。
+    fn items(&self) -> &[&Self::Item];
+
+    /// 件数。
+    fn len(&self) -> usize {
+        self.items().len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.items().is_empty()
+    }
+}
+
+/// Filters で絞り込んだリソースの選択。
+pub struct ResourceSelection<'a, RA, CA> {
+    items: Vec<&'a Resource<RA, CA>>,
+}
+
+impl<RA, CA> Selection for ResourceSelection<'_, RA, CA> {
+    type Item = Resource<RA, CA>;
+    fn items(&self) -> &[&Resource<RA, CA>] {
+        &self.items
+    }
+}
+
+/// 検索語で絞り込んだカテゴリの選択。`query()` で段階的に絞れる。
+pub struct CategorySelection<'a, CA> {
+    items: Vec<&'a Category<CA>>,
+}
+
+impl<CA> Selection for CategorySelection<'_, CA> {
+    type Item = Category<CA>;
+    fn items(&self) -> &[&Category<CA>] {
+        &self.items
+    }
+}
+
+impl<'a, CA> CategorySelection<'a, CA> {
+    /// id または label に対するサブシーケンス照合で絞り込む（大文字小文字を区別しない）。
+    pub fn query(self, q: &str) -> Self {
+        if q.is_empty() {
+            return self;
+        }
+        let q_lower = q.to_lowercase();
+        let items = self
+            .items
+            .into_iter()
+            .filter(|a| {
+                Self::subsequence_matches(&q_lower, &a.id.to_lowercase())
+                    || Self::subsequence_matches(&q_lower, &a.label.to_lowercase())
+            })
+            .collect();
+        CategorySelection { items }
+    }
+
+    /// "bq" → "bigquery" のような略称にも対応するサブシーケンス照合。
+    fn subsequence_matches(query: &str, target: &str) -> bool {
+        let mut target_iter = target.chars();
+        for qc in query.chars() {
+            if !target_iter.any(|tc| tc == qc) {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -148,45 +234,6 @@ where
     }
 }
 
-/// Bipartite のカテゴリフォレストに対するフィルタ可能なビュー。
-pub struct CategoryView<'a, RA, CA> {
-    pub bipartite: &'a Bipartite<RA, CA>,
-    pub view: Vec<&'a Category<CA>>,
-}
-
-impl<'a, RA, CA> CategoryView<'a, RA, CA> {
-    /// id または label に対してサブシーケンス照合でフィルタする。大文字小文字は区別しない。
-    pub fn query(self, q: &str) -> Self {
-        if q.is_empty() {
-            return self;
-        }
-        let q_lower = q.to_lowercase();
-        let view = self
-            .view
-            .into_iter()
-            .filter(|a| {
-                Self::subsequence_matches(&q_lower, &a.id.to_lowercase())
-                    || Self::subsequence_matches(&q_lower, &a.label.to_lowercase())
-            })
-            .collect();
-        CategoryView {
-            bipartite: self.bipartite,
-            view,
-        }
-    }
-
-    /// "bq" → "bigquery" のような略称にも対応するサブシーケンス照合。
-    fn subsequence_matches(query: &str, target: &str) -> bool {
-        let mut target_iter = target.chars();
-        for qc in query.chars() {
-            if !target_iter.any(|tc| tc == qc) {
-                return false;
-            }
-        }
-        true
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,13 +256,39 @@ mod tests {
             (cid("platform"), cid("bigquery")),
             (cid("env"), cid("prod")),
         ]);
-        assert_eq!(bipartite.filter_resources(&both).len(), 1);
+        assert_eq!(bipartite.filtered(&both).len(), 1);
         // 片方の軸を満たさない（platform=bigtable）と r1 は外れる
         let unmatched = Filters::from_iter([
             (cid("platform"), cid("bigtable")),
             (cid("env"), cid("prod")),
         ]);
-        assert!(bipartite.filter_resources(&unmatched).is_empty());
+        assert!(bipartite.filtered(&unmatched).is_empty());
+    }
+
+    // filtered() は一致リソースの選択を返す（件数・membership は items から得る）
+    #[test]
+    fn filtered_lists_matching_resources() {
+        let bipartite = valid_bipartite(); // r1 = [bigquery, prod]
+        let view = bipartite.filtered(&Filters::from_iter([(cid("platform"), cid("bigquery"))]));
+        assert_eq!(view.len(), 1);
+        assert!(view.items().iter().any(|r| r.id == rid("r1")));
+        // 一致なしは空
+        assert!(bipartite
+            .filtered(&Filters::from_iter([(cid("platform"), cid("bigtable"))]))
+            .is_empty());
+    }
+
+    // matches() は id 単体の膜判定（filtered() と同じ条件を 1 リソースで評価）
+    #[test]
+    fn matches_tests_single_resource_against_filters() {
+        let bipartite = valid_bipartite(); // r1 = [bigquery, prod]
+        let f = Filters::from_iter([(cid("platform"), cid("bigquery"))]);
+        assert!(bipartite.matches(&rid("r1"), &f));
+        // 軸を満たさない値では一致しない
+        let f2 = Filters::from_iter([(cid("platform"), cid("bigtable"))]);
+        assert!(!bipartite.matches(&rid("r1"), &f2));
+        // 存在しない id は false
+        assert!(!bipartite.matches(&rid("ghost"), &f));
     }
 
     #[test]
@@ -247,7 +320,8 @@ mod tests {
                 },
             ]),
         };
-        let got = bipartite.filter_resources(&Filters::from_iter([(cid("platform"), cid("gcp"))]));
+        let view = bipartite.filtered(&Filters::from_iter([(cid("platform"), cid("gcp"))]));
+        let got = view.items();
         assert!(got.iter().any(|r| r.id.as_str() == "a"));
         assert!(got.iter().any(|r| r.id.as_str() == "c"));
         assert!(!got.iter().any(|r| r.id.as_str() == "b"));
@@ -369,10 +443,10 @@ mod tests {
 
     #[test]
     fn abbreviation_matches() {
-        assert!(CategoryView::<(), ()>::subsequence_matches(
+        assert!(CategorySelection::<()>::subsequence_matches(
             "bq", "bigquery"
         ));
-        assert!(CategoryView::<(), ()>::subsequence_matches(
+        assert!(CategorySelection::<()>::subsequence_matches(
             "gcs",
             "google-cloud-storage"
         ));
@@ -380,35 +454,35 @@ mod tests {
 
     #[test]
     fn substring_matches() {
-        assert!(CategoryView::<(), ()>::subsequence_matches(
+        assert!(CategorySelection::<()>::subsequence_matches(
             "big", "bigquery"
         ));
-        assert!(CategoryView::<(), ()>::subsequence_matches(
+        assert!(CategorySelection::<()>::subsequence_matches(
             "query", "bigquery"
         ));
     }
 
     #[test]
     fn no_match_when_char_missing() {
-        assert!(!CategoryView::<(), ()>::subsequence_matches(
+        assert!(!CategorySelection::<()>::subsequence_matches(
             "bq", "bigtable"
         ));
-        assert!(!CategoryView::<(), ()>::subsequence_matches(
+        assert!(!CategorySelection::<()>::subsequence_matches(
             "bq", "storage"
         ));
     }
 
     #[test]
     fn order_matters() {
-        assert!(!CategoryView::<(), ()>::subsequence_matches(
+        assert!(!CategorySelection::<()>::subsequence_matches(
             "qb", "bigquery"
         ));
     }
 
     #[test]
     fn empty_query_matches_any() {
-        assert!(CategoryView::<(), ()>::subsequence_matches("", "bigquery"));
-        assert!(CategoryView::<(), ()>::subsequence_matches("", ""));
+        assert!(CategorySelection::<()>::subsequence_matches("", "bigquery"));
+        assert!(CategorySelection::<()>::subsequence_matches("", ""));
     }
 
     #[test]
@@ -418,10 +492,10 @@ mod tests {
             taxonomy: f,
             catalog: Catalog(vec![]),
         };
-        let view = bipartite.category_view();
-        // 根も値になりうるため、view は根を含む全ノードを対象にする
-        assert!(view.view.iter().any(|a| a.parent.is_none()));
-        assert_eq!(view.view.len(), bipartite.taxonomy.iter().count());
+        let sel = bipartite.category_selection();
+        // 根も値になりうるため、選択は根を含む全ノードを対象にする
+        assert!(sel.items().iter().any(|a| a.parent.is_none()));
+        assert_eq!(sel.len(), bipartite.taxonomy.iter().count());
     }
 
     #[test]
@@ -431,9 +505,9 @@ mod tests {
             taxonomy: f,
             catalog: Catalog(vec![]),
         };
-        let view = bipartite.category_view().query("bq");
-        assert!(view.view.iter().any(|a| a.id.as_str() == "bigquery"));
-        assert!(!view.view.iter().any(|a| a.id.as_str() == "s3"));
+        let sel = bipartite.category_selection().query("bq");
+        assert!(sel.items().iter().any(|a| a.id.as_str() == "bigquery"));
+        assert!(!sel.items().iter().any(|a| a.id.as_str() == "s3"));
     }
 
     #[test]
@@ -443,10 +517,9 @@ mod tests {
             taxonomy: f,
             catalog: Catalog(vec![]),
         };
-        let all = bipartite.category_view().query("").view;
         // 根も値になりうるため、空クエリは根を含む全ノードを返す
         let all_nodes = bipartite.taxonomy.iter().count();
-        assert_eq!(all.len(), all_nodes);
+        assert_eq!(bipartite.category_selection().query("").len(), all_nodes);
     }
 
     // --- validate() のテスト ---

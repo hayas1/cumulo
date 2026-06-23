@@ -4,7 +4,7 @@ use super::sidebar::FacetSidebar;
 use crate::category::{CategoryAttribute, Filters};
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
-use cumulo_model::{Bipartite, Forest, Resource};
+use cumulo_model::{Bipartite, Forest, Resource, Selection};
 use icondata as icon;
 use leptos::prelude::*;
 use leptos_icons::Icon;
@@ -15,15 +15,6 @@ pub fn FacetView(
     selected_tags: RwSignal<Filters>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let filtered_ids = Memo::new(move |_| {
-        let s = bipartite.get();
-        let tags = selected_tags.get();
-        s.filter_resources(&tags)
-            .into_iter()
-            .map(|r| r.id.clone())
-            .collect::<Vec<_>>()
-    });
-
     view! {
         <div class="facet-view">
             <div class="facet-body">
@@ -32,14 +23,11 @@ pub fn FacetView(
                 <main class="facet-results">
                     {move || {
                         let s = bipartite.get();
-                        let ids = filtered_ids.get();
+                        let tags = selected_tags.get();
 
-                        let entities: Vec<_> = s
-                            .catalog
-                            .iter()
-                            .filter(|r| ids.contains(&r.id))
-                            .cloned()
-                            .collect();
+                        // 一致リソースは filtered() の結果をそのまま使う（id 集合は作らない）
+                        let entities: Vec<_> =
+                            s.filtered(&tags).items().iter().map(|r| (*r).clone()).collect();
 
                         if entities.is_empty() {
                             return view! {
