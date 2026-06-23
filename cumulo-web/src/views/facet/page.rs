@@ -54,23 +54,15 @@ pub fn FacetView(
                                     .map(|r| {
                                         let url = r.attribute.console_url.clone();
 
-                                        // 軸（根）は root_of で導出する
-                                        let mut dims_sorted: Vec<_> = r.categories.iter()
-                                            .map(|v| {
-                                                let k = s.taxonomy.root_of(v).unwrap_or_else(|| v.clone());
-                                                (k, v.clone())
-                                            })
-                                            .collect();
-                                        dims_sorted.sort_by_key(|(k, _)| k.clone());
-
-                                        let chips: Vec<(String, String, String)> = dims_sorted
-                                            .iter()
+                                        // 森射影・並べ替えはモデル（rooted_nodes）に委譲し、ここはラベル/色の解決のみ
+                                        let chips: Vec<(String, String, String)> = r.rooted_nodes(&s.taxonomy)
+                                            .into_iter()
                                             .map(|(k, v)| {
-                                                let color = s.taxonomy.node(v)
+                                                let color = s.taxonomy.node(&v)
                                                     .and_then(|n| n.attribute.color)
                                                     .map(|c| c.to_hex())
                                                     .unwrap_or_default();
-                                                let label = s.taxonomy.node(v)
+                                                let label = s.taxonomy.node(&v)
                                                     .map(|n| n.label.clone())
                                                     .unwrap_or_else(|| v.to_string());
                                                 (k.to_string(), label, color)

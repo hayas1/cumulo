@@ -15,7 +15,7 @@ pub fn DetailPanel(
     let resource = Memo::new(move |_| {
         let id = selected_id.get()?;
         let s = bipartite.get();
-        s.catalog.iter().find(|r| r.id == id).cloned()
+        s.catalog.node(&id).cloned()
     });
 
     view! {
@@ -31,16 +31,14 @@ pub fn DetailPanel(
                             let s = bipartite.get();
                             let display = r.display_label(&s.taxonomy);
 
-                            let mut dims_sorted: Vec<_> = r.categories.into_iter()
-                                .map(|v| {
-                                    // 軸（根）は root_of で導出する
-                                    let k = s.taxonomy.root_of(&v);
-                                    let k_label = k.as_ref()
-                                        .and_then(|k| s.taxonomy.node(k))
+                            // 森射影・並べ替えはモデル（rooted_nodes）に委譲し、ここはラベル解決のみ
+                            let dims_sorted: Vec<(String, String)> = r.rooted_nodes(&s.taxonomy)
+                                .into_iter()
+                                .map(|(k, v)| {
+                                    let k_label = s.taxonomy.node(&k)
                                         .map(|n| n.label.clone())
                                         .filter(|l| !l.is_empty())
-                                        .or_else(|| k.as_ref().map(|k| k.to_string()))
-                                        .unwrap_or_default();
+                                        .unwrap_or_else(|| k.to_string());
                                     let v_label = s.taxonomy.node(&v)
                                         .map(|n| n.label.clone())
                                         .filter(|l| !l.is_empty())
@@ -48,7 +46,6 @@ pub fn DetailPanel(
                                     (k_label, v_label)
                                 })
                                 .collect();
-                            dims_sorted.sort_by_key(|(k, _)| k.clone());
                             view! {
                                 <div class="detail-header">
                                     <div

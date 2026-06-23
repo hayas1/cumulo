@@ -160,7 +160,7 @@ pub fn AttributesTab(
             return;
         };
         let s = bipartite.get_untracked();
-        let Some(n) = s.taxonomy.iter().find(|n| n.id == eid) else {
+        let Some(n) = s.taxonomy.node(&eid) else {
             return;
         };
         preview_color.set(n.attribute.color.map(|c| c.to_hex()).unwrap_or_default());
