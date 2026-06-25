@@ -797,6 +797,12 @@ body {
   font-size: 0.72rem;
 }
 
+.tag-pill.focused {
+  background: rgba(88, 166, 255, 0.28);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
 .pill-key  { color: var(--text-secondary); }
 .pill-sep  { color: var(--text-muted); }
 .pill-val  { color: var(--accent); font-weight: 600; }
