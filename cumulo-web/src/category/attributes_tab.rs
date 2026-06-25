@@ -28,7 +28,7 @@ impl DimTabActions {
         AppStorage::save(&self.0.get_untracked());
     }
 
-    // ディメンション（根）ごと削除する経路で使う。根は繰り上げ先がないので subtree のみ。
+    // カテゴリ（根）ごと削除する経路で使う。根は繰り上げ先がないので subtree のみ。
     fn delete_subtree(self, node_id: CategoryId) {
         self.0.update(|s| s.taxonomy.delete_subtree(&node_id));
         AppStorage::save(&self.0.get_untracked());
@@ -353,7 +353,7 @@ pub fn AttributesTab(
                                                     let id = rid_d.clone();
                                                     editing_id.set(None);
                                                     confirm.prompt(
-                                                        "このディメンションを削除しますか？",
+                                                        "このカテゴリを削除しますか？",
                                                         move || acts.delete_subtree(id.clone()),
                                                     );
                                                 }

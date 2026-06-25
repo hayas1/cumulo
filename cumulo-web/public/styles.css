@@ -265,7 +265,7 @@ body {
   background: rgba(224, 92, 92, 0.08);
 }
 
-/* ── Dimensions tab ──────────────────────────────────────── */
+/* ── Category tab ──────────────────────────────────────── */
 
 /* ── Resource tab ── */
 .resource-tab {
@@ -346,7 +346,7 @@ body {
 }
 .resource-row-delete:hover { color: #e05c5c; }
 
-/* ── Dimension tab ── */
+/* ── Category tab ── */
 .dim-tab {
   display: flex;
   flex-direction: column;
@@ -479,7 +479,7 @@ body {
 }
 .val-add-chip:hover { border-color: var(--accent); color: var(--accent); }
 
-/* ── Dimension value tree ────────────────────────────────── */
+/* ── Category value tree ────────────────────────────────── */
 .dim-tree {
   display: flex;
   flex-direction: column;
@@ -671,7 +671,7 @@ body {
 }
 .chip-editor-randomize:hover { border-color: var(--accent); color: var(--accent); }
 
-/* ── Add dimension ───────────────────────────────────────── */
+/* ── Add category ───────────────────────────────────────── */
 
 .dim-add-btn {
   align-self: flex-start;
@@ -797,6 +797,12 @@ body {
   font-size: 0.72rem;
 }
 
+.tag-pill.focused {
+  background: rgba(88, 166, 255, 0.28);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
 .pill-key  { color: var(--text-secondary); }
 .pill-sep  { color: var(--text-muted); }
 .pill-val  { color: var(--accent); font-weight: 600; }
@@ -840,47 +846,17 @@ body {
   transition: border-color 0.12s, color 0.12s;
 }
 .suggestion-btn:hover { border-color: var(--accent); color: var(--accent); }
+/* ↓↑ キーでハイライト中の候補 */
+.suggestion-btn.focused { border-color: var(--accent); color: var(--accent); background: rgba(88, 166, 255, 0.12); }
 
 .sug-key { color: var(--text-muted); margin-right: 0.1rem; }
 .sug-val { font-weight: 600; }
 
-/* 入力中ポップアップ */
 .palette-input-wrapper {
   position: relative;
   flex: 1;
   min-width: 160px;
 }
-
-.palette-popup {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  min-width: 220px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  z-index: 100;
-  overflow: hidden;
-}
-
-.popup-item {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  width: 100%;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-family: var(--font-sans);
-  padding: 0.38rem 0.75rem;
-  text-align: left;
-  transition: background 0.1s, color 0.1s;
-}
-.popup-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-.popup-item.focused { background: rgba(88, 166, 255, 0.12); color: var(--text-primary); }
 
 .sug-sep { color: var(--border); margin: 0 0.1rem; }
 
@@ -1656,7 +1632,7 @@ body {
 }
 .form-add-attr-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-/* ── Dimension chip selectors inside resource form ── */
+/* ── Category chip selectors inside resource form ── */
 .form-dim-row {
   display: flex;
   align-items: flex-start;

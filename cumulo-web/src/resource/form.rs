@@ -84,7 +84,7 @@ impl DimTreeItem {
 }
 
 #[component]
-pub fn EntityForm(
+pub fn ResourceForm(
     bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
@@ -184,7 +184,7 @@ pub fn EntityForm(
                         node_ref=label_ref
                         class="form-input"
                         type="text"
-                        placeholder="空欄でディメンション値から自動生成"
+                        placeholder="空欄でカテゴリ値から自動生成"
                         on:input=move |ev| form_label.set(event_target_value(&ev))
                     />
 
@@ -210,7 +210,7 @@ pub fn EntityForm(
                         }
                     />
 
-                    // ── 軸ごとのディメンションチップ ──────────────────────────
+                    // ── 軸ごとのカテゴリチップ ──────────────────────────
                     <label class="form-label">"カテゴリ"</label>
                     {move || {
                         let s = bipartite.get();
