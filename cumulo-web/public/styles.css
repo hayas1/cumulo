@@ -1038,6 +1038,34 @@ body {
   vector-effect: non-scaling-stroke;
 }
 
+/* テキスト共通（中央寄せ・ヒットテスト無効・フォント）。色やサイズは描画側で動的に与える */
+#main-svg text {
+  font-family: system-ui, sans-serif;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* クラスタ背景円。塗り/枠の色と不透明度はフィルタ状態に応じて描画側が与える */
+#main-svg .cluster-bg {
+  cursor: pointer;
+  stroke-width: 1.2;
+  stroke-dasharray: 5 3;
+}
+#main-svg .cluster-d0 > .cluster-bg {
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
+
+/* クラスタラベル・件数 */
+#main-svg .cluster-label { font-weight: 600; }
+#main-svg .cluster-d0 > .cluster-label { font-weight: 700; }
+#main-svg .cluster-count { fill-opacity: 0.65; }
+
+/* リソースノード */
+#main-svg .mini-node { cursor: pointer; }
+#main-svg .mini-node-circle { stroke: #0d1117; stroke-width: 1; }
+#main-svg .node-label { fill: #e6edf3; dominant-baseline: middle; }
+
 /* ── Detail panel ────────────────────────────────────────── */
 
 .detail-panel {

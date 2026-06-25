@@ -1,6 +1,10 @@
-use super::facet_sidebar::FacetSidebar;
-use crate::platform::{CategoryAttribute, Filters, Platform, ResourceAttribute};
-use cumulo_model::{Bipartite, Forest, Resource};
+//! ファセット画面（ルート `/` `/facet`）。サイドバーで絞り込み、一致リソースを一覧表示する枠。
+
+use super::sidebar::FacetSidebar;
+use crate::category::{CategoryAttribute, Filters};
+use crate::platform::Platform;
+use crate::resource::ResourceAttribute;
+use cumulo_model::{Bipartite, Forest, Resource, Selection};
 use icondata as icon;
 use leptos::prelude::*;
 use leptos_icons::Icon;
@@ -11,15 +15,6 @@ pub fn FacetView(
     selected_tags: RwSignal<Filters>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let filtered_ids = Memo::new(move |_| {
-        let s = bipartite.get();
-        let tags = selected_tags.get();
-        s.filter_resources(&tags)
-            .into_iter()
-            .map(|r| r.id.clone())
-            .collect::<Vec<_>>()
-    });
-
     view! {
         <div class="facet-view">
             <div class="facet-body">
@@ -28,14 +23,11 @@ pub fn FacetView(
                 <main class="facet-results">
                     {move || {
                         let s = bipartite.get();
-                        let ids = filtered_ids.get();
+                        let tags = selected_tags.get();
 
-                        let entities: Vec<_> = s
-                            .catalog
-                            .iter()
-                            .filter(|r| ids.contains(&r.id))
-                            .cloned()
-                            .collect();
+                        // 一致リソースは filtered() の結果をそのまま使う（id 集合は作らない）
+                        let entities: Vec<_> =
+                            s.filtered(&tags).items().iter().map(|r| (*r).clone()).collect();
 
                         if entities.is_empty() {
                             return view! {
@@ -62,22 +54,15 @@ pub fn FacetView(
                                     .map(|r| {
                                         let url = r.attribute.console_url.clone();
 
-                                        // 軸（根）は root_of で導出する
-                                        let mut dims_sorted: Vec<_> = r.categories.iter()
-                                            .map(|v| {
-                                                let k = s.taxonomy.root_of(v).unwrap_or_else(|| v.clone());
-                                                (k, v.clone())
-                                            })
-                                            .collect();
-                                        dims_sorted.sort_by_key(|(k, _)| k.clone());
-
-                                        let chips: Vec<(String, String, String)> = dims_sorted
-                                            .iter()
+                                        // 森射影・並べ替えはモデル（rooted_nodes）に委譲し、ここはラベル/色の解決のみ
+                                        let chips: Vec<(String, String, String)> = r.rooted_nodes(&s.taxonomy)
+                                            .into_iter()
                                             .map(|(k, v)| {
-                                                let color = s.taxonomy.node(v)
-                                                    .map(|n| n.attribute.color.clone())
+                                                let color = s.taxonomy.node(&v)
+                                                    .and_then(|n| n.attribute.color)
+                                                    .map(|c| c.to_hex())
                                                     .unwrap_or_default();
-                                                let label = s.taxonomy.node(v)
+                                                let label = s.taxonomy.node(&v)
                                                     .map(|n| n.label.clone())
                                                     .unwrap_or_else(|| v.to_string());
                                                 (k.to_string(), label, color)

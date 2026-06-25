@@ -1,10 +1,12 @@
-use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
+use crate::category::{CategoryAttribute, CategoryId};
+use crate::platform::Platform;
+use crate::resource::ResourceAttribute;
 use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Forest, Resource, Taxonomy};
 
 use leptos::html::Input;
 use leptos::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 enum DimTreeItem {
     Branch {
@@ -20,71 +22,65 @@ enum DimTreeItem {
     },
 }
 
-fn descendants_dfs(forest: &Taxonomy<CategoryAttribute>, root_id: &CategoryId) -> Vec<DimTreeItem> {
-    let mut flat: Vec<(CategoryId, String, String, usize, bool, CategoryId)> = Vec::new();
-    fn dfs(
-        forest: &Taxonomy<CategoryAttribute>,
-        parent_id: &CategoryId,
-        depth: usize,
-        flat: &mut Vec<(CategoryId, String, String, usize, bool, CategoryId)>,
-    ) {
-        for n in forest.children_of(parent_id) {
-            let has_children = !forest.children_of(&n.id).is_empty();
-            flat.push((
-                n.id.clone(),
-                n.label.clone(),
-                n.attribute.color.clone(),
-                depth,
-                has_children,
-                parent_id.clone(),
-            ));
-            dfs(forest, &n.id, depth + 1, flat);
-        }
-    }
-    dfs(forest, root_id, 0, &mut flat);
+impl DimTreeItem {
+    /// root 配下のカテゴリ木を、フォームのチェックリスト用の行に整形する。
+    /// 木の走査（深さ・葉判定）はモデルの dfs_order に委譲し、ここは
+    /// 「連続する同一親の葉を 1 行にまとめる」プレゼンテーション整形のみを担う。
+    fn rows(forest: &Taxonomy<CategoryAttribute>, root_id: &CategoryId) -> Vec<DimTreeItem> {
+        let flat: Vec<(CategoryId, String, String, usize, bool, CategoryId)> = forest
+            .dfs_order(root_id, &HashSet::new())
+            .into_iter()
+            .filter_map(|(id, depth, has_children)| {
+                let n = forest.node(&id)?;
+                let parent = n.parent.clone().unwrap_or_else(|| root_id.clone());
+                let color = n.attribute.color.map(|c| c.to_hex()).unwrap_or_default();
+                Some((id, n.label.clone(), color, depth, has_children, parent))
+            })
+            .collect();
 
-    // 連続する同一親の葉ノードをまとめる
-    let mut result = Vec::new();
-    let mut i = 0;
-    while i < flat.len() {
-        let (id, label, color, depth, has_children, ref parent_id) = &flat[i];
-        let (id, label, color, depth, has_children) = (
-            id.clone(),
-            label.clone(),
-            color.clone(),
-            *depth,
-            *has_children,
-        );
-        if has_children {
-            result.push(DimTreeItem::Branch {
-                id: id.clone(),
-                label: label.clone(),
-                color: color.clone(),
-                depth,
-            });
-            i += 1;
-        } else {
-            let parent_id = parent_id.clone();
-            let mut leaves = vec![(id.clone(), label.clone(), color.clone())];
-            i += 1;
-            while i < flat.len() {
-                let (id2, label2, color2, _, has2, ref p2) = &flat[i];
-                let (id2, label2, color2, has2) =
-                    (id2.clone(), label2.clone(), color2.clone(), *has2);
-                if !has2 && *p2 == parent_id {
-                    leaves.push((id2.clone(), label2.clone(), color2.clone()));
-                    i += 1;
-                } else {
-                    break;
+        // 連続する同一親の葉ノードをまとめる
+        let mut result = Vec::new();
+        let mut i = 0;
+        while i < flat.len() {
+            let (id, label, color, depth, has_children, ref parent_id) = &flat[i];
+            let (id, label, color, depth, has_children) = (
+                id.clone(),
+                label.clone(),
+                color.clone(),
+                *depth,
+                *has_children,
+            );
+            if has_children {
+                result.push(DimTreeItem::Branch {
+                    id: id.clone(),
+                    label: label.clone(),
+                    color: color.clone(),
+                    depth,
+                });
+                i += 1;
+            } else {
+                let parent_id = parent_id.clone();
+                let mut leaves = vec![(id.clone(), label.clone(), color.clone())];
+                i += 1;
+                while i < flat.len() {
+                    let (id2, label2, color2, _, has2, ref p2) = &flat[i];
+                    let (id2, label2, color2, has2) =
+                        (id2.clone(), label2.clone(), color2.clone(), *has2);
+                    if !has2 && *p2 == parent_id {
+                        leaves.push((id2.clone(), label2.clone(), color2.clone()));
+                        i += 1;
+                    } else {
+                        break;
+                    }
                 }
+                result.push(DimTreeItem::Leaves {
+                    depth,
+                    nodes: leaves,
+                });
             }
-            result.push(DimTreeItem::Leaves {
-                depth,
-                nodes: leaves,
-            });
         }
+        result
     }
-    result
 }
 
 #[component]
@@ -130,7 +126,7 @@ pub fn EntityForm(
     let is_new = move || {
         editing.with(|e| {
             e.as_ref()
-                .map(|r| bipartite.with(|s| s.catalog.iter().all(|x| x.id != r.id)))
+                .map(|r| bipartite.with(|s| s.catalog.node(&r.id).is_none()))
                 .unwrap_or(false)
         })
     };
@@ -227,7 +223,7 @@ pub fn EntityForm(
                                 } else {
                                     root.label.clone()
                                 };
-                                let chips = descendants_dfs(&s.taxonomy, &root.id);
+                                let chips = DimTreeItem::rows(&s.taxonomy, &root.id);
                                 view! {
                                     <div class="form-dim-row">
                                         <span class="form-dim-label">{root_label}</span>

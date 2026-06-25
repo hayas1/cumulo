@@ -1,29 +1,11 @@
-use cumulo_model::{Category, Id, Resource};
+use cumulo_model::Resource;
 use js_sys::Array;
-use serde::{Deserialize, Serialize};
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-/// Web 層が Resource に付与する値。
-/// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct ResourceAttribute {
-    pub console_url: String,
-    pub created_at: Option<String>,
-    pub freq: u32,
-}
-
-/// Web 層が Category に付与するビジュアル属性。
-/// `#[serde(flatten)]` で JSON にインライン展開されるため、既存データと後方互換。
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct CategoryAttribute {
-    pub color: String,
-}
-
-pub type CategoryId = Id<Category<CategoryAttribute>>;
-pub type ResourceId = Id<Resource<ResourceAttribute, CategoryAttribute>>;
-/// 軸→値の絞り込み選択。web 層では CA を固定して扱う。
-pub type Filters = cumulo_model::Filters<CategoryAttribute>;
+use crate::category::{CategoryAttribute, CategoryId};
+use crate::resource::{ResourceAttribute, ResourceId};
+use crate::shared::Color;
 
 /// ブラウザ固有の副作用（ID 生成、色生成、ダウンロード、URL 開放）をまとめる。
 /// js_sys / web_sys を使うため core クレートには含めない。
@@ -52,13 +34,13 @@ impl Platform {
         }
     }
 
-    pub fn random_color() -> String {
+    pub fn random_color() -> Color {
         const PALETTE: &[&str] = &[
             "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6",
             "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e",
         ];
         let idx = (js_sys::Math::random() * PALETTE.len() as f64) as usize;
-        PALETTE[idx.min(PALETTE.len() - 1)].to_string()
+        Color::from_hex(PALETTE[idx.min(PALETTE.len() - 1)]).expect("palette entries are valid hex")
     }
 
     /// leptos_router の `base` に渡す path prefix を返す。

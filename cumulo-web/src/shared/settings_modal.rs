@@ -1,6 +1,9 @@
-use super::attributes_tab::AttributesTab;
-use super::entities_tab::EntitiesTab;
-use crate::platform::{CategoryAttribute, Platform, ResourceAttribute};
+use crate::category::attributes_tab::AttributesTab;
+use crate::category::CategoryAttribute;
+use crate::platform::Platform;
+use crate::resource::entities_tab::EntitiesTab;
+use crate::resource::ResourceAttribute;
+use crate::shared::ConfirmDialog;
 use crate::storage::AppStorage;
 use cumulo_model::ExportData;
 use cumulo_model::{Bipartite, Resource};
@@ -173,21 +176,12 @@ pub fn SettingsModal(
             </div>
 
             {move || confirm_clear.get().then(|| view! {
-                <div class="confirm-overlay" on:click=move |_| confirm_clear.set(false)>
-                    <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                        <p class="confirm-text">
-                            "エクスポートしてから消去します。"
-                        </p>
-                        <div class="confirm-btns">
-                            <button class="confirm-cancel" on:click=move |_| confirm_clear.set(false)>
-                                "キャンセル"
-                            </button>
-                            <button class="confirm-ok" on:click=on_clear>
-                                "エクスポートして消去"
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmDialog
+                    message="エクスポートしてから消去します。"
+                    confirm_label="エクスポートして消去"
+                    on_confirm=Callback::new(on_clear)
+                    on_cancel=Callback::new(move |_| confirm_clear.set(false))
+                />
             })}
         </Show>
     }

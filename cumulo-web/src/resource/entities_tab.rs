@@ -1,21 +1,12 @@
-use crate::platform::{CategoryAttribute, Platform, ResourceAttribute};
-use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Resource};
+use crate::category::CategoryAttribute;
+use crate::platform::Platform;
+use crate::resource::{ResourceAttribute, ResourceId};
+use crate::shared::ForestDeleteConfirm;
+use cumulo_model::{Bipartite, Forest, Resource};
 
 use icondata as icon;
 use leptos::prelude::*;
 use leptos_icons::Icon;
-use std::sync::Arc;
-
-fn ask_confirm(
-    msg: &'static str,
-    action: impl Fn() + Send + Sync + 'static,
-    confirm_msg: RwSignal<Option<&'static str>>,
-    confirm_action: RwSignal<Option<Arc<dyn Fn() + Send + Sync>>>,
-) {
-    confirm_msg.set(Some(msg));
-    confirm_action.set(Some(Arc::new(action)));
-}
 
 #[component]
 pub fn EntitiesTab(
@@ -24,13 +15,8 @@ pub fn EntitiesTab(
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
-    let confirm_msg = RwSignal::new(Option::<&'static str>::None);
-    let confirm_action: RwSignal<Option<Arc<dyn Fn() + Send + Sync>>> = RwSignal::new(None);
-
-    let close_confirm = move || {
-        confirm_msg.set(None);
-        confirm_action.set(None);
-    };
+    // 削除対象 (id, 子を持つか)。子を持つ場合は繰り上げ / サブツリーを popup で選ばせる。
+    let delete_target = RwSignal::new(Option::<(ResourceId, bool)>::None);
 
     view! {
         <div class="resource-tab">
@@ -61,6 +47,7 @@ pub fn EntitiesTab(
                         let r_id = r.id.clone();
                         let r_edit = r.clone();
                         let display = r.display_label(&s.taxonomy);
+                        let has_children = !s.catalog.children_of(&r.id).is_empty();
                         view! {
                             <div class="resource-row">
                                 <span class="resource-row-name">{display}</span>
@@ -79,18 +66,7 @@ pub fn EntitiesTab(
                                     <button
                                         class="resource-row-delete"
                                         on:click=move |_| {
-                                            let id = r_id.clone();
-                                            ask_confirm(
-                                                "このリソースを削除しますか？",
-                                                move || {
-                                                    bipartite.update(|s| {
-                                                        s.catalog.retain(|r| r.id != id)
-                                                    });
-                                                    AppStorage::save(&bipartite.get_untracked());
-                                                },
-                                                confirm_msg,
-                                                confirm_action,
-                                            );
+                                            delete_target.set(Some((r_id.clone(), has_children)));
                                         }
                                     >
                                         "×"
@@ -104,32 +80,15 @@ pub fn EntitiesTab(
             }}
         </div>
 
-        {move || {
-            confirm_msg.get().map(|msg| {
-                view! {
-                    <div class="confirm-overlay" on:click=move |_| close_confirm()>
-                        <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                            <p class="confirm-text">{msg}</p>
-                            <div class="confirm-btns">
-                                <button class="confirm-cancel" on:click=move |_| close_confirm()>
-                                    "キャンセル"
-                                </button>
-                                <button
-                                    class="confirm-ok"
-                                    on:click=move |_| {
-                                        if let Some(action) = confirm_action.get_untracked() {
-                                            action();
-                                        }
-                                        close_confirm();
-                                    }
-                                >
-                                    "削除"
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                }
-            })
-        }}
+        <ForestDeleteConfirm
+            bipartite=bipartite
+            select={|b: &mut Bipartite<ResourceAttribute, CategoryAttribute>| &mut b.catalog}
+            target=delete_target
+            label={move |id: &ResourceId| {
+                bipartite
+                    .with(|s| s.catalog.node(id).map(|r| r.display_label(&s.taxonomy)))
+                    .unwrap_or_else(|| id.to_string())
+            }}
+        />
     }
 }

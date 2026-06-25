@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Errors, ForestError};
-use crate::forest::{Forest, ForestNode};
+use crate::forest::{Forest, ForestMut, ForestNode};
 use crate::id::Id;
 
 /// カテゴリ木の各ノード。categories は値 id のリストで、軸（根）は root_of で導出する。
@@ -27,6 +27,9 @@ impl<CA> ForestNode for Category<CA> {
     }
     fn parent(&self) -> Option<&Id<Self>> {
         self.parent.as_ref()
+    }
+    fn set_parent(&mut self, parent: Option<Id<Self>>) {
+        self.parent = parent;
     }
 }
 
@@ -58,6 +61,12 @@ impl<CA> Forest for Taxonomy<CA> {
     type Node = Category<CA>;
     fn nodes(&self) -> &[Category<CA>] {
         &self.0
+    }
+}
+
+impl<CA> ForestMut for Taxonomy<CA> {
+    fn nodes_mut(&mut self) -> &mut Vec<Category<CA>> {
+        &mut self.0
     }
 }
 
@@ -147,24 +156,6 @@ impl<CA> Taxonomy<CA> {
         let insert_at = if after { tpos + 1 } else { tpos };
         let len = self.len();
         self.insert(insert_at.min(len), node);
-    }
-
-    pub fn delete_promote(&mut self, node_id: &Id<Category<CA>>) {
-        let parent = self
-            .iter()
-            .find(|n| &n.id == node_id)
-            .and_then(|n| n.parent.clone());
-        for child in self.iter_mut() {
-            if child.parent.as_ref() == Some(node_id) {
-                child.parent = parent.clone();
-            }
-        }
-        self.retain(|n| &n.id != node_id);
-    }
-
-    pub fn delete_subtree(&mut self, node_id: &Id<Category<CA>>) {
-        let doomed = self.collect_descendants(node_id);
-        self.retain(|n| !doomed.contains(n.id.as_str()));
     }
 
     pub fn rename_node(

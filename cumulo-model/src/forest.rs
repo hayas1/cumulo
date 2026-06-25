@@ -8,11 +8,14 @@ use crate::id::Id;
 pub trait ForestNode: Sized {
     fn id(&self) -> &Id<Self>;
     fn parent(&self) -> Option<&Id<Self>>;
+    /// parent リンクの付け替え。繰り上げ削除などの編集系で使う。
+    fn set_parent(&mut self, parent: Option<Id<Self>>);
 }
 
 /// parent リンクで is-a 森を構成するノード列に共通する読み取りナビゲーション。
 /// Catalog / Taxonomy が実装し、これらの走査ロジックを一箇所に集約する。
-/// 編集系（reparent / delete など）は森ごとに事情が異なるため各型側に置く。
+/// 並べ替えを伴う reparent などは森ごとに事情が異なるため各型側に残し、
+/// 森の種類に依らず同一な削除系は [`ForestMut`] に分離する。
 pub trait Forest {
     type Node: ForestNode;
 
@@ -168,6 +171,29 @@ pub trait Forest {
     {
         self.validate()?;
         Ok(self)
+    }
+}
+
+/// 森の種類（Catalog / Taxonomy）に依らず同一な削除系を集約する。
+/// parent リンクだけ見ればよく node 種に依存しないため、各型は `nodes_mut` のみ実装する。
+pub trait ForestMut: Forest {
+    fn nodes_mut(&mut self) -> &mut Vec<Self::Node>;
+
+    /// node を削除し、その子は node の親へ繰り上げる（子の孤児化を防ぐ）。
+    fn delete_promote(&mut self, node_id: &Id<Self::Node>) {
+        let parent = self.node(node_id).and_then(|n| n.parent().cloned());
+        for child in self.nodes_mut().iter_mut() {
+            if child.parent() == Some(node_id) {
+                child.set_parent(parent.clone());
+            }
+        }
+        self.nodes_mut().retain(|n| n.id() != node_id);
+    }
+
+    /// node とその子孫をまとめて削除する。
+    fn delete_subtree(&mut self, node_id: &Id<Self::Node>) {
+        let doomed = self.collect_descendants(node_id);
+        self.nodes_mut().retain(|n| !doomed.contains(n.id()));
     }
 }
 

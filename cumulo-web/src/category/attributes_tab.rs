@@ -1,6 +1,9 @@
-use crate::platform::{CategoryAttribute, CategoryId, Platform, ResourceAttribute};
+use crate::category::{CategoryAttribute, CategoryId, DEFAULT_COLOR};
+use crate::platform::Platform;
+use crate::resource::ResourceAttribute;
+use crate::shared::{Color, ConfirmDialog, ForestDeleteConfirm};
 use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Category, Forest};
+use cumulo_model::{Bipartite, Category, Forest, ForestMut};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -25,11 +28,7 @@ impl DimTabActions {
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn delete_promote(self, node_id: CategoryId) {
-        self.0.update(|s| s.taxonomy.delete_promote(&node_id));
-        AppStorage::save(&self.0.get_untracked());
-    }
-
+    // ディメンション（根）ごと削除する経路で使う。根は繰り上げ先がないので subtree のみ。
     fn delete_subtree(self, node_id: CategoryId) {
         self.0.update(|s| s.taxonomy.delete_subtree(&node_id));
         AppStorage::save(&self.0.get_untracked());
@@ -66,7 +65,9 @@ impl DimTabActions {
                 &old_id,
                 new_id.try_into().unwrap(),
                 &new_label,
-                CategoryAttribute { color: new_color },
+                CategoryAttribute {
+                    color: Color::from_hex(&new_color),
+                },
             )
         });
         AppStorage::save(&self.0.get_untracked());
@@ -155,10 +156,10 @@ pub fn AttributesTab(
             return;
         };
         let s = bipartite.get_untracked();
-        let Some(n) = s.taxonomy.iter().find(|n| n.id == eid) else {
+        let Some(n) = s.taxonomy.node(&eid) else {
             return;
         };
-        preview_color.set(n.attribute.color.clone());
+        preview_color.set(n.attribute.color.map(|c| c.to_hex()).unwrap_or_default());
         if let Some(el) = id_ref.get() {
             el.set_value(&n.id);
         }
@@ -166,7 +167,7 @@ pub fn AttributesTab(
             el.set_value(&n.label);
         }
         if let Some(el) = color_ref.get() {
-            el.set_value(&n.attribute.color);
+            el.set_value(&n.attribute.color.map(|c| c.to_hex()).unwrap_or_default());
         }
     });
 
@@ -377,7 +378,8 @@ pub fn AttributesTab(
                                                 .find(|n| n.id == node_id)
                                                 .cloned()
                                                 .unwrap();
-                                            let node_color = n.attribute.color.clone();
+                                            let node_color =
+                                                n.attribute.color.map(|c| c.to_hex()).unwrap_or_default();
                                             let node_label_text = if n.label.is_empty() {
                                                 n.id.to_string()
                                             } else {
@@ -460,9 +462,9 @@ pub fn AttributesTab(
                                                                 let color = Platform::random_color();
                                                                 if let Some(el) = color_ref.get_untracked()
                                                                 {
-                                                                    el.set_value(&color);
+                                                                    el.set_value(&color.to_hex());
                                                                 }
-                                                                preview_color.set(color);
+                                                                preview_color.set(color.to_hex());
                                                             }
                                                         >
                                                             <Icon
@@ -536,7 +538,7 @@ pub fn AttributesTab(
                                                                     id: new_id.clone(),
                                                                     label: String::new(),
                                                                     attribute: CategoryAttribute {
-                                                                        color: Platform::random_color(),
+                                                                        color: Some(Platform::random_color()),
                                                                     },
                                                                     parent: Some(parent.clone()),
                                                                 });
@@ -657,7 +659,7 @@ pub fn AttributesTab(
                                                     id: new_id.clone(),
                                                     label: String::new(),
                                                     attribute: CategoryAttribute {
-                                                        color: Platform::random_color(),
+                                                        color: Some(Platform::random_color()),
                                                     },
                                                     parent: Some(root_id_add.clone()),
                                                 });
@@ -685,7 +687,7 @@ pub fn AttributesTab(
                         s.taxonomy.push(Category {
                             id: new_id.clone(),
                             label: String::new(),
-                            attribute: CategoryAttribute { color: "#8899AA".to_string() },
+                            attribute: CategoryAttribute { color: Some(DEFAULT_COLOR) },
                             parent: None,
                         });
                     });
@@ -700,92 +702,27 @@ pub fn AttributesTab(
         {move || {
             confirm.msg.get().map(|msg| {
                 view! {
-                    <div class="confirm-overlay" on:click=move |_| confirm.close()>
-                        <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                            <p class="confirm-text">{msg}</p>
-                            <div class="confirm-btns">
-                                <button class="confirm-cancel" on:click=move |_| confirm.close()>
-                                    "キャンセル"
-                                </button>
-                                <button
-                                    class="confirm-ok"
-                                    on:click=move |_| {
-                                        if let Some(action) = confirm.action.get_untracked() {
-                                            action();
-                                        }
-                                        confirm.close();
-                                    }
-                                >
-                                    "削除"
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <ConfirmDialog
+                        message=msg
+                        confirm_label="削除"
+                        on_confirm=Callback::new(move |_| {
+                            if let Some(action) = confirm.action.get_untracked() {
+                                action();
+                            }
+                            confirm.close();
+                        })
+                        on_cancel=Callback::new(move |_| confirm.close())
+                    />
                 }
             })
         }}
 
-        {move || {
-            delete_target.get().map(|(node_id, has_children)| {
-                let label = node_id.clone();
-                let v_promote = node_id.clone();
-                let v_subtree = node_id.clone();
-                let v_simple = node_id.clone();
-                view! {
-                    <div class="confirm-overlay" on:click=move |_| delete_target.set(None)>
-                        <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                            <p class="confirm-text">{format!("「{label}」を削除します")}</p>
-                            <div class="confirm-btns">
-                                <button
-                                    class="confirm-cancel"
-                                    on:click=move |_| delete_target.set(None)
-                                >
-                                    "キャンセル"
-                                </button>
-                                {if has_children {
-                                    view! {
-                                        <button
-                                            class="confirm-ok"
-                                            on:click=move |_| {
-                                                editing_id.set(None);
-                                                acts.delete_promote(v_promote.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "子を繰り上げ"
-                                        </button>
-                                        <button
-                                            class="confirm-ok confirm-danger"
-                                            on:click=move |_| {
-                                                editing_id.set(None);
-                                                acts.delete_subtree(v_subtree.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "サブツリーごと"
-                                        </button>
-                                    }
-                                    .into_any()
-                                } else {
-                                    view! {
-                                        <button
-                                            class="confirm-ok"
-                                            on:click=move |_| {
-                                                editing_id.set(None);
-                                                acts.delete_subtree(v_simple.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "削除"
-                                        </button>
-                                    }
-                                    .into_any()
-                                }}
-                            </div>
-                        </div>
-                    </div>
-                }
-            })
-        }}
+        <ForestDeleteConfirm
+            bipartite=bipartite
+            select={|b: &mut Bipartite<ResourceAttribute, CategoryAttribute>| &mut b.taxonomy}
+            target=delete_target
+            label={|id: &CategoryId| id.to_string()}
+            on_after=Callback::new(move |_| editing_id.set(None))
+        />
     }
 }

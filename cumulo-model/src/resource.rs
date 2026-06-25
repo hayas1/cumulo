@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
 use crate::error::{Errors, ForestError};
-use crate::forest::{Forest, ForestNode};
+use crate::forest::{Forest, ForestMut, ForestNode};
 use crate::id::Id;
 
 /// `#[serde(bound)]` で境界を明示し、flatten が attribute: RA から生成する RA: Default 境界を除去する。
@@ -25,6 +25,9 @@ pub struct Resource<RA, CA> {
     #[serde(flatten)]
     pub attribute: RA,
 }
+
+/// taxonomy フォレスト上の (root, node) の組。node が属する木の根が root。
+pub type RootedNode<CA> = (Id<Category<CA>>, Id<Category<CA>>);
 
 impl<RA, CA: Clone> Resource<RA, CA> {
     pub fn display_label(&self, forest: &Taxonomy<CA>) -> String {
@@ -53,6 +56,19 @@ impl<RA, CA: Clone> Resource<RA, CA> {
         }
     }
 
+    /// 各カテゴリ node を、属する木の root と対にして root id でソートして返す。
+    /// root は node の root_of で導出する（根まで辿れない壊れた node は、それ自身を root とみなす）。
+    /// web 側で root_of と並べ替えを手書きせず、リソースの森射影をモデルに一本化するための API。
+    pub fn rooted_nodes(&self, taxonomy: &Taxonomy<CA>) -> Vec<RootedNode<CA>> {
+        let mut pairs: Vec<_> = self
+            .categories
+            .iter()
+            .map(|v| (taxonomy.root_of(v).unwrap_or_else(|| v.clone()), v.clone()))
+            .collect();
+        pairs.sort_by(|(a, _), (b, _)| a.cmp(b));
+        pairs
+    }
+
     /// 指定軸（根）におけるこのリソースのカテゴリ値を返す。
     /// 値リストは軸を持たないため、各値の root_of を taxonomy から導出して照合する。
     pub fn category<'a>(
@@ -72,6 +88,9 @@ impl<RA, CA> ForestNode for Resource<RA, CA> {
     }
     fn parent(&self) -> Option<&Id<Self>> {
         self.parent.as_ref()
+    }
+    fn set_parent(&mut self, parent: Option<Id<Self>>) {
+        self.parent = parent;
     }
 }
 
@@ -107,6 +126,12 @@ impl<RA, CA> Forest for Catalog<RA, CA> {
     }
 }
 
+impl<RA, CA> ForestMut for Catalog<RA, CA> {
+    fn nodes_mut(&mut self) -> &mut Vec<Resource<RA, CA>> {
+        &mut self.0
+    }
+}
+
 impl<RA, CA> Catalog<RA, CA> {
     /// 森の構造整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
     pub fn try_new(nodes: Vec<Resource<RA, CA>>) -> Result<Self, Errors<ForestError>> {
@@ -120,6 +145,77 @@ mod tests {
 
     fn id(s: &str) -> Id<Resource<(), ()>> {
         s.try_into().unwrap()
+    }
+
+    fn cid(s: &str) -> Id<crate::category::Category<()>> {
+        s.try_into().unwrap()
+    }
+
+    // rooted_nodes は各 node を (root, node) に射影し、root id でソートして返す
+    #[test]
+    fn rooted_nodes_pairs_each_node_with_its_root_sorted() {
+        use crate::category::{Category, Taxonomy};
+        // platform > bigquery, env > prod
+        let tax: Taxonomy<()> = Taxonomy(vec![
+            Category {
+                id: cid("platform"),
+                label: "P".into(),
+                parent: None,
+                attribute: (),
+            },
+            Category {
+                id: cid("bigquery"),
+                label: "BQ".into(),
+                parent: Some(cid("platform")),
+                attribute: (),
+            },
+            Category {
+                id: cid("env"),
+                label: "E".into(),
+                parent: None,
+                attribute: (),
+            },
+            Category {
+                id: cid("prod"),
+                label: "prod".into(),
+                parent: Some(cid("env")),
+                attribute: (),
+            },
+        ]);
+        let r = Resource {
+            id: id("r1"),
+            label: None,
+            parent: None,
+            categories: vec![cid("bigquery"), cid("prod")],
+            attribute: (),
+        };
+        // root id でソートされる: env < platform
+        assert_eq!(
+            r.rooted_nodes(&tax),
+            vec![
+                (cid("env"), cid("prod")),
+                (cid("platform"), cid("bigquery"))
+            ]
+        );
+    }
+
+    // delete_promote は node を消し、その子を node の親へ繰り上げる
+    #[test]
+    fn delete_promote_lifts_children_to_grandparent() {
+        let mut c = test_catalog(); // gcp > bigquery, bigtable
+        c.delete_promote(&id("gcp"));
+        assert!(c.node(&id("gcp")).is_none());
+        // 親 gcp は None だったので子は根（parent=None）に昇格する
+        assert_eq!(c.node(&id("bigquery")).unwrap().parent, None);
+        assert_eq!(c.node(&id("bigtable")).unwrap().parent, None);
+    }
+
+    // delete_subtree は node とその子孫をまとめて消す
+    #[test]
+    fn delete_subtree_removes_node_and_descendants() {
+        let mut c = test_catalog();
+        c.delete_subtree(&id("gcp"));
+        assert!(c.is_empty());
     }
 
     fn test_catalog() -> Catalog<(), ()> {

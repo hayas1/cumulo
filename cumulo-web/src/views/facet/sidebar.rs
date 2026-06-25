@@ -1,5 +1,6 @@
-use crate::platform::{CategoryAttribute, CategoryId, Filters, ResourceAttribute};
-use cumulo_model::{Bipartite, Forest};
+use crate::category::{CategoryAttribute, CategoryId, Filters};
+use crate::resource::ResourceAttribute;
+use cumulo_model::{Bipartite, Forest, Selection};
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -25,10 +26,10 @@ pub fn FacetSidebar(
                     .into_iter()
                     .filter_map(|root| {
                         // この軸の候補件数は、他の軸で絞った母集団に対して数える
-                        let base = s.filter_resources(&tags.without_root(&root.id));
+                        let base = s.filtered(&tags.without_root(&root.id));
 
                         let mut counts: HashMap<CategoryId, usize> = HashMap::new();
-                        for r in &base {
+                        for r in base.items() {
                             if let Some(leaf_id) = r.category(&s.taxonomy, &root.id) {
                                 *counts.entry(leaf_id.clone()).or_default() += 1;
                                 for anc in s.taxonomy.ancestry(leaf_id) {
