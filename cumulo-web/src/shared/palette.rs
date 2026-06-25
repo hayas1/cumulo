@@ -3,29 +3,55 @@ use crate::resource::ResourceAttribute;
 use cumulo_model::{Bipartite, Forest, Selection};
 use leptos::prelude::*;
 
-/// 検索窓のキーボードフォーカス位置。検索入力（`Input`）と選択中フィルタのピル（`Pill(i)`）の
-/// 間を左右キーで行き来する。DOM フォーカスとは独立に持ち、遷移だけを純粋に扱えるようにする。
+/// 検索窓のキーボードフォーカス位置。3 ゾーンを空間的に移動する:
+/// - `Input`: 検索入力
+/// - `Pill(i)`: 選択中フィルタのピル（入力の左隣）。↓ ではなく ← で入る
+/// - `Candidate(i)`: 下に並ぶ候補（入力の下）。↓ で入り ↑ で戻る
+///
+/// DOM フォーカスとは独立に持ち、遷移だけを純粋に扱えるようにする。
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum PaletteFocus {
     Input,
     Pill(usize),
+    Candidate(usize),
 }
 
 impl PaletteFocus {
-    /// 左キー: 入力からは末尾ピルへ入り、ピル上では1つ左へ（左端で留まる）。
+    /// 下キー: 入力・ピルから候補一覧の先頭へ。候補内・候補がなければ留まる。
+    fn down(self, candidate_count: usize) -> Self {
+        match self {
+            PaletteFocus::Candidate(_) => self,
+            _ if candidate_count > 0 => PaletteFocus::Candidate(0),
+            _ => self,
+        }
+    }
+
+    /// 上キー: 候補一覧からは検索入力に戻る。それ以外は留まる。
+    fn up(self) -> Self {
+        match self {
+            PaletteFocus::Candidate(_) => PaletteFocus::Input,
+            other => other,
+        }
+    }
+
+    /// 左キー: 入力からは末尾ピルへ入る。ピル・候補の上では1つ左へ（左端で留まる）。
     fn left(self, pill_count: usize) -> Self {
         match self {
             PaletteFocus::Input if pill_count > 0 => PaletteFocus::Pill(pill_count - 1),
             PaletteFocus::Input => PaletteFocus::Input,
             PaletteFocus::Pill(i) => PaletteFocus::Pill(i.saturating_sub(1)),
+            PaletteFocus::Candidate(i) => PaletteFocus::Candidate(i.saturating_sub(1)),
         }
     }
 
-    /// 右キー: ピル上では1つ右へ。末尾ピルの右では検索入力に戻る。
-    fn right(self, pill_count: usize) -> Self {
+    /// 右キー: ピル上では1つ右へ（末尾の右は検索入力に戻る）。候補上では1つ右へ（右端で留まる）。
+    fn right(self, pill_count: usize, candidate_count: usize) -> Self {
         match self {
             PaletteFocus::Pill(i) if i + 1 < pill_count => PaletteFocus::Pill(i + 1),
-            _ => PaletteFocus::Input,
+            PaletteFocus::Pill(_) => PaletteFocus::Input,
+            PaletteFocus::Candidate(i) if i + 1 < candidate_count => PaletteFocus::Candidate(i + 1),
+            PaletteFocus::Candidate(i) => PaletteFocus::Candidate(i),
+            PaletteFocus::Input => PaletteFocus::Input,
         }
     }
 
@@ -37,11 +63,19 @@ impl PaletteFocus {
         }
     }
 
-    /// このフォーカスが選択しているピルの位置（描画のハイライト判定に使う）。
+    /// 選択中のピルの位置（描画のハイライト判定に使う）。
     fn pill(self) -> Option<usize> {
         match self {
             PaletteFocus::Pill(i) => Some(i),
-            PaletteFocus::Input => None,
+            _ => None,
+        }
+    }
+
+    /// ハイライト中の候補の位置（描画のハイライト判定に使う）。
+    fn candidate(self) -> Option<usize> {
+        match self {
+            PaletteFocus::Candidate(i) => Some(i),
+            _ => None,
         }
     }
 }
@@ -52,9 +86,7 @@ pub fn Palette(
     selected_tags: RwSignal<Filters>,
 ) -> impl IntoView {
     let input_text = RwSignal::new(String::new());
-    let focused_index = RwSignal::new(Option::<usize>::None);
-    let is_focused = RwSignal::new(false);
-    // キーボードでのフォーカス位置（検索入力 ↔ 選択中フィルタのピル）
+    // キーボードでのフォーカス位置（検索入力 / 選択中フィルタのピル / 下の候補）
     let cursor = RwSignal::new(PaletteFocus::Input);
 
     let suggestions = Memo::new(move |_| {
@@ -76,14 +108,7 @@ pub fn Palette(
         // 1軸1フィルタ: その軸の値を設定（既存値は置換）
         selected_tags.update(|t| t.set(k, v));
         input_text.set(String::new());
-        focused_index.set(None);
-    };
-
-    // 入力中（フォーカスあり＋文字あり）かつ候補があるときだけポップアップを表示
-    let show_popup = move || {
-        is_focused.get()
-            && !input_text.with(|t| t.is_empty())
-            && suggestions.with(|s| !s.is_empty())
+        cursor.set(PaletteFocus::Input);
     };
 
     view! {
@@ -126,37 +151,38 @@ pub fn Palette(
                         class="palette-input"
                         placeholder="絞り込み... (例: service, auth)"
                         prop:value=move || input_text.get()
-                        on:focus=move |_| is_focused.set(true)
-                        on:blur=move |_| is_focused.set(false)
                         on:input=move |ev| {
                             input_text.set(event_target_value(&ev));
-                            focused_index.set(None);
-                            // 文字入力に戻ったらピル選択は解除
+                            // 文字入力に戻ったらゾーン移動は解除し検索入力へ
                             cursor.set(PaletteFocus::Input);
                         }
                         on:keydown=move |ev| {
-                            // 先にピル（選択中フィルタ）操作を処理する。候補が0件でも効くように
-                            // サジェストの早期 return より前に置く。
                             let pills_len = selected_tags.with(|t| t.iter().count());
+                            let cand_len = suggestions.with(|s| s.len());
+                            let empty_input = input_text.with(|t| t.is_empty());
                             let cur = cursor.get_untracked();
                             match (cur, ev.key().as_str()) {
-                                // 検索窓が空のときだけ左キーでピル選択に入る（文字編集を邪魔しない）
-                                (PaletteFocus::Input, "ArrowLeft")
-                                    if input_text.with(|t| t.is_empty()) && pills_len > 0 =>
-                                {
+                                // 検索入力: ↓ で候補へ。空のとき ← でピルへ（文字編集を邪魔しない）
+                                (PaletteFocus::Input, "ArrowDown") if cand_len > 0 => {
+                                    ev.prevent_default();
+                                    cursor.set(cur.down(cand_len));
+                                }
+                                (PaletteFocus::Input, "ArrowLeft") if empty_input && pills_len > 0 => {
                                     ev.prevent_default();
                                     cursor.set(cur.left(pills_len));
-                                    return;
                                 }
+                                // ピル: ←→ で移動（→ 末尾で入力へ戻る）、Backspace/Delete/Enter で削除
                                 (PaletteFocus::Pill(_), "ArrowLeft") => {
                                     ev.prevent_default();
                                     cursor.set(cur.left(pills_len));
-                                    return;
                                 }
                                 (PaletteFocus::Pill(_), "ArrowRight") => {
                                     ev.prevent_default();
-                                    cursor.set(cur.right(pills_len));
-                                    return;
+                                    cursor.set(cur.right(pills_len, cand_len));
+                                }
+                                (PaletteFocus::Pill(_), "ArrowDown") if cand_len > 0 => {
+                                    ev.prevent_default();
+                                    cursor.set(cur.down(cand_len));
                                 }
                                 (PaletteFocus::Pill(i), "Backspace" | "Delete" | "Enter") => {
                                     ev.prevent_default();
@@ -167,95 +193,34 @@ pub fn Palette(
                                         }
                                     });
                                     cursor.set(cur.after_removal(pills_len.saturating_sub(1)));
-                                    return;
                                 }
-                                (PaletteFocus::Pill(_), "Escape") => {
+                                // 候補: ←→ で移動、↑ で入力へ戻る、Enter で確定
+                                (PaletteFocus::Candidate(_), "ArrowLeft") => {
                                     ev.prevent_default();
-                                    cursor.set(PaletteFocus::Input);
-                                    return;
+                                    cursor.set(cur.left(pills_len));
                                 }
-                                _ => {}
-                            }
-
-                            let count = suggestions.with(|s| s.len());
-                            if count == 0 {
-                                return;
-                            }
-                            match ev.key().as_str() {
-                                "ArrowDown" => {
+                                (PaletteFocus::Candidate(_), "ArrowRight") => {
                                     ev.prevent_default();
-                                    focused_index.update(|fi| {
-                                        *fi = Some(match *fi {
-                                            None => 0,
-                                            Some(i) => (i + 1) % count,
-                                        });
-                                    });
+                                    cursor.set(cur.right(pills_len, cand_len));
                                 }
-                                "ArrowUp" => {
+                                (PaletteFocus::Candidate(_), "ArrowUp") => {
                                     ev.prevent_default();
-                                    focused_index.update(|fi| {
-                                        *fi = Some(match *fi {
-                                            None | Some(0) => count - 1,
-                                            Some(i) => i - 1,
-                                        });
-                                    });
+                                    cursor.set(cur.up());
                                 }
-                                "Enter" => {
-                                    if let Some(idx) = focused_index.get_untracked() {
-                                        if let Some((k, v)) =
-                                            suggestions.with(|s| s.get(idx).cloned())
-                                        {
-                                            ev.prevent_default();
-                                            commit_tag(k, v);
-                                        }
+                                (PaletteFocus::Candidate(i), "Enter") => {
+                                    if let Some((k, v)) = suggestions.with(|s| s.get(i).cloned()) {
+                                        ev.prevent_default();
+                                        commit_tag(k, v);
                                     }
                                 }
-                                "Escape" => {
-                                    focused_index.set(None);
-                                    is_focused.set(false);
+                                (_, "Escape") => {
+                                    ev.prevent_default();
+                                    cursor.set(PaletteFocus::Input);
                                 }
                                 _ => {}
                             }
                         }
                     />
-                    // 入力中のみ表示するポップアップ
-                    <Show when=show_popup>
-                        <div class="palette-popup">
-                            {move || {
-                                let fi = focused_index.get();
-                                suggestions
-                                    .get()
-                                    .into_iter()
-                                    .enumerate()
-                                    .map(|(i, (k, v))| {
-                                        let key = k.clone();
-                                        let val = v.clone();
-                                        let key2 = key.clone();
-                                        let val2 = val.clone();
-                                        let is_focused_item = fi == Some(i);
-                                        view! {
-                                            <button
-                                                class=if is_focused_item {
-                                                    "popup-item focused"
-                                                } else {
-                                                    "popup-item"
-                                                }
-                                                // mousedown で prevent_default → blur を防いで確定
-                                                on:mousedown=move |ev| {
-                                                    ev.prevent_default();
-                                                    commit_tag(key2.clone(), val2.clone());
-                                                }
-                                            >
-                                                <span class="sug-key">{key.to_string()}</span>
-                                                <span class="sug-sep">":"</span>
-                                                <span class="sug-val">{val.to_string()}</span>
-                                            </button>
-                                        }
-                                    })
-                                    .collect::<Vec<_>>()
-                            }}
-                        </div>
-                    </Show>
                 </div>
 
                 <Show when=move || !selected_tags.with(|t| t.is_empty())>
@@ -271,7 +236,7 @@ pub fn Palette(
                 </Show>
             </div>
 
-            // 既存の横並びチップ（常時表示）
+            // 候補一覧（常時表示）。↓↑ でハイライト移動、Enter かクリックで確定
             <Show when=move || suggestions.with(|s| !s.is_empty())>
                 <div class="palette-suggestions">
                     <span class="suggestions-label">"候補:"</span>
@@ -279,7 +244,8 @@ pub fn Palette(
                         suggestions
                             .get()
                             .into_iter()
-                            .map(|(k, v)| {
+                            .enumerate()
+                            .map(|(i, (k, v))| {
                                 let key = k.clone();
                                 let val = v.clone();
                                 let key2 = key.clone();
@@ -287,6 +253,7 @@ pub fn Palette(
                                 view! {
                                     <button
                                         class="suggestion-btn"
+                                        class:focused=move || cursor.get().candidate() == Some(i)
                                         on:click=move |_| {
                                             commit_tag(key2.clone(), val2.clone());
                                         }
@@ -307,7 +274,25 @@ pub fn Palette(
 
 #[cfg(test)]
 mod tests {
-    use super::PaletteFocus::{self, Input, Pill};
+    use super::PaletteFocus::{self, Candidate, Input, Pill};
+
+    // 下キー: 入力・ピルから候補先頭へ。候補がなければ留まる
+    #[test]
+    fn down_enters_candidates_from_input_and_pill() {
+        assert_eq!(Input.down(3), Candidate(0));
+        assert_eq!(Pill(1).down(3), Candidate(0));
+        assert_eq!(Input.down(0), Input);
+        // 候補内では下キーで留まる
+        assert_eq!(Candidate(1).down(3), Candidate(1));
+    }
+
+    // 上キー: 候補からは入力へ。それ以外は留まる
+    #[test]
+    fn up_returns_to_input_from_candidates() {
+        assert_eq!(Candidate(2).up(), Input);
+        assert_eq!(Pill(1).up(), Pill(1));
+        assert_eq!(Input.up(), Input);
+    }
 
     // 左キー: 入力からは末尾ピルに入る。ピルがなければ入力のまま
     #[test]
@@ -316,19 +301,23 @@ mod tests {
         assert_eq!(Input.left(0), Input);
     }
 
-    // 左キー: ピル上では1つ左へ。左端では留まる
+    // 左キー: ピル・候補の上では1つ左へ。左端では留まる
     #[test]
-    fn left_moves_within_pills_and_stops_at_head() {
+    fn left_moves_within_zone_and_stops_at_head() {
         assert_eq!(Pill(2).left(3), Pill(1));
         assert_eq!(Pill(0).left(3), Pill(0));
+        assert_eq!(Candidate(2).left(3), Candidate(1));
+        assert_eq!(Candidate(0).left(3), Candidate(0));
     }
 
-    // 右キー: ピル上では1つ右へ。末尾の右では検索入力に戻る
+    // 右キー: ピルは末尾の右で入力へ。候補は右端で留まる
     #[test]
-    fn right_moves_within_pills_then_back_to_input() {
-        assert_eq!(Pill(0).right(3), Pill(1));
-        assert_eq!(Pill(2).right(3), Input);
-        assert_eq!(Input.right(3), Input);
+    fn right_moves_within_zone_then_pills_return_to_input() {
+        assert_eq!(Pill(0).right(3, 5), Pill(1));
+        assert_eq!(Pill(2).right(3, 5), Input);
+        assert_eq!(Candidate(0).right(3, 5), Candidate(1));
+        assert_eq!(Candidate(4).right(3, 5), Candidate(4));
+        assert_eq!(Input.right(3, 5), Input);
     }
 
     // 削除後: 残りがあれば範囲内にクランプ、なくなれば入力へ
@@ -340,8 +329,11 @@ mod tests {
     }
 
     #[test]
-    fn pill_reports_selected_index() {
+    fn pill_and_candidate_report_selected_index() {
         assert_eq!(Pill(1).pill(), Some(1));
+        assert_eq!(Candidate(2).pill(), None);
+        assert_eq!(Candidate(2).candidate(), Some(2));
+        assert_eq!(Pill(1).candidate(), None);
         assert_eq!(PaletteFocus::Input.pill(), None);
     }
 }
