@@ -1,9 +1,9 @@
 use crate::category::{CategoryAttribute, CategoryId, DEFAULT_COLOR};
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
-use crate::shared::Color;
+use crate::shared::{Color, ConfirmDialog, ForestDeleteConfirm};
 use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Category, Forest};
+use cumulo_model::{Bipartite, Category, Forest, ForestMut};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -28,11 +28,7 @@ impl DimTabActions {
         AppStorage::save(&self.0.get_untracked());
     }
 
-    fn delete_promote(self, node_id: CategoryId) {
-        self.0.update(|s| s.taxonomy.delete_promote(&node_id));
-        AppStorage::save(&self.0.get_untracked());
-    }
-
+    // ディメンション（根）ごと削除する経路で使う。根は繰り上げ先がないので subtree のみ。
     fn delete_subtree(self, node_id: CategoryId) {
         self.0.update(|s| s.taxonomy.delete_subtree(&node_id));
         AppStorage::save(&self.0.get_untracked());
@@ -706,92 +702,27 @@ pub fn AttributesTab(
         {move || {
             confirm.msg.get().map(|msg| {
                 view! {
-                    <div class="confirm-overlay" on:click=move |_| confirm.close()>
-                        <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                            <p class="confirm-text">{msg}</p>
-                            <div class="confirm-btns">
-                                <button class="confirm-cancel" on:click=move |_| confirm.close()>
-                                    "キャンセル"
-                                </button>
-                                <button
-                                    class="confirm-ok"
-                                    on:click=move |_| {
-                                        if let Some(action) = confirm.action.get_untracked() {
-                                            action();
-                                        }
-                                        confirm.close();
-                                    }
-                                >
-                                    "削除"
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <ConfirmDialog
+                        message=msg
+                        confirm_label="削除"
+                        on_confirm=Callback::new(move |_| {
+                            if let Some(action) = confirm.action.get_untracked() {
+                                action();
+                            }
+                            confirm.close();
+                        })
+                        on_cancel=Callback::new(move |_| confirm.close())
+                    />
                 }
             })
         }}
 
-        {move || {
-            delete_target.get().map(|(node_id, has_children)| {
-                let label = node_id.clone();
-                let v_promote = node_id.clone();
-                let v_subtree = node_id.clone();
-                let v_simple = node_id.clone();
-                view! {
-                    <div class="confirm-overlay" on:click=move |_| delete_target.set(None)>
-                        <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                            <p class="confirm-text">{format!("「{label}」を削除します")}</p>
-                            <div class="confirm-btns">
-                                <button
-                                    class="confirm-cancel"
-                                    on:click=move |_| delete_target.set(None)
-                                >
-                                    "キャンセル"
-                                </button>
-                                {if has_children {
-                                    view! {
-                                        <button
-                                            class="confirm-ok"
-                                            on:click=move |_| {
-                                                editing_id.set(None);
-                                                acts.delete_promote(v_promote.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "子を繰り上げ"
-                                        </button>
-                                        <button
-                                            class="confirm-ok confirm-danger"
-                                            on:click=move |_| {
-                                                editing_id.set(None);
-                                                acts.delete_subtree(v_subtree.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "サブツリーごと"
-                                        </button>
-                                    }
-                                    .into_any()
-                                } else {
-                                    view! {
-                                        <button
-                                            class="confirm-ok"
-                                            on:click=move |_| {
-                                                editing_id.set(None);
-                                                acts.delete_subtree(v_simple.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "削除"
-                                        </button>
-                                    }
-                                    .into_any()
-                                }}
-                            </div>
-                        </div>
-                    </div>
-                }
-            })
-        }}
+        <ForestDeleteConfirm
+            bipartite=bipartite
+            select={|b: &mut Bipartite<ResourceAttribute, CategoryAttribute>| &mut b.taxonomy}
+            target=delete_target
+            label={|id: &CategoryId| id.to_string()}
+            on_after=Callback::new(move |_| editing_id.set(None))
+        />
     }
 }

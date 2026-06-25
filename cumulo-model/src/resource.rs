@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
 use crate::error::{Errors, ForestError};
-use crate::forest::{Forest, ForestNode};
+use crate::forest::{Forest, ForestMut, ForestNode};
 use crate::id::Id;
 
 /// `#[serde(bound)]` で境界を明示し、flatten が attribute: RA から生成する RA: Default 境界を除去する。
@@ -89,6 +89,9 @@ impl<RA, CA> ForestNode for Resource<RA, CA> {
     fn parent(&self) -> Option<&Id<Self>> {
         self.parent.as_ref()
     }
+    fn set_parent(&mut self, parent: Option<Id<Self>>) {
+        self.parent = parent;
+    }
 }
 
 /// parent リンクで森を構成する resource の is-a 森（Taxonomy と対称）。
@@ -123,31 +126,16 @@ impl<RA, CA> Forest for Catalog<RA, CA> {
     }
 }
 
+impl<RA, CA> ForestMut for Catalog<RA, CA> {
+    fn nodes_mut(&mut self) -> &mut Vec<Resource<RA, CA>> {
+        &mut self.0
+    }
+}
+
 impl<RA, CA> Catalog<RA, CA> {
     /// 森の構造整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
     pub fn try_new(nodes: Vec<Resource<RA, CA>>) -> Result<Self, Errors<ForestError>> {
         Catalog(nodes).validated()
-    }
-
-    /// node を削除し、その子は node の親へ繰り上げる（Taxonomy::delete_promote と対称）。
-    /// Resource も parent を持つ is-a 森なので、子の孤児化を防ぐためモデル側に持たせる。
-    pub fn delete_promote(&mut self, node_id: &Id<Resource<RA, CA>>) {
-        let parent = self
-            .iter()
-            .find(|n| &n.id == node_id)
-            .and_then(|n| n.parent.clone());
-        for child in self.iter_mut() {
-            if child.parent.as_ref() == Some(node_id) {
-                child.parent = parent.clone();
-            }
-        }
-        self.retain(|n| &n.id != node_id);
-    }
-
-    /// node とその子孫をまとめて削除する（Taxonomy::delete_subtree と対称）。
-    pub fn delete_subtree(&mut self, node_id: &Id<Resource<RA, CA>>) {
-        let doomed = self.collect_descendants(node_id);
-        self.retain(|n| !doomed.contains(n.id.as_str()));
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::category::CategoryAttribute;
 use crate::platform::Platform;
 use crate::resource::{ResourceAttribute, ResourceId};
-use crate::storage::AppStorage;
+use crate::shared::ForestDeleteConfirm;
 use cumulo_model::{Bipartite, Forest, Resource};
 
 use icondata as icon;
@@ -17,16 +17,6 @@ pub fn EntitiesTab(
 ) -> impl IntoView {
     // 削除対象 (id, 子を持つか)。子を持つ場合は繰り上げ / サブツリーを popup で選ばせる。
     let delete_target = RwSignal::new(Option::<(ResourceId, bool)>::None);
-
-    // 削除はリソースも is-a 森なので、モデルの delete_promote / delete_subtree に委譲する。
-    let delete_promote = move |id: ResourceId| {
-        bipartite.update(|s| s.catalog.delete_promote(&id));
-        AppStorage::save(&bipartite.get_untracked());
-    };
-    let delete_subtree = move |id: ResourceId| {
-        bipartite.update(|s| s.catalog.delete_subtree(&id));
-        AppStorage::save(&bipartite.get_untracked());
-    };
 
     view! {
         <div class="resource-tab">
@@ -90,66 +80,15 @@ pub fn EntitiesTab(
             }}
         </div>
 
-        {move || {
-            delete_target.get().map(|(id, has_children)| {
-                let label = bipartite
-                    .with(|s| s.catalog.node(&id).map(|r| r.display_label(&s.taxonomy)))
-                    .unwrap_or_else(|| id.to_string());
-                let v_promote = id.clone();
-                let v_subtree = id.clone();
-                let v_simple = id.clone();
-                view! {
-                    <div class="confirm-overlay" on:click=move |_| delete_target.set(None)>
-                        <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                            <p class="confirm-text">{format!("「{label}」を削除します")}</p>
-                            <div class="confirm-btns">
-                                <button
-                                    class="confirm-cancel"
-                                    on:click=move |_| delete_target.set(None)
-                                >
-                                    "キャンセル"
-                                </button>
-                                {if has_children {
-                                    view! {
-                                        <button
-                                            class="confirm-ok"
-                                            on:click=move |_| {
-                                                delete_promote(v_promote.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "子を繰り上げ"
-                                        </button>
-                                        <button
-                                            class="confirm-ok confirm-danger"
-                                            on:click=move |_| {
-                                                delete_subtree(v_subtree.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "サブツリーごと"
-                                        </button>
-                                    }
-                                    .into_any()
-                                } else {
-                                    view! {
-                                        <button
-                                            class="confirm-ok"
-                                            on:click=move |_| {
-                                                delete_promote(v_simple.clone());
-                                                delete_target.set(None);
-                                            }
-                                        >
-                                            "削除"
-                                        </button>
-                                    }
-                                    .into_any()
-                                }}
-                            </div>
-                        </div>
-                    </div>
-                }
-            })
-        }}
+        <ForestDeleteConfirm
+            bipartite=bipartite
+            select={|b: &mut Bipartite<ResourceAttribute, CategoryAttribute>| &mut b.catalog}
+            target=delete_target
+            label={move |id: &ResourceId| {
+                bipartite
+                    .with(|s| s.catalog.node(id).map(|r| r.display_label(&s.taxonomy)))
+                    .unwrap_or_else(|| id.to_string())
+            }}
+        />
     }
 }
