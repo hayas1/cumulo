@@ -1,6 +1,6 @@
 use crate::category::{CategoryAttribute, Filters};
 use crate::platform::Platform;
-use crate::resource::form::EntityForm;
+use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
 use crate::shared::{palette::Palette, settings_modal::SettingsModal};
 use crate::storage::AppStorage;
@@ -78,7 +78,7 @@ pub fn App() -> impl IntoView {
                 </Routes>
             </div>
 
-            <EntityForm bipartite=bipartite editing=editing />
+            <ResourceForm bipartite=bipartite editing=editing />
             <SettingsModal bipartite=bipartite open=settings_open import_toast=import_toast editing=editing return_to_settings=return_to_settings />
 
             {move || import_toast.get().map(|msg| view! {

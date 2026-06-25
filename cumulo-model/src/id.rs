@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::IdError;
 
-/// エンティティや属性の ID を表すファントム型付き newtype。
+/// リソースやカテゴリの ID を表すファントム型付き newtype。
 /// T はマーカーとして機能し、異なる種類の ID の混在をコンパイル時に防ぐ。
 /// `fn() -> T` を使うことで T: Send + Sync なしに Id<T>: Send + Sync となる。
 /// Clone/Debug は derive ではなく手動実装 — derive は T: Clone/Debug 境界を生成するが、

@@ -65,7 +65,7 @@ pub fn SettingsModal(
                             match ExportData::parse(&json) {
                                 Ok(imported) => {
                                     let msg = format!(
-                                        "インポート完了: リソース {}件、ディメンション {}件",
+                                        "インポート完了: リソース {}件、カテゴリ {}件",
                                         imported.catalog.len(),
                                         imported.taxonomy.len(),
                                     );

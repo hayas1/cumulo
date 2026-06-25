@@ -15,7 +15,7 @@ pub fn Controls(
     /// 全体表示（フィルタ解除込み）。MapCanvas の背景クリックと共有する。
     fit_action: Callback<()>,
 ) -> impl IntoView {
-    let entity_count = Memo::new(move |_| {
+    let resource_count = Memo::new(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();
         s.filtered(&tags).len()
@@ -37,7 +37,7 @@ pub fn Controls(
                     "Lv." {move || zoom_level.get()}
                 </span>
                 <span class="resource-count">
-                    {move || entity_count.get()}
+                    {move || resource_count.get()}
                     " / "
                     {move || total_count.get()}
                     " 件"

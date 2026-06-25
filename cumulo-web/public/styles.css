@@ -265,7 +265,7 @@ body {
   background: rgba(224, 92, 92, 0.08);
 }
 
-/* ── Dimensions tab ──────────────────────────────────────── */
+/* ── Category tab ──────────────────────────────────────── */
 
 /* ── Resource tab ── */
 .resource-tab {
@@ -346,7 +346,7 @@ body {
 }
 .resource-row-delete:hover { color: #e05c5c; }
 
-/* ── Dimension tab ── */
+/* ── Category tab ── */
 .dim-tab {
   display: flex;
   flex-direction: column;
@@ -479,7 +479,7 @@ body {
 }
 .val-add-chip:hover { border-color: var(--accent); color: var(--accent); }
 
-/* ── Dimension value tree ────────────────────────────────── */
+/* ── Category value tree ────────────────────────────────── */
 .dim-tree {
   display: flex;
   flex-direction: column;
@@ -671,7 +671,7 @@ body {
 }
 .chip-editor-randomize:hover { border-color: var(--accent); color: var(--accent); }
 
-/* ── Add dimension ───────────────────────────────────────── */
+/* ── Add category ───────────────────────────────────────── */
 
 .dim-add-btn {
   align-self: flex-start;
@@ -1662,7 +1662,7 @@ body {
 }
 .form-add-attr-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-/* ── Dimension chip selectors inside resource form ── */
+/* ── Category chip selectors inside resource form ── */
 .form-dim-row {
   display: flex;
   align-items: flex-start;

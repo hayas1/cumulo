@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 pub fn FacetSidebar(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_tags: RwSignal<Filters>,
-    /// マップビューでのみ渡す。渡されたときはディメンション軸タイトルをクリックで
+    /// マップビューでのみ渡す。渡されたときはカテゴリ軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
     #[prop(optional)]
     zoom_dim: Option<RwSignal<CategoryId>>,

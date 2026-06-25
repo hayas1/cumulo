@@ -46,7 +46,7 @@ struct NodeRenderer {
     controller: ZoomController,
     /// データ源。膜（フィルタ一致）は web で id 集合を持たず bipartite.matches() で都度判定する。
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    selected_entity: RwSignal<Option<ResourceId>>,
+    selected_resource: RwSignal<Option<ResourceId>>,
     selected_tags: RwSignal<Filters>,
     zoom_level: RwSignal<u32>,
     /// 拡大率（scale）のみを購読する Memo。パン（x,y のみ変化）では拡大率不変なので
@@ -237,10 +237,10 @@ impl NodeRenderer {
         };
 
         let id_for_click = n.id.clone();
-        let selected_entity = self.selected_entity;
+        let selected_resource = self.selected_resource;
         let on_click = move |ev: MouseEvent| {
             ev.stop_propagation();
-            selected_entity.set(Some(id_for_click.clone()));
+            selected_resource.set(Some(id_for_click.clone()));
         };
 
         view! {
@@ -271,7 +271,7 @@ pub fn MapCanvas(
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_tags: RwSignal<Filters>,
     zoom_dim: RwSignal<CategoryId>,
-    selected_entity: RwSignal<Option<ResourceId>>,
+    selected_resource: RwSignal<Option<ResourceId>>,
     zoom_level: RwSignal<u32>,
     controller: ZoomController,
     /// 全体表示（フィルタ解除込み）。背景クリックと「全体表示」ボタンで共有する。
@@ -396,7 +396,7 @@ pub fn MapCanvas(
                         let renderer = NodeRenderer {
                             controller,
                             bipartite,
-                            selected_entity,
+                            selected_resource,
                             selected_tags,
                             zoom_level,
                             scale,
