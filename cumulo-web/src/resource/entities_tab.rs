@@ -1,4 +1,5 @@
 use crate::category::CategoryAttribute;
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::{ResourceAttribute, ResourceId};
 use crate::shared::ForestDeleteConfirm;
@@ -10,11 +11,12 @@ use leptos_icons::Icon;
 
 #[component]
 pub fn EntitiesTab(
-    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
     settings_open: RwSignal<bool>,
     return_to_settings: RwSignal<bool>,
 ) -> impl IntoView {
+    let bipartite = client.read();
     // 削除対象 (id, 子を持つか)。子を持つ場合は繰り上げ / サブツリーを popup で選ばせる。
     let delete_target = RwSignal::new(Option::<(ResourceId, bool)>::None);
 
@@ -81,7 +83,7 @@ pub fn EntitiesTab(
         </div>
 
         <ForestDeleteConfirm
-            bipartite=bipartite
+            client=client
             select={|b: &mut Bipartite<ResourceAttribute, CategoryAttribute>| &mut b.catalog}
             target=delete_target
             label={move |id: &ResourceId| {

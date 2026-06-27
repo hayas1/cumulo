@@ -1,11 +1,11 @@
 use crate::category::{CategoryAttribute, Filters};
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
 use crate::shared::{palette::Palette, settings_modal::SettingsModal};
-use crate::storage::AppStorage;
 use crate::views::{facet::FacetView, map::MapView};
-use cumulo_model::{Bipartite, Resource};
+use cumulo_model::Resource;
 
 use icondata as icon;
 use leptos::prelude::*;
@@ -26,8 +26,7 @@ pub fn Root() -> impl IntoView {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let bipartite =
-        RwSignal::<Bipartite<ResourceAttribute, CategoryAttribute>>::new(AppStorage::load());
+    let client = Client::load();
     let selected_tags = RwSignal::new(Filters::default());
     let editing = RwSignal::new(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
     let settings_open = RwSignal::new(false);
@@ -62,24 +61,24 @@ pub fn App() -> impl IntoView {
                 </button>
             </header>
 
-            <Palette bipartite=bipartite.read_only() selected_tags=selected_tags />
+            <Palette client=client selected_tags=selected_tags />
 
             <div class="route-content">
                 <Routes fallback=|| view! { <div class="route-404">"ページが見つかりません"</div> }>
                     <Route path=path!("/") view=move || view! {
-                        <FacetView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
+                        <FacetView client=client selected_tags=selected_tags editing=editing />
                     }/>
                     <Route path=path!("/facet") view=move || view! {
-                        <FacetView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
+                        <FacetView client=client selected_tags=selected_tags editing=editing />
                     }/>
                     <Route path=path!("/map") view=move || view! {
-                        <MapView bipartite=bipartite.read_only() selected_tags=selected_tags editing=editing />
+                        <MapView client=client selected_tags=selected_tags editing=editing />
                     }/>
                 </Routes>
             </div>
 
-            <ResourceForm bipartite=bipartite editing=editing />
-            <SettingsModal bipartite=bipartite open=settings_open import_toast=import_toast editing=editing return_to_settings=return_to_settings />
+            <ResourceForm client=client editing=editing />
+            <SettingsModal client=client open=settings_open import_toast=import_toast editing=editing return_to_settings=return_to_settings />
 
             {move || import_toast.get().map(|msg| view! {
                 <div class="import-toast">

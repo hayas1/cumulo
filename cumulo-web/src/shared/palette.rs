@@ -1,6 +1,6 @@
-use crate::category::{CategoryAttribute, CategoryId, Filters};
-use crate::resource::ResourceAttribute;
-use cumulo_model::{Bipartite, Forest, Selection};
+use crate::category::{CategoryId, Filters};
+use crate::client::Client;
+use cumulo_model::{Forest, Selection};
 use leptos::prelude::*;
 
 /// 検索窓のキーボードフォーカス位置。3 ゾーンを空間的に移動する:
@@ -81,10 +81,8 @@ impl PaletteFocus {
 }
 
 #[component]
-pub fn Palette(
-    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    selected_tags: RwSignal<Filters>,
-) -> impl IntoView {
+pub fn Palette(client: Client, selected_tags: RwSignal<Filters>) -> impl IntoView {
+    let bipartite = client.read();
     let input_text = RwSignal::new(String::new());
     // キーボードでのフォーカス位置（検索入力 / 選択中フィルタのピル / 下の候補）
     let cursor = RwSignal::new(PaletteFocus::Input);

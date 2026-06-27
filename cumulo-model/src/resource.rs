@@ -272,7 +272,6 @@ mod tests {
     #[test]
     fn ancestry_walks_to_root_inclusive() {
         let c = test_catalog();
-        // 根も値になりうるため、ancestry は根を含めて返す
         assert_eq!(c.ancestry(&id("bigquery")), vec![id("bigquery"), id("gcp")]);
         assert_eq!(c.ancestry(&id("gcp")), vec![id("gcp")]);
     }

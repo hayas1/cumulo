@@ -1,12 +1,12 @@
 use crate::category::attributes_tab::AttributesTab;
 use crate::category::CategoryAttribute;
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::entities_tab::EntitiesTab;
 use crate::resource::ResourceAttribute;
 use crate::shared::ConfirmDialog;
-use crate::storage::AppStorage;
 use cumulo_model::ExportData;
-use cumulo_model::{Bipartite, Resource};
+use cumulo_model::Resource;
 use icondata as icon;
 use leptos::html::Input;
 use leptos::prelude::*;
@@ -17,7 +17,7 @@ use wasm_bindgen_futures::JsFuture;
 
 #[component]
 pub fn SettingsModal(
-    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     open: RwSignal<bool>,
     import_toast: RwSignal<Option<String>>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
@@ -28,7 +28,7 @@ pub fn SettingsModal(
     let confirm_clear = RwSignal::new(false);
 
     let do_export = move || {
-        let s = bipartite.get_untracked();
+        let s = client.read().get_untracked();
         let json = ExportData::new(s, Platform::now_iso()).to_json();
         let date = Platform::now_iso().chars().take(10).collect::<String>();
         Platform::trigger_download(&format!("cumulo-{date}.json"), &json);
@@ -39,8 +39,7 @@ pub fn SettingsModal(
     let on_clear = move |_| {
         // 消去前に必ずエクスポート（強制バックアップ）
         do_export();
-        let fresh = AppStorage::clear();
-        bipartite.set(fresh);
+        client.clear();
         confirm_clear.set(false);
         open.set(false);
         import_toast.set(Some("ローカルのデータを削除しました".to_string()));
@@ -69,8 +68,7 @@ pub fn SettingsModal(
                                         imported.catalog.len(),
                                         imported.taxonomy.len(),
                                     );
-                                    bipartite.set(imported);
-                                    AppStorage::save(&bipartite.get_untracked());
+                                    client.set(imported);
                                     open.set(false);
                                     import_toast.set(Some(msg));
                                 }
@@ -137,10 +135,10 @@ pub fn SettingsModal(
                             let tab = active_tab.get();
                             match tab.as_str() {
                                 "dim" => view! {
-                                    <AttributesTab bipartite=bipartite />
+                                    <AttributesTab client=client />
                                 }.into_any(),
                                 "resource" => view! {
-                                    <EntitiesTab bipartite=bipartite editing=editing settings_open=open return_to_settings=return_to_settings />
+                                    <EntitiesTab client=client editing=editing settings_open=open return_to_settings=return_to_settings />
                                 }.into_any(),
                                 "data" => view! {
                                     <div class="settings-section">

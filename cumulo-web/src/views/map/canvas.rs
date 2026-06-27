@@ -10,6 +10,7 @@ use super::layout::{Cluster, Layout, LayoutEngine, MapNode, Placement, ResourceN
 use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
 use crate::category::{CategoryAttribute, CategoryId, Filters};
+use crate::client::Client;
 use crate::resource::{ResourceAttribute, ResourceId};
 
 /// リソース名ラベルの最大表示文字数（超過分は … で切り詰める）。
@@ -268,26 +269,27 @@ impl NodeRenderer {
 
 #[component]
 pub fn MapCanvas(
-    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     selected_tags: RwSignal<Filters>,
-    zoom_dim: RwSignal<CategoryId>,
+    zoom_axis: RwSignal<CategoryId>,
     selected_resource: RwSignal<Option<ResourceId>>,
     zoom_level: RwSignal<u32>,
     controller: ZoomController,
     /// 全体表示（フィルタ解除込み）。背景クリックと「全体表示」ボタンで共有する。
     fit_action: Callback<()>,
 ) -> impl IntoView {
+    let bipartite = client.read();
     // 拡大率（scale）のみの派生シグナル。パン中（拡大率不変）はノードの再描画を起こさない。
     let scale = Memo::new(move |_| controller.transform.get().scale);
 
-    // レイアウト（座標は filter 非依存。catalog / zoom_dim / viewport にのみ依存）
+    // レイアウト（座標は filter 非依存。catalog / zoom_axis / viewport にのみ依存）
     let layout = RwSignal::new(Layout {
         tree: Vec::new(),
         lod: Lod::new(1, 1.0),
     });
     Effect::new(move |_| {
         let b = bipartite.get();
-        let zd = zoom_dim.get();
+        let zd = zoom_axis.get();
         let (w, h) = controller.viewport.get();
         let result = LayoutEngine::new(&b.taxonomy, &zd, w, h).build(&b.catalog);
         controller.content_bounds.set(result.content_bounds());

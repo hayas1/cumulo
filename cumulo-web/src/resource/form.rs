@@ -1,14 +1,14 @@
 use crate::category::{CategoryAttribute, CategoryId};
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
-use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Forest, Resource, Taxonomy};
+use cumulo_model::{Forest, Resource, Taxonomy};
 
 use leptos::html::Input;
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-enum DimTreeItem {
+enum CategoryTreeItem {
     Branch {
         id: CategoryId,
         label: String,
@@ -22,11 +22,11 @@ enum DimTreeItem {
     },
 }
 
-impl DimTreeItem {
+impl CategoryTreeItem {
     /// root 配下のカテゴリ木を、フォームのチェックリスト用の行に整形する。
     /// 木の走査（深さ・葉判定）はモデルの dfs_order に委譲し、ここは
     /// 「連続する同一親の葉を 1 行にまとめる」プレゼンテーション整形のみを担う。
-    fn rows(forest: &Taxonomy<CategoryAttribute>, root_id: &CategoryId) -> Vec<DimTreeItem> {
+    fn rows(forest: &Taxonomy<CategoryAttribute>, root_id: &CategoryId) -> Vec<CategoryTreeItem> {
         let flat: Vec<(CategoryId, String, String, usize, bool, CategoryId)> = forest
             .dfs_order(root_id, &HashSet::new())
             .into_iter()
@@ -51,7 +51,7 @@ impl DimTreeItem {
                 *has_children,
             );
             if has_children {
-                result.push(DimTreeItem::Branch {
+                result.push(CategoryTreeItem::Branch {
                     id: id.clone(),
                     label: label.clone(),
                     color: color.clone(),
@@ -73,7 +73,7 @@ impl DimTreeItem {
                         break;
                     }
                 }
-                result.push(DimTreeItem::Leaves {
+                result.push(CategoryTreeItem::Leaves {
                     depth,
                     nodes: leaves,
                 });
@@ -85,9 +85,10 @@ impl DimTreeItem {
 
 #[component]
 pub fn ResourceForm(
-    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
+    let bipartite = client.read();
     let form_label = RwSignal::new(String::new());
     let form_url = RwSignal::new(String::new());
     let form_freq = RwSignal::new(1u32);
@@ -154,14 +155,13 @@ pub fn ResourceForm(
             },
         };
 
-        bipartite.update(|s| {
+        client.update(|s| {
             if let Some(pos) = s.catalog.iter().position(|x| x.id == id) {
                 s.catalog[pos] = r;
             } else {
                 s.catalog.push(r);
             }
         });
-        AppStorage::save(&bipartite.get_untracked());
         editing.set(None);
     };
 
@@ -223,15 +223,15 @@ pub fn ResourceForm(
                                 } else {
                                     root.label.clone()
                                 };
-                                let chips = DimTreeItem::rows(&s.taxonomy, &root.id);
+                                let chips = CategoryTreeItem::rows(&s.taxonomy, &root.id);
                                 view! {
-                                    <div class="form-dim-row">
-                                        <span class="form-dim-label">{root_label}</span>
-                                        <div class="form-dim-tree">
+                                    <div class="form-category-row">
+                                        <span class="form-category-label">{root_label}</span>
+                                        <div class="form-category-tree">
                                             {chips
                                                 .into_iter()
                                                 .map(|item| match item {
-                                                    DimTreeItem::Branch { id, label, color, depth } => {
+                                                    CategoryTreeItem::Branch { id, label, color, depth } => {
                                                         let row_style = format!(
                                                             "padding-left:{}rem",
                                                             depth as f32 * 0.9
@@ -246,9 +246,9 @@ pub fn ResourceForm(
                                                             String::new()
                                                         };
                                                         view! {
-                                                            <div class="form-dim-node" style=row_style>
+                                                            <div class="form-category-node" style=row_style>
                                                                 <span
-                                                                    class="attr-chip dim-branch"
+                                                                    class="attr-chip category-branch"
                                                                     class:selected=move || {
                                                                         form_dims.get().get(&k_sel)
                                                                             .map(|v| v == &v_sel)
@@ -271,13 +271,13 @@ pub fn ResourceForm(
                                                             </div>
                                                         }.into_any()
                                                     }
-                                                    DimTreeItem::Leaves { depth, nodes } => {
+                                                    CategoryTreeItem::Leaves { depth, nodes } => {
                                                         let row_style = format!(
                                                             "padding-left:{}rem",
                                                             depth as f32 * 0.9
                                                         );
                                                         view! {
-                                                            <div class="form-dim-node form-dim-leaf-row" style=row_style>
+                                                            <div class="form-category-node form-category-leaf-row" style=row_style>
                                                                 {nodes.into_iter().map(|(node_id, node_label, color)| {
                                                                     let k_sel = root_id.clone();
                                                                     let v_sel = node_id.clone();

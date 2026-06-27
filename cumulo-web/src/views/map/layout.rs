@@ -74,7 +74,7 @@ pub struct Cluster {
     pub key: PathSeg,
     pub label: String,
     pub color: String,
-    /// ドリル先の軸（zoom_dim）。
+    /// ドリル先の軸（zoom_axis）。
     pub axis: CategoryId,
     pub depth: usize,
     pub total_freq: f64,
@@ -234,10 +234,10 @@ impl Layout {
     }
 }
 
-/// レイアウト計算の入口。taxonomy / zoom_dim / キャンバス寸法を固定して resources を配置する。
+/// レイアウト計算の入口。taxonomy / zoom_axis / キャンバス寸法を固定して resources を配置する。
 pub struct LayoutEngine<'a> {
     taxonomy: &'a Taxonomy<CategoryAttribute>,
-    zoom_dim: &'a CategoryId,
+    zoom_axis: &'a CategoryId,
     width: f64,
     height: f64,
 }
@@ -254,13 +254,13 @@ struct Item {
 impl<'a> LayoutEngine<'a> {
     pub fn new(
         taxonomy: &'a Taxonomy<CategoryAttribute>,
-        zoom_dim: &'a CategoryId,
+        zoom_axis: &'a CategoryId,
         width: f64,
         height: f64,
     ) -> Self {
         LayoutEngine {
             taxonomy,
-            zoom_dim,
+            zoom_axis,
             width,
             height,
         }
@@ -299,10 +299,10 @@ impl<'a> LayoutEngine<'a> {
 
     /// ズーム軸でのフォレスト根直下から葉までのパス（上→下）。値なしは [Other]。
     fn zoom_path(&self, r: &Res) -> Vec<PathSeg> {
-        let Some(leaf) = r.category(self.taxonomy, self.zoom_dim) else {
+        let Some(leaf) = r.category(self.taxonomy, self.zoom_axis) else {
             return vec![PathSeg::Other];
         };
-        // ancestry は [leaf, .., root(=zoom_dim)]。根（軸自身）を除いて上→下へ並べ替える。
+        // ancestry は [leaf, .., root(=zoom_axis)]。根（軸自身）を除いて上→下へ並べ替える。
         let mut chain = self.taxonomy.ancestry(leaf);
         chain.pop(); // 軸の根を除く
         chain.reverse();
@@ -311,7 +311,7 @@ impl<'a> LayoutEngine<'a> {
 
     /// リソース円の色＝ズーム軸の値（葉）の色。
     fn resource_color(&self, r: &Res) -> String {
-        match r.category(self.taxonomy, self.zoom_dim) {
+        match r.category(self.taxonomy, self.zoom_axis) {
             Some(leaf) => self.category_color(leaf),
             None => DEFAULT_COLOR.to_string(),
         }
@@ -376,7 +376,7 @@ impl<'a> LayoutEngine<'a> {
                     label: self.key_label(&key),
                     color: self.key_color(&key),
                     key,
-                    axis: self.zoom_dim.clone(),
+                    axis: self.zoom_axis.clone(),
                     depth: level,
                     total_freq,
                     leaf_count,
