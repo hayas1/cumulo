@@ -7,7 +7,6 @@ use crate::forest::{Forest, ForestMut, ForestNode};
 use crate::id::Id;
 
 /// カテゴリ木の各ノード。categories は値 id のリストで、軸（根）は root_of で導出する。
-/// 根を含むすべてのノードが値になりうる（一様化方針）。
 /// `#[serde(bound)]` でデシリアライズ境界を明示し、flatten が生成する CA: Default 境界を除去する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(bound(serialize = "CA: Serialize", deserialize = "CA: Deserialize<'de>"))]
@@ -247,7 +246,6 @@ pub(crate) mod tests {
     #[test]
     fn ancestry_walks_to_root_inclusive() {
         let f = test_forest();
-        // 根も値になりうるため、ancestry は根を含めて返す
         assert_eq!(
             f.ancestry(&id("bigquery")),
             vec![id("bigquery"), id("gcp"), id("cloud"), id("platform")]

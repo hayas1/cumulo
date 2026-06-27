@@ -39,8 +39,7 @@ pub trait Forest {
         self.nodes().iter().find(|n| n.id() == id)
     }
 
-    /// id から根まで（根を含む）の is-a チェーンを返す。
-    /// 根も値になりうるため根を除外しない。存在しない id は空。
+    /// id から根まで（根を含む）の is-a チェーンを返す。存在しない id は空。
     fn ancestry(&self, id: &Id<Self::Node>) -> Vec<Id<Self::Node>> {
         let mut chain = Vec::new();
         let mut cur = Some(id.clone());
@@ -72,7 +71,7 @@ pub trait Forest {
     }
 
     /// id を含む is-a チェーンを根（parent==None）まで辿り、その根 id を返す。
-    /// id 自身が根なら id 自身を返す。根かどうかは木の性質であり、根も値になりうる。
+    /// id 自身が根なら id 自身を返す。
     fn root_of(&self, id: &Id<Self::Node>) -> Option<Id<Self::Node>> {
         let mut cur = id.clone();
         let mut seen = HashSet::new();

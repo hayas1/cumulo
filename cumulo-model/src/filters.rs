@@ -4,7 +4,7 @@ use crate::category::Category;
 use crate::id::Id;
 
 /// 値が属する木の根 → 選択値 の対応。カテゴリ木に対する絞り込み選択を表す。
-/// 根（faceting でいう軸）1つにつき値は1つに保ち、挿入順を維持する（UI のピル表示順が安定する）。
+/// 根 1 つにつき値は 1 つに保ち、挿入順を維持する（UI のピル表示順が安定する）。
 pub struct Filters<CA>(IndexMap<Id<Category<CA>>, Id<Category<CA>>>);
 
 // Id<Category<CA>> は CA に依らず Clone/Eq/Hash なので、CA に余計な境界を課さないよう手実装する。

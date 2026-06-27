@@ -52,7 +52,7 @@ impl<RA, CA> Bipartite<RA, CA> {
                     });
                     continue;
                 }
-                // 軸 = value の根（root_of は total）。根も値になりうるので根自身が軸になる。
+                // 軸 = value の根（root_of は total）。
                 let Some(axis) = self.taxonomy.root_of(value) else {
                     // B2 通過後はここに来ない（存在するノードの root_of は Some）
                     continue;
@@ -117,7 +117,6 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
     }
 
     /// カテゴリフォレストの全ノード（根を含む）の選択を返す。`query()` で絞り込む。
-    /// 根も値になりうるため根を除外しない。
     pub fn category_selection(&self) -> CategorySelection<'_, CA> {
         CategorySelection {
             items: self.taxonomy.iter().collect(),
@@ -493,7 +492,6 @@ mod tests {
             catalog: Catalog(vec![]),
         };
         let sel = bipartite.category_selection();
-        // 根も値になりうるため、選択は根を含む全ノードを対象にする
         assert!(sel.items().iter().any(|a| a.parent.is_none()));
         assert_eq!(sel.len(), bipartite.taxonomy.iter().count());
     }
@@ -517,7 +515,6 @@ mod tests {
             taxonomy: f,
             catalog: Catalog(vec![]),
         };
-        // 根も値になりうるため、空クエリは根を含む全ノードを返す
         let all_nodes = bipartite.taxonomy.iter().count();
         assert_eq!(bipartite.category_selection().query("").len(), all_nodes);
     }
@@ -630,7 +627,6 @@ mod tests {
         )));
     }
 
-    // 根値も選択可能（valid）— 根も値になりうる一様化方針
     #[test]
     fn b3_root_value_is_selectable() {
         // axis（子なし根）唯一値として axis 自身を持つリソースが valid になることを確認
