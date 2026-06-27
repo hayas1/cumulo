@@ -2,6 +2,7 @@ mod app;
 mod category;
 mod client;
 mod platform;
+mod query;
 mod resource;
 mod shared;
 mod storage;
