@@ -23,7 +23,7 @@ pub fn MapView(
     let zoom_level = RwSignal::new(0u32);
     // ズーム軸＝軸（根カテゴリ）。既定は最初の根。セレクタの候補も根なので既定も根に揃える。
     // taxonomy が空の場合は表示対象がないため、使われないダミー id を割り当てる
-    let zoom_dim = RwSignal::new({
+    let zoom_axis = RwSignal::new({
         let s = bipartite.get_untracked();
         s.taxonomy
             .roots()
@@ -40,7 +40,7 @@ pub fn MapView(
     let fit_action = Callback::new(move |()| {
         controller.zoom_to_fit();
         zoom_level.set(0);
-        let zd = zoom_dim.get_untracked();
+        let zd = zoom_axis.get_untracked();
         selected_tags.update(|t| t.remove_root(&zd));
     });
 
@@ -55,11 +55,11 @@ pub fn MapView(
                 fit_action=fit_action
             />
             <div class="map-area">
-                <FacetSidebar client=client selected_tags=selected_tags zoom_dim=zoom_dim />
+                <FacetSidebar client=client selected_tags=selected_tags zoom_axis=zoom_axis />
                 <MapCanvas
                     client=client
                     selected_tags=selected_tags
-                    zoom_dim=zoom_dim
+                    zoom_axis=zoom_axis
                     selected_resource=selected_resource_id
                     zoom_level=zoom_level
                     controller=controller

@@ -11,7 +11,7 @@ pub fn FacetSidebar(
     /// マップビューでのみ渡す。渡されたときはカテゴリ軸タイトルをクリックで
     /// ズーム軸に設定できるようにする。
     #[prop(optional)]
-    zoom_dim: Option<RwSignal<CategoryId>>,
+    zoom_axis: Option<RwSignal<CategoryId>>,
 ) -> impl IntoView {
     let bipartite = client.read();
     // 折りたたまれているパネルの根id を管理（ノード単位ではなくパネル単位）
@@ -84,7 +84,7 @@ pub fn FacetSidebar(
 
                         // 軸の見出し＝根。マップではクリックでズーム軸、ファセットでは
                         // 根フィルタ（その軸の部分木全体にマッチ）。見出しと根を1要素に統合する。
-                        let axis_btn = match zoom_dim {
+                        let axis_btn = match zoom_axis {
                             Some(zd) => {
                                 let did = root_id.clone();
                                 let did_eq = root_id.clone();

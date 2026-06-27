@@ -271,7 +271,7 @@ impl NodeRenderer {
 pub fn MapCanvas(
     client: Client,
     selected_tags: RwSignal<Filters>,
-    zoom_dim: RwSignal<CategoryId>,
+    zoom_axis: RwSignal<CategoryId>,
     selected_resource: RwSignal<Option<ResourceId>>,
     zoom_level: RwSignal<u32>,
     controller: ZoomController,
@@ -282,14 +282,14 @@ pub fn MapCanvas(
     // 拡大率（scale）のみの派生シグナル。パン中（拡大率不変）はノードの再描画を起こさない。
     let scale = Memo::new(move |_| controller.transform.get().scale);
 
-    // レイアウト（座標は filter 非依存。catalog / zoom_dim / viewport にのみ依存）
+    // レイアウト（座標は filter 非依存。catalog / zoom_axis / viewport にのみ依存）
     let layout = RwSignal::new(Layout {
         tree: Vec::new(),
         lod: Lod::new(1, 1.0),
     });
     Effect::new(move |_| {
         let b = bipartite.get();
-        let zd = zoom_dim.get();
+        let zd = zoom_axis.get();
         let (w, h) = controller.viewport.get();
         let result = LayoutEngine::new(&b.taxonomy, &zd, w, h).build(&b.catalog);
         controller.content_bounds.set(result.content_bounds());

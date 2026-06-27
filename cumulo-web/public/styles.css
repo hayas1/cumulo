@@ -347,13 +347,13 @@ body {
 .resource-row-delete:hover { color: #e05c5c; }
 
 /* ── Category tab ── */
-.dim-tab {
+.category-tab {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-.dim-row {
+.category-row {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -363,18 +363,18 @@ body {
   padding: 0.6rem 0.75rem;
   transition: box-shadow 0.1s;
 }
-.dim-row.active {
+.category-row.active {
   box-shadow: inset 3px 0 0 var(--accent);
   background: rgba(88, 166, 255, 0.04);
 }
 
-.dim-row-header {
+.category-row-header {
   display: flex;
   align-items: center;
   gap: 0.4rem;
 }
 
-.dim-name-btn {
+.category-name-btn {
   align-items: baseline;
   background: none;
   border: none;
@@ -385,21 +385,21 @@ body {
   padding: 0.15rem 0;
   text-align: left;
 }
-.dim-name-btn:hover .dim-label-text { color: var(--accent); }
+.category-name-btn:hover .category-label-text { color: var(--accent); }
 
-.dim-label-text { font-size: 0.84rem; font-weight: 600; color: var(--text-primary); }
-.dim-id-text    { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); }
+.category-label-text { font-size: 0.84rem; font-weight: 600; color: var(--text-primary); }
+.category-id-text    { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); }
 
-.dim-name-editor {
+.category-name-editor {
   align-items: center;
   display: flex;
   flex: 1;
   gap: 0.4rem;
 }
 
-.dim-name-sep { color: var(--text-muted); font-size: 0.8rem; }
+.category-name-sep { color: var(--text-muted); font-size: 0.8rem; }
 
-.dim-input {
+.category-input {
   background: var(--bg-base);
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -409,10 +409,10 @@ body {
   padding: 0.25rem 0.5rem;
   flex: 1;
 }
-.dim-input:focus { border-color: var(--accent); outline: none; }
-.dim-input-id { flex: 0 0 120px; font-family: var(--font-mono); font-size: 0.75rem; }
+.category-input:focus { border-color: var(--accent); outline: none; }
+.category-input-id { flex: 0 0 120px; font-family: var(--font-mono); font-size: 0.75rem; }
 
-.dim-row-delete, .dim-row-cancel {
+.category-row-delete, .category-row-cancel {
   background: none;
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -423,14 +423,14 @@ body {
   padding: 0.2rem 0.5rem;
   white-space: nowrap;
 }
-.dim-row-delete { color: var(--text-secondary); }
-.dim-row-delete:hover { border-color: #f87171; color: #f87171; }
-.dim-row-cancel { color: var(--text-muted); }
-.dim-row-cancel:hover { border-color: var(--border); color: var(--text-primary); }
+.category-row-delete { color: var(--text-secondary); }
+.category-row-delete:hover { border-color: #f87171; color: #f87171; }
+.category-row-cancel { color: var(--text-muted); }
+.category-row-cancel:hover { border-color: var(--border); color: var(--text-primary); }
 
 /* ── Value chips ─────────────────────────────────────────── */
 
-.dim-chips {
+.category-chips {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -480,14 +480,14 @@ body {
 .val-add-chip:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Category value tree ────────────────────────────────── */
-.dim-tree {
+.category-tree {
   display: flex;
   flex-direction: column;
   /* 行間にすき間を作らない（すき間はドロップ不可ゾーンになり並び替えできないため）*/
   gap: 0;
 }
 
-.dim-node-row {
+.category-node-row {
   display: flex;
   align-items: center;
   gap: 0.3rem;
@@ -497,13 +497,13 @@ body {
   padding: 0.12rem 0;
 }
 /* 要素に重ねた = 子にする */
-.dim-node-row.over-inside {
+.category-node-row.over-inside {
   border-color: var(--accent);
   background: rgba(88, 166, 255, 0.08);
 }
 /* 要素の間 = 並び替え（上端/下端に強調インジケータ線） */
-.dim-node-row.over-before::before,
-.dim-node-row.over-after::after {
+.category-node-row.over-before::before,
+.category-node-row.over-after::after {
   content: "";
   position: absolute;
   left: 0;
@@ -515,17 +515,17 @@ body {
   z-index: 2;
 }
 /* 線の先頭に丸ポチを付けて挿入位置をさらに強調 */
-.dim-node-row.over-before::before { top: -2px; }
-.dim-node-row.over-after::after { bottom: -2px; }
-.dim-node-row.over-before,
-.dim-node-row.over-after {
+.category-node-row.over-before::before { top: -2px; }
+.category-node-row.over-after::after { bottom: -2px; }
+.category-node-row.over-before,
+.category-node-row.over-after {
   background: linear-gradient(rgba(88, 166, 255, 0.10), rgba(88, 166, 255, 0));
 }
-.dim-node-row.over-after {
+.category-node-row.over-after {
   background: linear-gradient(rgba(88, 166, 255, 0), rgba(88, 166, 255, 0.10));
 }
 
-.dim-caret {
+.category-caret {
   flex-shrink: 0;
   width: 1rem;
   background: none;
@@ -536,10 +536,10 @@ body {
   padding: 0;
   line-height: 1;
 }
-.dim-caret:hover { color: var(--text-primary); }
-.dim-caret-spacer { flex-shrink: 0; width: 1rem; }
+.category-caret:hover { color: var(--text-primary); }
+.category-caret-spacer { flex-shrink: 0; width: 1rem; }
 
-.dim-drag-handle {
+.category-drag-handle {
   flex-shrink: 0;
   cursor: grab;
   color: var(--text-muted);
@@ -548,10 +548,10 @@ body {
   padding: 0 0.1rem;
   user-select: none;
 }
-.dim-drag-handle:hover { color: var(--text-primary); }
-.dim-drag-handle:active { cursor: grabbing; }
+.category-drag-handle:hover { color: var(--text-primary); }
+.category-drag-handle:active { cursor: grabbing; }
 
-.dim-node-label {
+.category-node-label {
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -562,9 +562,9 @@ body {
   padding: 0.18rem 0.6rem;
   transition: border-color 0.1s;
 }
-.dim-node-label:hover { border-color: var(--accent); }
+.category-node-label:hover { border-color: var(--accent); }
 
-.dim-node-add-child, .dim-node-delete {
+.category-node-add-child, .category-node-delete {
   flex-shrink: 0;
   background: none;
   border: none;
@@ -574,15 +574,15 @@ body {
   color: var(--text-muted);
   transition: color 0.12s;
 }
-.dim-node-add-child { font-size: 0.85rem; }
-.dim-node-add-child:hover { color: var(--accent); }
-.dim-node-delete { font-size: 0.8rem; }
-.dim-node-delete:hover { color: #f87171; }
+.category-node-add-child { font-size: 0.85rem; }
+.category-node-add-child:hover { color: var(--accent); }
+.category-node-delete { font-size: 0.8rem; }
+.category-node-delete:hover { color: #f87171; }
 
-.dim-node-editor { flex: 1; }
+.category-node-editor { flex: 1; }
 
 /* ドラッグ中のみタイトル横に出る「根へ」ドロップ枠 */
-.dim-root-drop {
+.category-root-drop {
   border: 1px dashed var(--accent);
   border-radius: 20px;
   color: var(--accent);
@@ -591,12 +591,12 @@ body {
   white-space: nowrap;
   margin-left: 0.5rem;
 }
-.dim-root-drop.over {
+.category-root-drop.over {
   background: var(--accent);
   color: var(--bg-base);
 }
 
-.dim-add-root {
+.category-add-root {
   align-self: flex-start;
   background: none;
   border: 1px dashed var(--border);
@@ -609,7 +609,7 @@ body {
   padding: 0.2rem 0.55rem;
   transition: border-color 0.12s, color 0.12s;
 }
-.dim-add-root:hover { border-color: var(--accent); color: var(--accent); }
+.category-add-root:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Chip editor ─────────────────────────────────────────── */
 
@@ -673,7 +673,7 @@ body {
 
 /* ── Add category ───────────────────────────────────────── */
 
-.dim-add-btn {
+.category-add-btn {
   align-self: flex-start;
   background: none;
   border: 1px dashed var(--border);
@@ -686,7 +686,7 @@ body {
   padding: 0.35rem 0.9rem;
   transition: border-color 0.1s, color 0.1s;
 }
-.dim-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+.category-add-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 .import-toast {
   position: fixed;
@@ -1633,38 +1633,38 @@ body {
 .form-add-attr-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Category chip selectors inside resource form ── */
-.form-dim-row {
+.form-category-row {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
   margin: 0.25rem 0;
 }
-.form-dim-label {
+.form-category-label {
   font-size: 0.72rem;
   color: var(--text-muted);
   min-width: 5rem;
   padding-top: 0.25rem;
   flex-shrink: 0;
 }
-.form-dim-chips {
+.form-category-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
 }
-.form-dim-tree {
+.form-category-tree {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   flex: 1;
 }
-.form-dim-node {
+.form-category-node {
   display: flex;
 }
-.form-dim-leaf-row {
+.form-category-leaf-row {
   flex-wrap: wrap;
   gap: 0.3rem;
 }
-.attr-chip.dim-branch {
+.attr-chip.category-branch {
   opacity: 0.65;
   font-style: italic;
 }

@@ -14,9 +14,9 @@ use std::sync::Arc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(Client);
+struct CategoryTabActions(Client);
 
-impl DimTabActions {
+impl CategoryTabActions {
     fn reparent(self, dragged: CategoryId, new_parent: Option<CategoryId>) {
         self.0.update(|s| s.taxonomy.reparent(&dragged, new_parent));
     }
@@ -141,7 +141,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
         msg: RwSignal::new(None),
         action: RwSignal::new(None),
     };
-    let acts = DimTabActions(client);
+    let acts = CategoryTabActions(client);
 
     let delete_target = RwSignal::new(Option::<(CategoryId, bool)>::None);
 
@@ -167,7 +167,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
     });
 
     view! {
-        <div class="dim-tab">
+        <div class="category-tab">
             {move || {
                 let s = bipartite.get();
                 let collapsed_set = collapsed.get();
@@ -196,7 +196,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
 
                         view! {
                             <div
-                                class="dim-row"
+                                class="category-row"
                                 class:active=move || {
                                     if let Some(ref eid) = editing_id.get() {
                                         *eid == root_id_active
@@ -210,28 +210,28 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                     }
                                 }
                             >
-                                <div class="dim-row-header">
+                                <div class="category-row-header">
                                     {if is_root_editing {
                                         let rid_cancel = root_id_header.clone();
                                         view! {
                                             <div
-                                                class="dim-name-editor"
+                                                class="category-name-editor"
                                                 on:focusout=move |ev: web_sys::FocusEvent| {
-                                                    if UiHelper::focus_left(&ev, ".dim-name-editor") {
+                                                    if UiHelper::focus_left(&ev, ".category-name-editor") {
                                                         acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                                     }
                                                 }
                                             >
                                                 <input
                                                     node_ref=label_ref
-                                                    class="dim-input"
+                                                    class="category-input"
                                                     type="text"
                                                     placeholder="ラベル"
                                                 />
-                                                <span class="dim-name-sep">"/"</span>
+                                                <span class="category-name-sep">"/"</span>
                                                 <input
                                                     node_ref=id_ref
-                                                    class="dim-input dim-input-id"
+                                                    class="category-input category-input-id"
                                                     type="text"
                                                     placeholder="id"
                                                 />
@@ -246,7 +246,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                     }
                                                 />
                                                 <button
-                                                    class="dim-row-cancel"
+                                                    class="category-row-cancel"
                                                     on:click=move |_| {
                                                         editing_id.set(None);
                                                         bipartite.update(|s| {
@@ -273,20 +273,20 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                         let rid_click = root_id_header.clone();
                                         view! {
                                             <button
-                                                class="dim-name-btn"
+                                                class="category-name-btn"
                                                 on:click=move |_| {
                                                     acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                                                     editing_id.set(Some(rid_click.clone()));
                                                 }
                                             >
-                                                <span class="dim-label-text">
+                                                <span class="category-label-text">
                                                     {if root.label.is_empty() {
                                                         "（ラベルなし）".to_string()
                                                     } else {
                                                         root.label.clone()
                                                     }}
                                                 </span>
-                                                <span class="dim-id-text">{root.id.to_string()}</span>
+                                                <span class="category-id-text">{root.id.to_string()}</span>
                                             </button>
                                         }
                                         .into_any()
@@ -305,7 +305,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                 let rid_drop = rid_drop_z.clone();
                                                 view! {
                                                     <div
-                                                        class="dim-root-drop"
+                                                        class="category-root-drop"
                                                         class:over=move || {
                                                             drag_over
                                                                 .get()
@@ -343,7 +343,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                         let rid_d = root_id_del.clone();
                                         view! {
                                             <button
-                                                class="dim-row-delete"
+                                                class="category-row-delete"
                                                 on:click=move |_| {
                                                     let id = rid_d.clone();
                                                     editing_id.set(None);
@@ -362,7 +362,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                     }}
                                 </div>
 
-                                <div class="dim-tree">
+                                <div class="category-tree">
                                     {order
                                         .into_iter()
                                         .map(|(node_id, depth, has_children)| {
@@ -393,7 +393,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                 let nid = node_id.clone();
                                                 view! {
                                                     <button
-                                                        class="dim-caret"
+                                                        class="category-caret"
                                                         on:click=move |_| {
                                                             collapsed.update(|c| {
                                                                 if !c.remove(&nid) {
@@ -407,7 +407,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                 }
                                                 .into_any()
                                             } else {
-                                                view! { <span class="dim-caret-spacer" /> }
+                                                view! { <span class="category-caret-spacer" /> }
                                                     .into_any()
                                             };
 
@@ -421,7 +421,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                             let row_body = if is_node_editing {
                                                 view! {
                                                     <div
-                                                        class="chip-editor dim-node-editor"
+                                                        class="chip-editor category-node-editor"
                                                         on:focusout=move |ev: web_sys::FocusEvent| {
                                                             if UiHelper::focus_left(&ev, ".chip-editor") {
                                                                 acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
@@ -434,7 +434,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                             type="text"
                                                             placeholder="ラベル"
                                                         />
-                                                        <span class="dim-name-sep">"/"</span>
+                                                        <span class="category-name-sep">"/"</span>
                                                         <input
                                                             node_ref=id_ref
                                                             class="chip-editor-val"
@@ -484,7 +484,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                 let nid_del = node_id.clone();
                                                 view! {
                                                     <button
-                                                        class="dim-node-label"
+                                                        class="category-node-label"
                                                         style=move || {
                                                             let color = if editing_id.get().as_deref()
                                                                 == Some(nid_style.as_str())
@@ -519,7 +519,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                         {node_label_text}
                                                     </button>
                                                     <button
-                                                        class="dim-node-add-child"
+                                                        class="category-node-add-child"
                                                         title="子を追加"
                                                         on:click=move |_| {
                                                             if editing_id.get_untracked().is_some() {
@@ -548,7 +548,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                         "＋"
                                                     </button>
                                                     <button
-                                                        class="dim-node-delete"
+                                                        class="category-node-delete"
                                                         title="削除"
                                                         on:click=move |_| {
                                                             delete_target
@@ -567,7 +567,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                             view! {
                                                 <div
                                                     node_ref=row_ref
-                                                    class="dim-node-row"
+                                                    class="category-node-row"
                                                     class:over-inside=move || {
                                                         drag_over
                                                             .get()
@@ -615,7 +615,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                 >
                                                     {caret}
                                                     <span
-                                                        class="dim-drag-handle"
+                                                        class="category-drag-handle"
                                                         draggable="true"
                                                         title="ドラッグで親を付け替え"
                                                         on:dragstart=move |ev: web_sys::DragEvent| {
@@ -642,7 +642,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                         .collect::<Vec<_>>()}
 
                                     <button
-                                        class="dim-add-root"
+                                        class="category-add-root"
                                         on:click=move |_| {
                                             if editing_id.get_untracked().is_some() {
                                                 acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
@@ -673,7 +673,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
             }}
 
             <button
-                class="dim-add-btn"
+                class="category-add-btn"
                 on:click=move |_| {
                     acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
                     let new_id = Platform::new_node_id();
