@@ -2,23 +2,25 @@
 
 use super::sidebar::FacetSidebar;
 use crate::category::{CategoryAttribute, Filters};
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
-use cumulo_model::{Bipartite, Forest, Resource, Selection};
+use cumulo_model::{Forest, Resource, Selection};
 use icondata as icon;
 use leptos::prelude::*;
 use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
-    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     selected_tags: RwSignal<Filters>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
+    let bipartite = client.read();
     view! {
         <div class="facet-view">
             <div class="facet-body">
-                <FacetSidebar bipartite=bipartite selected_tags=selected_tags />
+                <FacetSidebar client=client selected_tags=selected_tags />
 
                 <main class="facet-results">
                     {move || {

@@ -4,19 +4,21 @@ use super::canvas::MapCanvas;
 use super::controls::Controls;
 use super::zoom::ZoomController;
 use crate::category::{CategoryAttribute, Filters};
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::detail_panel::DetailPanel;
 use crate::resource::{ResourceAttribute, ResourceId};
 use crate::views::facet::sidebar::FacetSidebar;
-use cumulo_model::{Bipartite, Forest, Resource};
+use cumulo_model::{Forest, Resource};
 use leptos::prelude::*;
 
 #[component]
 pub fn MapView(
-    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     selected_tags: RwSignal<Filters>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
+    let bipartite = client.read();
     let selected_resource_id = RwSignal::new(Option::<ResourceId>::None);
     let zoom_level = RwSignal::new(0u32);
     // ズーム軸＝軸（根カテゴリ）。既定は最初の根。セレクタの候補も根なので既定も根に揃える。
@@ -45,7 +47,7 @@ pub fn MapView(
     view! {
         <div class="map-view">
             <Controls
-                bipartite=bipartite
+                client=client
                 selected_tags=selected_tags
                 zoom_level=zoom_level.read_only()
                 editing=editing
@@ -53,9 +55,9 @@ pub fn MapView(
                 fit_action=fit_action
             />
             <div class="map-area">
-                <FacetSidebar bipartite=bipartite selected_tags=selected_tags zoom_dim=zoom_dim />
+                <FacetSidebar client=client selected_tags=selected_tags zoom_dim=zoom_dim />
                 <MapCanvas
-                    bipartite=bipartite
+                    client=client
                     selected_tags=selected_tags
                     zoom_dim=zoom_dim
                     selected_resource=selected_resource_id
@@ -63,7 +65,7 @@ pub fn MapView(
                     controller=controller
                     fit_action=fit_action
                 />
-                <DetailPanel bipartite=bipartite selected_id=selected_resource_id editing=editing />
+                <DetailPanel client=client selected_id=selected_resource_id editing=editing />
             </div>
         </div>
     }

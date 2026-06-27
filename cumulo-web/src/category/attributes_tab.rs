@@ -1,8 +1,8 @@
 use crate::category::{CategoryAttribute, CategoryId, DEFAULT_COLOR};
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
 use crate::shared::{Color, ConfirmDialog, ForestDeleteConfirm};
-use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, Category, Forest, ForestMut};
 
 use icondata as icon;
@@ -14,24 +14,21 @@ use std::sync::Arc;
 use wasm_bindgen::JsCast;
 
 #[derive(Copy, Clone)]
-struct DimTabActions(RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>);
+struct DimTabActions(Client);
 
 impl DimTabActions {
     fn reparent(self, dragged: CategoryId, new_parent: Option<CategoryId>) {
         self.0.update(|s| s.taxonomy.reparent(&dragged, new_parent));
-        AppStorage::save(&self.0.get_untracked());
     }
 
     fn move_relative(self, dragged: CategoryId, target: CategoryId, after: bool) {
         self.0
             .update(|s| s.taxonomy.move_relative(&dragged, &target, after));
-        AppStorage::save(&self.0.get_untracked());
     }
 
     // カテゴリ（根）ごと削除する経路で使う。根は繰り上げ先がないので subtree のみ。
     fn delete_subtree(self, node_id: CategoryId) {
         self.0.update(|s| s.taxonomy.delete_subtree(&node_id));
-        AppStorage::save(&self.0.get_untracked());
     }
 
     fn commit_node_edit(
@@ -70,7 +67,6 @@ impl DimTabActions {
                 },
             )
         });
-        AppStorage::save(&self.0.get_untracked());
         editing_id.set(None);
     }
 }
@@ -129,9 +125,8 @@ impl UiHelper {
 }
 
 #[component]
-pub fn AttributesTab(
-    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-) -> impl IntoView {
+pub fn AttributesTab(client: Client) -> impl IntoView {
+    let bipartite = client.signal();
     let editing_id = RwSignal::new(Option::<CategoryId>::None);
     let id_ref = NodeRef::<Input>::new();
     let label_ref = NodeRef::<Input>::new();
@@ -146,7 +141,7 @@ pub fn AttributesTab(
         msg: RwSignal::new(None),
         action: RwSignal::new(None),
     };
-    let acts = DimTabActions(bipartite);
+    let acts = DimTabActions(client);
 
     let delete_target = RwSignal::new(Option::<(CategoryId, bool)>::None);
 
@@ -266,7 +261,7 @@ pub fn AttributesTab(
                                                                 }
                                                             }
                                                         });
-                                                        AppStorage::save(&bipartite.get_untracked());
+                                                        client.save();
                                                     }
                                                 >
                                                     "キャンセル"
@@ -543,7 +538,7 @@ pub fn AttributesTab(
                                                                     parent: Some(parent.clone()),
                                                                 });
                                                             });
-                                                            AppStorage::save(&bipartite.get_untracked());
+                                                            client.save();
                                                             collapsed.update(|c| {
                                                                 c.remove(&nid_add);
                                                             });
@@ -664,7 +659,7 @@ pub fn AttributesTab(
                                                     parent: Some(root_id_add.clone()),
                                                 });
                                             });
-                                            AppStorage::save(&bipartite.get_untracked());
+                                            client.save();
                                             editing_id.set(Some(new_id2));
                                         }
                                     >
@@ -691,7 +686,7 @@ pub fn AttributesTab(
                             parent: None,
                         });
                     });
-                    AppStorage::save(&bipartite.get_untracked());
+                    client.save();
                     editing_id.set(Some(new_id2));
                 }
             >
@@ -718,7 +713,7 @@ pub fn AttributesTab(
         }}
 
         <ForestDeleteConfirm
-            bipartite=bipartite
+            client=client
             select={|b: &mut Bipartite<ResourceAttribute, CategoryAttribute>| &mut b.taxonomy}
             target=delete_target
             label={|id: &CategoryId| id.to_string()}

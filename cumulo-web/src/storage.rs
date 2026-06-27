@@ -6,10 +6,14 @@ use gloo_storage::{LocalStorage, Storage as GlooStorage};
 
 const STORAGE_KEY: &str = "cumulo_store";
 
-pub struct AppStorage;
+/// localStorage を backend とする永続化クライアント。
+/// 現状フィールドを持たないが、static ではなく値（メソッドレシーバ）として持ち回ることで、
+/// server 化時に接続情報などを載せて差し替える 1 点にする。
+#[derive(Clone, Copy)]
+pub struct StorageClient;
 
-impl AppStorage {
-    pub fn load() -> Bipartite<ResourceAttribute, CategoryAttribute> {
+impl StorageClient {
+    pub fn load(&self) -> Bipartite<ResourceAttribute, CategoryAttribute> {
         match LocalStorage::get::<Bipartite<ResourceAttribute, CategoryAttribute>>(STORAGE_KEY) {
             Ok(bipartite) => match bipartite.validated() {
                 Ok(b) => b,
@@ -29,13 +33,13 @@ impl AppStorage {
         }
     }
 
-    pub fn save(bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>) {
+    pub fn save(&self, bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>) {
         if let Err(e) = LocalStorage::set(STORAGE_KEY, bipartite) {
             web_sys::console::error_1(&format!("[cumulo] save failed: {e:?}").into());
         }
     }
 
-    pub fn clear() -> Bipartite<ResourceAttribute, CategoryAttribute> {
+    pub fn clear(&self) -> Bipartite<ResourceAttribute, CategoryAttribute> {
         LocalStorage::delete(STORAGE_KEY);
         Self::demo()
     }

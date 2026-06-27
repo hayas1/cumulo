@@ -4,8 +4,8 @@
 //! state→model→保存の配線を担う stateful な orchestrator。
 
 use crate::category::CategoryAttribute;
+use crate::client::Client;
 use crate::resource::ResourceAttribute;
-use crate::storage::AppStorage;
 use cumulo_model::{Bipartite, ForestMut, Id};
 use leptos::prelude::*;
 
@@ -80,7 +80,7 @@ type App = Bipartite<ResourceAttribute, CategoryAttribute>;
 /// `on_after` で削除後の追加副作用（編集中状態のクリア等）を差し込む。
 #[component]
 pub fn ForestDeleteConfirm<F, S, L>(
-    bipartite: RwSignal<App>,
+    client: Client,
     select: S,
     target: RwSignal<Option<(Id<F::Node>, bool)>>,
     label: L,
@@ -93,7 +93,7 @@ where
     L: Fn(&Id<F::Node>) -> String + Copy + Send + Sync + 'static,
 {
     let apply = move |id: Id<F::Node>, subtree: bool| {
-        bipartite.update(|b| {
+        client.update(|b| {
             let forest = select(b);
             if subtree {
                 forest.delete_subtree(&id);
@@ -101,7 +101,6 @@ where
                 forest.delete_promote(&id);
             }
         });
-        AppStorage::save(&bipartite.get_untracked());
         if let Some(cb) = on_after {
             cb.run(());
         }

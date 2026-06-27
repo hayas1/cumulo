@@ -1,5 +1,6 @@
 mod app;
 mod category;
+mod client;
 mod platform;
 mod resource;
 mod shared;

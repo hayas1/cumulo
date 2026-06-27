@@ -10,6 +10,7 @@ use super::layout::{Cluster, Layout, LayoutEngine, MapNode, Placement, ResourceN
 use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
 use crate::category::{CategoryAttribute, CategoryId, Filters};
+use crate::client::Client;
 use crate::resource::{ResourceAttribute, ResourceId};
 
 /// リソース名ラベルの最大表示文字数（超過分は … で切り詰める）。
@@ -268,7 +269,7 @@ impl NodeRenderer {
 
 #[component]
 pub fn MapCanvas(
-    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     selected_tags: RwSignal<Filters>,
     zoom_dim: RwSignal<CategoryId>,
     selected_resource: RwSignal<Option<ResourceId>>,
@@ -277,6 +278,7 @@ pub fn MapCanvas(
     /// 全体表示（フィルタ解除込み）。背景クリックと「全体表示」ボタンで共有する。
     fit_action: Callback<()>,
 ) -> impl IntoView {
+    let bipartite = client.read();
     // 拡大率（scale）のみの派生シグナル。パン中（拡大率不変）はノードの再描画を起こさない。
     let scale = Memo::new(move |_| controller.transform.get().scale);
 

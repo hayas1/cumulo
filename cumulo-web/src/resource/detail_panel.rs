@@ -1,17 +1,19 @@
 use crate::category::CategoryAttribute;
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::{ResourceAttribute, ResourceId};
-use cumulo_model::{Bipartite, Forest, Resource};
+use cumulo_model::{Forest, Resource};
 use icondata as icon;
 use leptos::prelude::*;
 use leptos_icons::Icon;
 
 #[component]
 pub fn DetailPanel(
-    bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     selected_id: RwSignal<Option<ResourceId>>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
+    let bipartite = client.read();
     let resource = Memo::new(move |_| {
         let id = selected_id.get()?;
         let s = bipartite.get();

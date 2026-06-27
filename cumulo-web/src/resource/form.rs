@@ -1,8 +1,8 @@
 use crate::category::{CategoryAttribute, CategoryId};
+use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
-use crate::storage::AppStorage;
-use cumulo_model::{Bipartite, Forest, Resource, Taxonomy};
+use cumulo_model::{Forest, Resource, Taxonomy};
 
 use leptos::html::Input;
 use leptos::prelude::*;
@@ -85,9 +85,10 @@ impl DimTreeItem {
 
 #[component]
 pub fn ResourceForm(
-    bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
+    client: Client,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
+    let bipartite = client.read();
     let form_label = RwSignal::new(String::new());
     let form_url = RwSignal::new(String::new());
     let form_freq = RwSignal::new(1u32);
@@ -154,14 +155,13 @@ pub fn ResourceForm(
             },
         };
 
-        bipartite.update(|s| {
+        client.update(|s| {
             if let Some(pos) = s.catalog.iter().position(|x| x.id == id) {
                 s.catalog[pos] = r;
             } else {
                 s.catalog.push(r);
             }
         });
-        AppStorage::save(&bipartite.get_untracked());
         editing.set(None);
     };
 
