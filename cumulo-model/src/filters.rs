@@ -1,10 +1,16 @@
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
 use crate::category::Category;
 use crate::id::Id;
 
 /// 値が属する木の根 → 選択値 の対応。カテゴリ木に対する絞り込み選択を表す。
 /// 根 1 つにつき値は 1 つに保ち、挿入順を維持する（UI のピル表示順が安定する）。
+///
+/// 根→値の map として透過直列化する（挿入順は IndexMap が保つ）。CA: Serialize/Deserialize の
+/// 境界が付くが、CA は実際それを満たす型（CategoryAttribute）しか入らないので許容する。
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Filters<CA>(IndexMap<Id<Category<CA>>, Id<Category<CA>>>);
 
 // Id<Category<CA>> は CA に依らず Clone/Eq/Hash なので、CA に余計な境界を課さないよう手実装する。
@@ -94,6 +100,17 @@ mod tests {
 
     fn cid(s: &str) -> Id<Category<()>> {
         s.try_into().unwrap()
+    }
+
+    // serde 上は根→値の map。挿入順を保ったまま往復する（self-describing な json で検証）
+    #[test]
+    fn serde_round_trips_as_map_preserving_order() {
+        let f: Filters<()> = [(cid("platform"), cid("gcp")), (cid("env"), cid("prod"))]
+            .into_iter()
+            .collect();
+        let json = serde_json::to_string(&f).unwrap();
+        assert_eq!(json, r#"{"platform":"gcp","env":"prod"}"#);
+        assert_eq!(serde_json::from_str::<Filters<()>>(&json).unwrap(), f);
     }
 
     #[test]
