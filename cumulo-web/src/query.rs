@@ -27,40 +27,52 @@ impl QueryState {
     /// 他のクエリ要素は、この接頭辞で始まらないキーを使えば衝突しない。
     const FILTER_PREFIX: &str = "f.";
 
-    /// クエリ全体を型付き状態へ読み取る。どのフィールドにも該当しないキーは rest へ退避する。
+    /// クエリ全体を型付き状態へ読み取る。各フィールドの consume に順に通し、
+    /// どれも消費しなかったキーは rest へ退避する。フィールドを足すときは consume を 1 つ追加する。
     pub fn from_params(params: &ParamsMap) -> Self {
         let mut filters = Filters::new();
         let mut rest = Vec::new();
         for (key, value) in params {
-            match key.strip_prefix(Self::FILTER_PREFIX) {
-                // 共有元と同じ bipartite 前提なので id の実在は検証しない。
-                // 空 id だけは Id の非空不変条件に反するため取り込まない（壊れた f. キーは捨てる）。
-                Some(root) => {
-                    if let (Ok(root), Ok(value)) =
-                        (CategoryId::try_from(root), CategoryId::try_from(value))
-                    {
-                        filters.set(root, value);
-                    }
-                }
-                None => rest.push((key.to_string(), value.to_string())),
+            if Self::consume_filter(&mut filters, key, value) {
+                continue;
             }
+            rest.push((key.to_string(), value.to_string()));
         }
         Self { filters, rest }
     }
 
     /// 型付き状態をクエリ全体として書き出す。全状態を持つので毎回新規に組む。
+    /// フィールドを足すときは write_* を 1 つ追加する。rest（外部キー）は最後に戻す。
     pub fn to_params(&self) -> ParamsMap {
         let mut params = ParamsMap::new();
+        self.write_filters(&mut params);
+        for (key, value) in &self.rest {
+            params.insert(key.clone(), value.clone());
+        }
+        params
+    }
+
+    /// key がフィルタ namespace（`f.`）のキーなら filters に取り込んで true を返す。
+    /// namespace 内だが壊れている（空 id 等）場合も「消費した」扱いで true にし、rest に流さず捨てる。
+    /// 共有元と同じ bipartite 前提なので id の実在は検証しない。
+    fn consume_filter(filters: &mut Filters, key: &str, value: &str) -> bool {
+        let Some(root) = key.strip_prefix(Self::FILTER_PREFIX) else {
+            return false;
+        };
+        if let (Ok(root), Ok(value)) = (CategoryId::try_from(root), CategoryId::try_from(value)) {
+            filters.set(root, value);
+        }
+        true
+    }
+
+    /// filters を `f.<軸>=<値>` のキー列として書き込む。
+    fn write_filters(&self, params: &mut ParamsMap) {
         for (root, value) in self.filters.iter() {
             params.insert(
                 format!("{}{}", Self::FILTER_PREFIX, root.as_str()),
                 value.to_string(),
             );
         }
-        for (key, value) in &self.rest {
-            params.insert(key.clone(), value.clone());
-        }
-        params
     }
 }
 
