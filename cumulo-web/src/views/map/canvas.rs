@@ -296,7 +296,9 @@ pub fn MapCanvas(
         layout.set(result);
     });
 
-    // 初回マウント時にビューポートを実測 → 全体表示。レイアウト確定後に行うため二段 rAF。
+    // 初回マウント時にビューポートを実測 → 初期ズーム。レイアウト確定後に行うため二段 rAF。
+    // 初期ズームはフィルタから導出する: ズーム軸に値フィルタがあればそのクラスタへズームインし、
+    // 無ければ全体表示。これで共有 URL（フィルタ復元）からマップのズーム状態も再現される。
     Effect::new(move |_| {
         request_animation_frame(move || {
             if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
@@ -315,7 +317,19 @@ pub fn MapCanvas(
                     controller.viewport.set((w, h));
                 }
             }
-            request_animation_frame(move || controller.zoom_to_fit());
+            request_animation_frame(move || {
+                let axis = zoom_axis.get_untracked();
+                let target = selected_tags.with_untracked(|t| t.get(&axis).cloned());
+                let placement =
+                    target.and_then(|v| layout.with_untracked(|l| l.cluster_placement(&axis, &v)));
+                match placement {
+                    Some(p) => {
+                        controller.zoom_to_node(p.x, p.y, p.r);
+                        zoom_level.set(1);
+                    }
+                    None => controller.zoom_to_fit(),
+                }
+            });
         });
     });
 

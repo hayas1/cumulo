@@ -1,4 +1,4 @@
-use crate::category::{CategoryAttribute, Filters};
+use crate::category::{CategoryAttribute, CategoryId, Filters};
 use crate::client::Client;
 use crate::platform::Platform;
 use crate::query::QueryState;
@@ -6,7 +6,7 @@ use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
 use crate::shared::{palette::Palette, settings_modal::SettingsModal};
 use crate::views::{facet::FacetView, map::MapView};
-use cumulo_model::Resource;
+use cumulo_model::{Forest, Resource};
 
 use icondata as icon;
 use leptos::prelude::*;
@@ -30,6 +30,16 @@ pub fn Root() -> impl IntoView {
 pub fn App() -> impl IntoView {
     let client = Client::load();
     let selected_tags = RwSignal::new(Filters::default());
+    // マップのズーム軸。URL 共有のため App が保持する（URL ⇄ 状態同期を1箇所に集約）。
+    // 既定は taxonomy の先頭根。空なら使われないダミー id（page 旧実装と同じ既定）。
+    let default_zoom_axis: CategoryId = client.read().with_untracked(|s| {
+        s.taxonomy
+            .roots()
+            .first()
+            .map(|d| d.id.clone())
+            .unwrap_or_else(Platform::new_node_id)
+    });
+    let zoom_axis = RwSignal::new(default_zoom_axis.clone());
     let editing = RwSignal::new(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
     let settings_open = RwSignal::new(false);
     let import_toast = RwSignal::new(Option::<String>::None);
@@ -43,28 +53,38 @@ pub fn App() -> impl IntoView {
         }
     });
 
-    // 絞り込み状態を URL クエリ（軸ごとに f.<軸>=<値>）と双方向同期する。同じ bipartite を
-    // 持つ相手に URL を共有すれば、同じ絞り込み画面が開ける。両方向に同値ガードを置いて
+    // 絞り込み・ズーム軸を URL クエリと双方向同期する。同じ bipartite を持つ相手に URL を
+    // 共有すれば同じ画面（フィルタ＋マップのズーム）が開ける。両方向に同値ガードを置いて
     // 往復ループを断つ。ParamsMap との変換と名前空間管理は QueryState に集約する。
     let query = use_query_map();
     let location = use_location();
     let navigate = use_navigate();
 
     // URL → state: 共有リンクを開いた時・ブラウザの戻る/進み時にクエリから復元する。
+    let default_in = default_zoom_axis.clone();
     Effect::new(move |_| {
-        let restored = query.with(|p| QueryState::from_params(p).filters);
-        if selected_tags.get_untracked() != restored {
-            selected_tags.set(restored);
+        let qs = query.with(QueryState::from_params);
+        if selected_tags.get_untracked() != qs.filters {
+            selected_tags.set(qs.filters);
+        }
+        // None（クエリに無い）は既定軸を表す。
+        let axis = qs.zoom_axis.unwrap_or_else(|| default_in.clone());
+        if zoom_axis.get_untracked() != axis {
+            zoom_axis.set(axis);
         }
     });
 
-    // state → URL: 絞り込み操作のたびにクエリを書き換える。
+    // state → URL: 絞り込み/ズーム軸の変更のたびにクエリを書き換える。
+    let default_out = default_zoom_axis;
     Effect::new(move |_| {
         let current = query.with_untracked(QueryState::from_params);
-        // current を複製して filters だけ差し替える。rest（外部キー）や将来フィールドは
+        // current を複製して自分の担当フィールドだけ差し替える。rest（外部キー）など他フィールドは
         // そのまま引き継がれるので、to_params が全状態を書き出しても他要素を消さない。
         let mut desired = current.clone();
         desired.filters = selected_tags.get();
+        // 既定軸は URL を汚さないよう省略（None）。
+        let axis = zoom_axis.get();
+        desired.zoom_axis = (axis != default_out).then_some(axis);
         // URL→state 経由で来た更新を打ち返さない（クエリが既に同じ状態なら何もしない）。
         if current == desired {
             return;
@@ -117,7 +137,7 @@ pub fn App() -> impl IntoView {
                         <FacetView client=client selected_tags=selected_tags editing=editing />
                     }/>
                     <Route path=path!("/map") view=move || view! {
-                        <MapView client=client selected_tags=selected_tags editing=editing />
+                        <MapView client=client selected_tags=selected_tags zoom_axis=zoom_axis editing=editing />
                     }/>
                 </Routes>
             </div>

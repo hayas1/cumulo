@@ -3,34 +3,24 @@
 use super::canvas::MapCanvas;
 use super::controls::Controls;
 use super::zoom::ZoomController;
-use crate::category::{CategoryAttribute, Filters};
+use crate::category::{CategoryAttribute, CategoryId, Filters};
 use crate::client::Client;
-use crate::platform::Platform;
 use crate::resource::detail_panel::DetailPanel;
 use crate::resource::{ResourceAttribute, ResourceId};
 use crate::views::facet::sidebar::FacetSidebar;
-use cumulo_model::{Forest, Resource};
+use cumulo_model::Resource;
 use leptos::prelude::*;
 
 #[component]
 pub fn MapView(
     client: Client,
     selected_tags: RwSignal<Filters>,
+    /// クラスタリング軸（ズーム軸）。URL 同期のため App が保持し prop で渡す（既定は taxonomy の先頭根）。
+    zoom_axis: RwSignal<CategoryId>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let bipartite = client.read();
     let selected_resource_id = RwSignal::new(Option::<ResourceId>::None);
     let zoom_level = RwSignal::new(0u32);
-    // ズーム軸＝軸（根カテゴリ）。既定は最初の根。セレクタの候補も根なので既定も根に揃える。
-    // taxonomy が空の場合は表示対象がないため、使われないダミー id を割り当てる
-    let zoom_axis = RwSignal::new({
-        let s = bipartite.get_untracked();
-        s.taxonomy
-            .roots()
-            .first()
-            .map(|d| d.id.clone())
-            .unwrap_or_else(Platform::new_node_id)
-    });
 
     // ズーム状態は Controls（ボタン）と MapCanvas（描画・操作）で共有する。
     let controller = ZoomController::new();

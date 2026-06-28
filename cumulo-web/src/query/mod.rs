@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 use leptos_router::params::ParamsMap;
 use serde::{Deserialize, Serialize};
 
-use crate::category::Filters;
+use crate::category::{CategoryId, Filters};
 
 /// URL クエリに載りうる全状態。[`ParamsMap`]（生のキー値）と型付き状態の境界。
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -26,7 +26,10 @@ pub struct QueryState {
     /// 絞り込み。クエリ上は `filters.<軸>=<値>`（フィールド名 `filters` がそのまま名前空間）。
     #[serde(default)]
     pub filters: Filters,
-    // 将来の例: #[serde(default)] pub zoom: Option<CategoryId>,  // クエリ上は zoom=<軸>
+    /// マップのクラスタリング軸（ズーム軸）。クエリ上は `zoom_axis=<軸>`。
+    /// None は既定軸（taxonomy の先頭根）を表し、URL には出さない。
+    #[serde(default)]
+    pub zoom_axis: Option<CategoryId>,
     /// どのフィールドにもモデル化されていない外部由来のキー（utm 等）。flatten で吸い、
     /// to_params で書き戻して消さない。BTreeMap は出力順を安定させるため。
     #[serde(flatten)]
@@ -87,6 +90,26 @@ mod tests {
             .map(|(k, _)| k.as_str().to_string())
             .collect();
         assert_eq!(order, vec!["platform", "env"]);
+    }
+
+    // zoom_axis は素キー zoom_axis=<軸> のスカラとして往復する
+    #[test]
+    fn round_trips_zoom_axis() {
+        let s = QueryState {
+            filters: filters(&[("platform", "gcp")]),
+            zoom_axis: Some(cid("platform")),
+            ..Default::default()
+        };
+        let q = s.to_params();
+        assert_eq!(q.get("zoom_axis").as_deref(), Some("platform"));
+        assert_eq!(QueryState::from_params(&q), s);
+    }
+
+    // 既定軸（None）のときは zoom_axis キーを出さない
+    #[test]
+    fn omits_zoom_axis_when_none() {
+        let q = state(&[("platform", "gcp")]).to_params();
+        assert_eq!(q.get("zoom_axis"), None);
     }
 
     // 各軸は filters.<軸> キーになる（フィールド名 filters が名前空間）
