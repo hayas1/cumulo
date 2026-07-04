@@ -4,6 +4,7 @@ mod client;
 mod platform;
 mod query;
 mod resource;
+mod state;
 mod shared;
 mod storage;
 mod views;

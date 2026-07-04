@@ -20,9 +20,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::category::{CategoryId, Filters};
 
+/// メイン画面のビュー（ファセット一覧 / マップ）。クエリ上は `view=map`（既定 facet は省略）。
+/// パスではなくクエリに載せ、URL 全体を State の射影として一様に扱う。
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum View {
+    #[default]
+    Facet,
+    Map,
+}
+
 /// URL クエリに載りうる全状態。[`ParamsMap`]（生のキー値）と型付き状態の境界。
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct QueryState {
+    /// メイン画面のビュー。クエリ上は `view=map`。None は既定（facet）で URL に出さない。
+    #[serde(default)]
+    pub view: Option<View>,
     /// 絞り込み。クエリ上は `filters.<軸>=<値>`（フィールド名 `filters` がそのまま名前空間）。
     #[serde(default)]
     pub filters: Filters,
@@ -90,6 +103,26 @@ mod tests {
             .map(|(k, _)| k.as_str().to_string())
             .collect();
         assert_eq!(order, vec!["platform", "env"]);
+    }
+
+    // view は素キー view=map のスカラとして往復する
+    #[test]
+    fn round_trips_view() {
+        let s = QueryState {
+            view: Some(View::Map),
+            filters: filters(&[("platform", "gcp")]),
+            ..Default::default()
+        };
+        let q = s.to_params();
+        assert_eq!(q.get("view").as_deref(), Some("map"));
+        assert_eq!(QueryState::from_params(&q), s);
+    }
+
+    // 既定（facet＝None）のときは view キーを出さない
+    #[test]
+    fn omits_view_when_none() {
+        let q = QueryState::default().to_params();
+        assert_eq!(q.get("view"), None);
     }
 
     // zoom_axis は素キー zoom_axis=<軸> のスカラとして往復する

@@ -2,7 +2,9 @@
 //!
 //! `field.sub=value` を field ごとの map に、`field=value` を scalar に束ねた中間表現 [`Value`] を作り、
 //! それを serde の [`MapDeserializer`] に載せる。値ごとの分岐（scalar / sub-map）は [`ValueDeserializer`]
-//! が `deserialize_any` で振り分け、残りの典型メソッドは `forward_to_deserialize_any!` に委ねる。
+//! が `deserialize_any` で振り分ける。enum（`view=map` 等の unit variant）だけは `deserialize_any` が
+//! 文字列を返すと derive 側の Visitor が受けられないため `deserialize_enum` を個別に実装し、残りの典型
+//! メソッドは `forward_to_deserialize_any!` に委ねる。
 
 use leptos_router::params::ParamsMap;
 use serde::de::value::MapDeserializer;
@@ -82,9 +84,25 @@ impl<'de> Deserializer<'de> for ValueDeserializer {
         visitor.visit_newtype_struct(self)
     }
 
+    // enum はスカラ（`view=map`）を unit variant として解く。`deserialize_any` は文字列を
+    // visit_string で返すが、derive された enum の Visitor は visit_enum しか持たないため、
+    // ここでバリアント名を運ぶ EnumAccess を組む（String の value-deserializer に委ねる）。
+    fn deserialize_enum<V: Visitor<'de>>(
+        self,
+        name: &'static str,
+        variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Error> {
+        match self.0 {
+            Value::Scalar(s) => s.into_deserializer().deserialize_enum(name, variants, visitor),
+            // 値を持つ variant は 1nest では表現しないので、any 経由で型側に弾かせる。
+            other => ValueDeserializer(other).deserialize_any(visitor),
+        }
+    }
+
     serde::forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf unit unit_struct seq tuple tuple_struct map struct enum
+        bytes byte_buf unit unit_struct seq tuple tuple_struct map struct
         identifier ignored_any
     }
 }
@@ -111,6 +129,23 @@ mod tests {
             m.insert(k.to_string(), v.to_string());
         }
         m
+    }
+
+    // スカラ値は enum の unit variant として読める（型側の View 等が derive で済むように）
+    #[test]
+    fn deserializes_scalar_into_enum_variant() {
+        #[derive(Debug, PartialEq, Deserialize)]
+        #[serde(rename_all = "lowercase")]
+        enum Mode {
+            Alpha,
+            Beta,
+        }
+        #[derive(Debug, PartialEq, Deserialize)]
+        struct S {
+            mode: Mode,
+        }
+        let s: S = from_1nest_params(&params(&[("mode", "beta")])).unwrap();
+        assert_eq!(s.mode, Mode::Beta);
     }
 
     // field.sub はネストした map に、素キーは scalar フィールド/rest に解釈される

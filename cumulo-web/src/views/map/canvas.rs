@@ -9,9 +9,10 @@ use web_sys::{MouseEvent, PointerEvent, WheelEvent};
 use super::layout::{Cluster, Layout, LayoutEngine, MapNode, Placement, ResourceNode};
 use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
-use crate::category::{CategoryAttribute, CategoryId, Filters};
+use crate::category::{CategoryAttribute, Filters};
 use crate::client::Client;
 use crate::resource::{ResourceAttribute, ResourceId};
+use crate::state::State;
 
 /// リソース名ラベルの最大表示文字数（超過分は … で切り詰める）。
 const MAX_LABEL_CHARS: usize = 12;
@@ -270,8 +271,7 @@ impl NodeRenderer {
 #[component]
 pub fn MapCanvas(
     client: Client,
-    selected_tags: RwSignal<Filters>,
-    zoom_axis: RwSignal<CategoryId>,
+    state: State,
     selected_resource: RwSignal<Option<ResourceId>>,
     zoom_level: RwSignal<u32>,
     controller: ZoomController,
@@ -279,6 +279,8 @@ pub fn MapCanvas(
     fit_action: Callback<()>,
 ) -> impl IntoView {
     let bipartite = client.read();
+    let selected_tags = state.filters;
+    let zoom_axis = state.zoom_axis;
     // 拡大率（scale）のみの派生シグナル。パン中（拡大率不変）はノードの再描画を起こさない。
     let scale = Memo::new(move |_| controller.transform.get().scale);
 

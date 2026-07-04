@@ -1,10 +1,11 @@
 //! ファセット画面（ルート `/` `/facet`）。サイドバーで絞り込み、一致リソースを一覧表示する枠。
 
 use super::sidebar::FacetSidebar;
-use crate::category::{CategoryAttribute, Filters};
+use crate::category::CategoryAttribute;
 use crate::client::Client;
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
+use crate::state::State;
 use cumulo_model::{Forest, Resource, Selection};
 use icondata as icon;
 use leptos::prelude::*;
@@ -13,14 +14,15 @@ use leptos_icons::Icon;
 #[component]
 pub fn FacetView(
     client: Client,
-    selected_tags: RwSignal<Filters>,
+    state: State,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let bipartite = client.read();
+    let selected_tags = state.filters;
     view! {
         <div class="facet-view">
             <div class="facet-body">
-                <FacetSidebar client=client selected_tags=selected_tags />
+                <FacetSidebar client=client state=state />
 
                 <main class="facet-results">
                     {move || {

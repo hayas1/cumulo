@@ -3,10 +3,11 @@
 use super::canvas::MapCanvas;
 use super::controls::Controls;
 use super::zoom::ZoomController;
-use crate::category::{CategoryAttribute, CategoryId, Filters};
+use crate::category::CategoryAttribute;
 use crate::client::Client;
 use crate::resource::detail_panel::DetailPanel;
 use crate::resource::{ResourceAttribute, ResourceId};
+use crate::state::State;
 use crate::views::facet::sidebar::FacetSidebar;
 use cumulo_model::Resource;
 use leptos::prelude::*;
@@ -14,9 +15,7 @@ use leptos::prelude::*;
 #[component]
 pub fn MapView(
     client: Client,
-    selected_tags: RwSignal<Filters>,
-    /// クラスタリング軸（ズーム軸）。URL 同期のため App が保持し prop で渡す（既定は taxonomy の先頭根）。
-    zoom_axis: RwSignal<CategoryId>,
+    state: State,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let selected_resource_id = RwSignal::new(Option::<ResourceId>::None);
@@ -30,26 +29,25 @@ pub fn MapView(
     let fit_action = Callback::new(move |()| {
         controller.zoom_to_fit();
         zoom_level.set(0);
-        let zd = zoom_axis.get_untracked();
-        selected_tags.update(|t| t.remove_root(&zd));
+        let zd = state.zoom_axis.get_untracked();
+        state.filters.update(|t| t.remove_root(&zd));
     });
 
     view! {
         <div class="map-view">
             <Controls
                 client=client
-                selected_tags=selected_tags
+                state=state
                 zoom_level=zoom_level.read_only()
                 editing=editing
                 controller=controller
                 fit_action=fit_action
             />
             <div class="map-area">
-                <FacetSidebar client=client selected_tags=selected_tags zoom_axis=zoom_axis />
+                <FacetSidebar client=client state=state />
                 <MapCanvas
                     client=client
-                    selected_tags=selected_tags
-                    zoom_axis=zoom_axis
+                    state=state
                     selected_resource=selected_resource_id
                     zoom_level=zoom_level
                     controller=controller

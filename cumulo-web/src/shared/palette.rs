@@ -1,5 +1,6 @@
-use crate::category::{CategoryId, Filters};
+use crate::category::CategoryId;
 use crate::client::Client;
+use crate::state::State;
 use cumulo_model::{Forest, Selection};
 use leptos::prelude::*;
 
@@ -81,8 +82,9 @@ impl PaletteFocus {
 }
 
 #[component]
-pub fn Palette(client: Client, selected_tags: RwSignal<Filters>) -> impl IntoView {
+pub fn Palette(client: Client, state: State) -> impl IntoView {
     let bipartite = client.read();
+    let selected_tags = state.filters;
     let input_text = RwSignal::new(String::new());
     // キーボードでのフォーカス位置（検索入力 / 選択中フィルタのピル / 下の候補）
     let cursor = RwSignal::new(PaletteFocus::Input);
