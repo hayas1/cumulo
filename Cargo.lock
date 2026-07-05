@@ -271,6 +271,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "cumulo-extension"
+version = "0.1.0"
+dependencies = [
+ "cumulo-web",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "cumulo-model"
 version = "0.1.0"
 dependencies = [

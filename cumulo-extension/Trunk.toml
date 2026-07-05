@@ -1,0 +1,8 @@
+# 拡張ページは chrome-extension://<id>/ 配信なのでアセットは相対参照にする。
+# MV3 の extension_pages CSP は inline script を実行しないので、inject_scripts=false で
+# trunk の inline module ローダ注入を止め、filehash=false でグルー名を固定して、
+# 自前の外部 public/bootstrap.js から読み込む（→ 後処理フックが不要になる）。
+[build]
+public_url = "./"
+filehash = false
+inject_scripts = false

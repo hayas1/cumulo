@@ -1,0 +1,12 @@
+[package]
+name = "cumulo-extension"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# UI 本体は cumulo-web を再利用。start を二重に載せないよう embed で本体のエントリを落とす。
+cumulo-web = { path = "../cumulo-web", features = ["embed"] }
+wasm-bindgen = "0.2"
