@@ -10,3 +10,8 @@ crate-type = ["cdylib"]
 # UI 本体は cumulo-web を再利用。start を二重に載せないよう embed で本体のエントリを落とす。
 cumulo-web = { path = "../cumulo-web", features = ["embed"] }
 wasm-bindgen = "0.2"
+
+[build-dependencies]
+# favicon.svg を唯一のソースに、拡張一覧/ツールバー用の PNG（SVG 不可）を build 時に生成する。
+# resvg は usvg(SVG 解析) と tiny_skia(ラスタライズ) を同梱する。
+resvg = "0.45"
