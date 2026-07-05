@@ -15,9 +15,7 @@ mod ser;
 
 use std::collections::BTreeMap;
 
-use leptos::prelude::*;
 use leptos_router::params::ParamsMap;
-use leptos_router::NavigateOptions;
 use serde::{Deserialize, Serialize};
 
 use crate::category::{CategoryId, Filters};
@@ -74,45 +72,26 @@ impl QueryState {
         qs
     }
 
-    /// URL→signal: クエリから丸ごと復元して signal に反映する（共有リンク復元・戻る/進む）。
-    /// 同値なら据え置き、signal→URL 側と往復しない。`query` を購読するので Effect 内で呼ぶ。
-    pub(crate) fn load_from_url(state: RwSignal<Self>, query: Memo<ParamsMap>, client: &Client) {
-        let incoming = query.with(|p| Self::resolved_from(p, client));
-        if state.get_untracked() != incoming {
-            state.set(incoming);
-        }
+    /// URL→signal の判断: `params` を取り込んだ次の状態を返す。現在（self）と同じなら
+    /// `None`（据え置き＝signal→URL と往復しない）。純関数。signal の get/set は呼び出し側に置く。
+    pub(crate) fn adopt_url(&self, params: &ParamsMap, client: &Client) -> Option<Self> {
+        let incoming = Self::resolved_from(params, client);
+        (self != &incoming).then_some(incoming)
     }
 
-    /// signal→URL: signal の変更を URL クエリへ書き出す（UI 操作の反映）。
-    /// 比較相手は raw な from_params（未解決）にする。既定 zoom_axis を持つ signal と
-    /// ずれることで URL に既定を書き出せる（この非対称は意図的）。`state` を購読するので Effect 内で呼ぶ。
-    pub(crate) fn store_to_url(
-        state: RwSignal<Self>,
-        query: Memo<ParamsMap>,
-        pathname: Memo<String>,
-        navigate: impl Fn(&str, NavigateOptions),
-    ) {
-        let desired = state.get();
-        let current = query.with_untracked(Self::from_params);
-        if current == desired {
-            return;
+    /// signal→URL の判断: 現在の URL が self（望ましい正準状態）と違うとき、書くべき
+    /// `(URL, push)` を返す。同じなら `None`（navigate 不要）。純関数で、navigate は呼び出し側に置く
+    /// （runtime 無しで単体テストできる）。push=true は履歴に積む（view 切替）、false は replace。
+    /// 比較相手は raw な from_params（未解決）。既定 zoom_axis を持つ self とずれることで、
+    /// 裸・既定省略の URL にも既定を書き出す（この非対称は意図的＝URL に既定を見せる）。
+    pub(crate) fn url_update(&self, current_url: &ParamsMap, pathname: &str) -> Option<(String, bool)> {
+        let current = Self::from_params(current_url);
+        if &current == self {
+            return None;
         }
-        // view 切替は履歴に積み（戻るで前の view へ）、絞り込み等の微調整は replace で汚さない。
-        let push = current.view != desired.view;
-        let url = format!(
-            "{}{}",
-            pathname.get_untracked(),
-            desired.to_params().to_query_string()
-        );
-        navigate(
-            &url,
-            NavigateOptions {
-                resolve: false,
-                replace: !push,
-                scroll: false,
-                ..Default::default()
-            },
-        );
+        let push = current.view != self.view;
+        let url = format!("{}{}", pathname, self.to_params().to_query_string());
+        Some((url, push))
     }
 }
 
@@ -232,5 +211,30 @@ mod tests {
         let q = s.to_params();
         assert_eq!(q.get("filters.a.b.c").as_deref(), Some("x.y"));
         assert_eq!(QueryState::from_params(&q), s);
+    }
+
+    // self（解決済み）と一致する正準 URL では更新不要（None）
+    #[test]
+    fn url_update_is_none_when_url_already_canonical() {
+        let desired = QueryState {
+            zoom_axis: Some(cid("platform")),
+            ..Default::default()
+        };
+        assert_eq!(desired.url_update(&desired.to_params(), "/base"), None);
+    }
+
+    // 同じ状態を非正準に表す URL（裸・既定省略）は pathname + 正準クエリへ書き直す
+    #[test]
+    fn url_update_canonicalizes_bare_url() {
+        // 裸 URL は zoom_axis 未指定だが、self は既定軸を解決済み → ずれるので書き直す
+        let desired = QueryState {
+            zoom_axis: Some(cid("platform")),
+            ..Default::default()
+        };
+        let (url, push) = desired
+            .url_update(&ParamsMap::new(), "/base")
+            .expect("裸 URL は書き直す");
+        assert_eq!(url, format!("/base{}", desired.to_params().to_query_string()));
+        assert!(!push, "view 不変なので replace（push=false）");
     }
 }
