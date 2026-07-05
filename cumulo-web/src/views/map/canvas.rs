@@ -11,8 +11,8 @@ use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
 use crate::category::{CategoryAttribute, Filters};
 use crate::client::Client;
+use crate::query::QueryState;
 use crate::resource::{ResourceAttribute, ResourceId};
-use crate::state::State;
 
 /// リソース名ラベルの最大表示文字数（超過分は … で切り詰める）。
 const MAX_LABEL_CHARS: usize = 12;
@@ -49,7 +49,9 @@ struct NodeRenderer {
     /// データ源。膜（フィルタ一致）は web で id 集合を持たず bipartite.matches() で都度判定する。
     bipartite: ReadSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     selected_resource: RwSignal<Option<ResourceId>>,
-    selected_tags: RwSignal<Filters>,
+    /// 絞り込み。膜（フィルタ一致）判定の読みは filters（Memo）、ドリルの書きは state。
+    state: RwSignal<QueryState>,
+    filters: Memo<Filters>,
     zoom_level: RwSignal<u32>,
     /// 拡大率（scale）のみを購読する Memo。パン（x,y のみ変化）では拡大率不変なので
     /// PartialEq でデデュープされ、LOD/フォントの再計算・DOM 書き込みが発生しない。
@@ -86,7 +88,7 @@ impl NodeRenderer {
             sub.collect_resource_ids(&mut desc_ids);
         }
         let bipartite = self.bipartite;
-        let tags = self.selected_tags;
+        let tags = self.filters;
 
         // 背景円の塗り/枠は「配下にフィルタ一致があるか」で濃淡を変える
         let bg_fill_opacity = {
@@ -116,14 +118,14 @@ impl NodeRenderer {
         // ここでは web_sys イベント → シグナルへの配線だけを行う。
         let drill = c.drill_target();
         let (abs_x, abs_y, abs_r) = (c.placement.x, c.placement.y, c.placement.r);
-        let selected_tags = self.selected_tags;
+        let state = self.state;
         let zoom_level = self.zoom_level;
         let controller = self.controller;
         let on_click = move |ev: MouseEvent| {
             ev.stop_propagation();
             // 値ありクラスタはドリルダウン（軸へ値を反映）。Other はドリルしない。
             if let Some((axis, value)) = drill.clone() {
-                selected_tags.update(|t| t.set(axis, value));
+                state.update(|q| q.filters.set(axis, value));
             }
             controller.zoom_to_node(abs_x, abs_y, abs_r);
             zoom_level.set(1);
@@ -207,7 +209,7 @@ impl NodeRenderer {
         let scale = self.scale;
         let lod = self.lod;
         let bipartite = self.bipartite;
-        let tags = self.selected_tags;
+        let tags = self.filters;
 
         let id_for_fill = n.id.clone();
         let circle_opacity = move || {
@@ -271,7 +273,7 @@ impl NodeRenderer {
 #[component]
 pub fn MapCanvas(
     client: Client,
-    state: State,
+    state: RwSignal<QueryState>,
     selected_resource: RwSignal<Option<ResourceId>>,
     zoom_level: RwSignal<u32>,
     controller: ZoomController,
@@ -279,8 +281,10 @@ pub fn MapCanvas(
     fit_action: Callback<()>,
 ) -> impl IntoView {
     let bipartite = client.read();
-    let selected_tags = state.filters;
-    let zoom_axis = state.zoom_axis;
+    // filters / zoom_axis をそれぞれ単独購読する Memo。これが無いと下の layout Effect が
+    // state 全体を購読し、絞り込み変更のたびに重いレイアウト再計算＝全ノード再描画になる。
+    let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
+    let zoom_axis = Memo::new(move |_| state.with(|q| q.zoom_axis.clone()));
     // 拡大率（scale）のみの派生シグナル。パン中（拡大率不変）はノードの再描画を起こさない。
     let scale = Memo::new(move |_| controller.transform.get().scale);
 
@@ -291,7 +295,9 @@ pub fn MapCanvas(
     });
     Effect::new(move |_| {
         let b = bipartite.get();
-        let zd = zoom_axis.get();
+        let zd = zoom_axis
+            .get()
+            .unwrap_or_else(|| client.default_zoom_axis());
         let (w, h) = controller.viewport.get();
         let result = LayoutEngine::new(&b.taxonomy, &zd, w, h).build(&b.catalog);
         controller.content_bounds.set(result.content_bounds());
@@ -320,7 +326,9 @@ pub fn MapCanvas(
                 }
             }
             request_animation_frame(move || {
-                let axis = zoom_axis.get_untracked();
+                let axis = zoom_axis
+                    .get_untracked()
+                    .unwrap_or_else(|| client.default_zoom_axis());
                 let target = selected_tags.with_untracked(|t| t.get(&axis).cloned());
                 let placement =
                     target.and_then(|v| layout.with_untracked(|l| l.cluster_placement(&axis, &v)));
@@ -415,7 +423,8 @@ pub fn MapCanvas(
                             controller,
                             bipartite,
                             selected_resource,
-                            selected_tags,
+                            state,
+                            filters: selected_tags,
                             zoom_level,
                             scale,
                             lod: l.lod,

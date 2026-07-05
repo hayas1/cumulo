@@ -5,9 +5,9 @@ use super::controls::Controls;
 use super::zoom::ZoomController;
 use crate::category::CategoryAttribute;
 use crate::client::Client;
+use crate::query::QueryState;
 use crate::resource::detail_panel::DetailPanel;
 use crate::resource::{ResourceAttribute, ResourceId};
-use crate::state::State;
 use crate::views::facet::sidebar::FacetSidebar;
 use cumulo_model::Resource;
 use leptos::prelude::*;
@@ -15,7 +15,7 @@ use leptos::prelude::*;
 #[component]
 pub fn MapView(
     client: Client,
-    state: State,
+    state: RwSignal<QueryState>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let selected_resource_id = RwSignal::new(Option::<ResourceId>::None);
@@ -29,8 +29,10 @@ pub fn MapView(
     let fit_action = Callback::new(move |()| {
         controller.zoom_to_fit();
         zoom_level.set(0);
-        let zd = state.zoom_axis.get_untracked();
-        state.filters.update(|t| t.remove_root(&zd));
+        let zd = state
+            .with_untracked(|q| q.zoom_axis.clone())
+            .unwrap_or_else(|| client.default_zoom_axis());
+        state.update(|q| q.filters.remove_root(&zd));
     });
 
     view! {

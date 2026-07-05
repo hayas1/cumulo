@@ -4,8 +4,8 @@ use super::sidebar::FacetSidebar;
 use crate::category::CategoryAttribute;
 use crate::client::Client;
 use crate::platform::Platform;
+use crate::query::QueryState;
 use crate::resource::ResourceAttribute;
-use crate::state::State;
 use cumulo_model::{Forest, Resource, Selection};
 use icondata as icon;
 use leptos::prelude::*;
@@ -14,11 +14,11 @@ use leptos_icons::Icon;
 #[component]
 pub fn FacetView(
     client: Client,
-    state: State,
+    state: RwSignal<QueryState>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
     let bipartite = client.read();
-    let selected_tags = state.filters;
+    let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
     view! {
         <div class="facet-view">
             <div class="facet-body">

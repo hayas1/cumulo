@@ -33,9 +33,9 @@ pub enum View {
 /// URL クエリに載りうる全状態。[`ParamsMap`]（生のキー値）と型付き状態の境界。
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct QueryState {
-    /// メイン画面のビュー。クエリ上は `view=map`。None は既定（facet）で URL に出さない。
+    /// メイン画面のビュー。クエリ上は `view=facet`/`view=map`。既定(facet)でも常に出す。
     #[serde(default)]
-    pub view: Option<View>,
+    pub view: View,
     /// 絞り込み。クエリ上は `filters.<軸>=<値>`（フィールド名 `filters` がそのまま名前空間）。
     #[serde(default)]
     pub filters: Filters,
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn round_trips_view() {
         let s = QueryState {
-            view: Some(View::Map),
+            view: View::Map,
             filters: filters(&[("platform", "gcp")]),
             ..Default::default()
         };
@@ -118,11 +118,11 @@ mod tests {
         assert_eq!(QueryState::from_params(&q), s);
     }
 
-    // 既定（facet＝None）のときは view キーを出さない
+    // 既定（facet）でも view は常に URL に出す（現代的な挙動。デフォルトを隠さない）
     #[test]
-    fn omits_view_when_none() {
+    fn shows_view_even_when_default() {
         let q = QueryState::default().to_params();
-        assert_eq!(q.get("view"), None);
+        assert_eq!(q.get("view").as_deref(), Some("facet"));
     }
 
     // zoom_axis は素キー zoom_axis=<軸> のスカラとして往復する

@@ -5,7 +5,6 @@ use crate::query::{QueryState, View};
 use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
 use crate::shared::{palette::Palette, settings_modal::SettingsModal};
-use crate::state::State;
 use crate::views::{facet::FacetView, map::MapView};
 use cumulo_model::Resource;
 
@@ -30,8 +29,6 @@ pub fn Root() -> impl IntoView {
 #[component]
 pub fn App() -> impl IntoView {
     let client = Client::load();
-    // URL に載る UI 状態（view / 絞り込み / ズーム軸）を 1 ハンドルに束ねて prop-drill する。
-    let state = State::new(client);
     let editing = RwSignal::new(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
     let settings_open = RwSignal::new(false);
     let import_toast = RwSignal::new(Option::<String>::None);
@@ -45,21 +42,40 @@ pub fn App() -> impl IntoView {
         }
     });
 
-    // URL ⇄ state を双方向同期する。同じ bipartite を持つ相手に URL を共有すれば同じ画面
-    // （view・絞り込み・マップのズーム）が開ける。signal 群と QueryState の対応は State が持ち、
-    // ここは router 文脈での購読（query）と書き込み（navigate）だけを担う。同値ガードで往復を断つ。
+    // URL に載る UI 状態（view / 絞り込み / ズーム軸）を 1 つの signal(QueryState) で持ち、
+    // prop-drill する。zoom_axis は URL 未指定でも既定軸（先頭根）に解決し、常に具体値に
+    // する（＝URL にも既定を出す）。field 単位の細粒度は各所で Memo を派生して得る。
     let query = use_query_map();
     let location = use_location();
     let navigate = use_navigate();
+    let state = RwSignal::new({
+        let mut qs = query.with_untracked(QueryState::from_params);
+        qs.zoom_axis = Some(qs.zoom_axis.unwrap_or_else(|| client.default_zoom_axis()));
+        qs
+    });
+    // view だけを購読する Memo。これが無いと下の match / nav が state 全体を購読し、
+    // 絞り込み変更のたびに FacetView/MapView を作り直して（再マウント）しまう。
+    let view = Memo::new(move |_| state.with(|q| q.view));
 
-    // URL → state: 共有リンクを開いた時・ブラウザの戻る/進み時にクエリから復元する。
-    Effect::new(move |_| state.apply(query.with(QueryState::from_params)));
+    // URL → state: 共有リンクを開いた時・ブラウザの戻る/進み時にクエリから丸ごと復元する。
+    // 同値ガードで state→URL 側と往復しない。
+    Effect::new(move |_| {
+        let mut incoming = query.with(QueryState::from_params);
+        incoming.zoom_axis = Some(
+            incoming
+                .zoom_axis
+                .unwrap_or_else(|| client.default_zoom_axis()),
+        );
+        if state.get_untracked() != incoming {
+            state.set(incoming);
+        }
+    });
 
     // state → URL: view/絞り込み/ズーム軸の変更のたびにクエリを書き換える。
     Effect::new(move |_| {
+        let desired = state.get();
         let current = query.with_untracked(QueryState::from_params);
-        let desired = state.overlay(current.clone());
-        // URL→state 経由で来た更新を打ち返さない（クエリが既に同じ状態なら何もしない）。
+        // URL→store 経由で来た更新を打ち返さない（クエリが既に同じ状態なら何もしない）。
         if current == desired {
             return;
         }
@@ -91,15 +107,15 @@ pub fn App() -> impl IntoView {
                 <nav class="app-nav">
                     <button
                         class="nav-link"
-                        class:active=move || state.view.get() == View::Facet
-                        on:click=move |_| state.view.set(View::Facet)
+                        class:active=move || view.get() == View::Facet
+                        on:click=move |_| state.update(|q| q.view = View::Facet)
                     >
                         "ファセット"
                     </button>
                     <button
                         class="nav-link"
-                        class:active=move || state.view.get() == View::Map
-                        on:click=move |_| state.view.set(View::Map)
+                        class:active=move || view.get() == View::Map
+                        on:click=move |_| state.update(|q| q.view = View::Map)
                     >
                         "マップ"
                     </button>
@@ -116,7 +132,7 @@ pub fn App() -> impl IntoView {
             <Palette client=client state=state />
 
             <div class="route-content">
-                {move || match state.view.get() {
+                {move || match view.get() {
                     View::Facet => view! {
                         <FacetView client=client state=state editing=editing />
                     }

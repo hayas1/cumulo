@@ -1,7 +1,8 @@
-use crate::category::CategoryAttribute;
+use crate::category::{CategoryAttribute, CategoryId};
+use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
 use crate::storage::StorageClient;
-use cumulo_model::Bipartite;
+use cumulo_model::{Bipartite, Forest};
 use leptos::prelude::*;
 
 /// データ源（メモリ上の二部グラフ signal）と永続化 backend [`StorageClient`] を束ねた
@@ -52,5 +53,13 @@ impl Client {
     /// 永続化データを消去し、初期データに戻す。
     pub fn clear(&self) {
         self.bipartite.set(self.storage.clear());
+    }
+
+    /// 既定のズーム軸（taxonomy の先頭根）。root が無ければダミー id。
+    /// URL に zoom_axis が無い/未解決のときのフォールバックに使う。
+    pub fn default_zoom_axis(&self) -> CategoryId {
+        self.bipartite
+            .with_untracked(|s| s.taxonomy.roots().first().map(|d| d.id.clone()))
+            .unwrap_or_else(Platform::new_node_id)
     }
 }

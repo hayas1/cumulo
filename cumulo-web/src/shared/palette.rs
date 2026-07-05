@@ -1,6 +1,6 @@
 use crate::category::CategoryId;
 use crate::client::Client;
-use crate::state::State;
+use crate::query::QueryState;
 use cumulo_model::{Forest, Selection};
 use leptos::prelude::*;
 
@@ -82,9 +82,10 @@ impl PaletteFocus {
 }
 
 #[component]
-pub fn Palette(client: Client, state: State) -> impl IntoView {
+pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
     let bipartite = client.read();
-    let selected_tags = state.filters;
+    // 絞り込みの読みは filters だけを購読する Memo に、書きは state.update に分ける。
+    let filters = Memo::new(move |_| state.with(|q| q.filters.clone()));
     let input_text = RwSignal::new(String::new());
     // キーボードでのフォーカス位置（検索入力 / 選択中フィルタのピル / 下の候補）
     let cursor = RwSignal::new(PaletteFocus::Input);
@@ -106,7 +107,7 @@ pub fn Palette(client: Client, state: State) -> impl IntoView {
 
     let commit_tag = move |k: CategoryId, v: CategoryId| {
         // 1軸1フィルタ: その軸の値を設定（既存値は置換）
-        selected_tags.update(|t| t.set(k, v));
+        state.update(|q| q.filters.set(k, v));
         input_text.set(String::new());
         cursor.set(PaletteFocus::Input);
     };
@@ -115,7 +116,7 @@ pub fn Palette(client: Client, state: State) -> impl IntoView {
         <div class="palette-bar">
             <div class="palette-input-row">
                 {move || {
-                    selected_tags
+                    filters
                         .with(|f| f.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>())
                         .into_iter()
                         .enumerate()
@@ -133,7 +134,7 @@ pub fn Palette(client: Client, state: State) -> impl IntoView {
                                         class="pill-remove"
                                         on:click=move |_| {
                                             // 根1つにつき値1つなので、その根を外せばこのピルが消える
-                                            selected_tags.update(|t| t.remove_root(&root));
+                                            state.update(|q| q.filters.remove_root(&root));
                                             cursor.set(PaletteFocus::Input);
                                         }
                                     >
@@ -157,7 +158,7 @@ pub fn Palette(client: Client, state: State) -> impl IntoView {
                             cursor.set(PaletteFocus::Input);
                         }
                         on:keydown=move |ev| {
-                            let pills_len = selected_tags.with(|t| t.iter().count());
+                            let pills_len = filters.with(|t| t.iter().count());
                             let cand_len = suggestions.with(|s| s.len());
                             let empty_input = input_text.with(|t| t.is_empty());
                             let cur = cursor.get_untracked();
@@ -186,10 +187,10 @@ pub fn Palette(client: Client, state: State) -> impl IntoView {
                                 }
                                 (PaletteFocus::Pill(i), "Backspace" | "Delete" | "Enter") => {
                                     ev.prevent_default();
-                                    selected_tags.update(|t| {
-                                        let root = t.iter().nth(i).map(|(k, _)| k.clone());
+                                    state.update(|q| {
+                                        let root = q.filters.iter().nth(i).map(|(k, _)| k.clone());
                                         if let Some(root) = root {
-                                            t.remove_root(&root);
+                                            q.filters.remove_root(&root);
                                         }
                                     });
                                     cursor.set(cur.after_removal(pills_len.saturating_sub(1)));
@@ -223,11 +224,11 @@ pub fn Palette(client: Client, state: State) -> impl IntoView {
                     />
                 </div>
 
-                <Show when=move || !selected_tags.with(|t| t.is_empty())>
+                <Show when=move || !filters.with(|t| t.is_empty())>
                     <button
                         class="palette-clear-btn"
                         on:click=move |_| {
-                            selected_tags.update(|t| t.clear());
+                            state.update(|q| q.filters.clear());
                             input_text.set(String::new());
                         }
                     >
