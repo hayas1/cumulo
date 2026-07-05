@@ -15,6 +15,33 @@ use leptos_icons::Icon;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
+/// 設定モーダル⇄リソース編集フォームの往復フロー。
+/// 「設定→編集フォームを開く」と「フォームを閉じたら設定へ戻す」を対で持つ。
+/// この 3 signal はこの protocol でしか一緒に動かないので、束ねて出入りを型に閉じる。
+#[derive(Clone, Copy)]
+pub struct SettingsEditFlow {
+    pub editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
+    pub settings_open: RwSignal<bool>,
+    pub return_to_settings: RwSignal<bool>,
+}
+
+impl SettingsEditFlow {
+    /// 設定を閉じて編集フォームを開く。戻り先が設定だと印を付けておく。
+    pub fn open_editor(&self, resource: Resource<ResourceAttribute, CategoryAttribute>) {
+        self.return_to_settings.set(true);
+        self.editing.set(Some(resource));
+        self.settings_open.set(false);
+    }
+
+    /// 編集フォームが閉じたとき、設定から来ていたら設定へ戻す。`editing` を購読するので Effect 内で呼ぶ。
+    pub fn return_from_editor(&self) {
+        if self.editing.get().is_none() && self.return_to_settings.get_untracked() {
+            self.return_to_settings.set(false);
+            self.settings_open.set(true);
+        }
+    }
+}
+
 #[component]
 pub fn SettingsModal(
     client: Client,
@@ -26,6 +53,15 @@ pub fn SettingsModal(
     let active_tab = RwSignal::new("data".to_string());
     let file_input_ref = NodeRef::<Input>::new();
     let confirm_clear = RwSignal::new(false);
+
+    // 設定⇄編集フォームの往復フロー。開く側は EntitiesTab、戻す側はこの下の Effect。
+    let flow = SettingsEditFlow {
+        editing,
+        settings_open: open,
+        return_to_settings,
+    };
+    // フォームが閉じたら（設定から来ていれば）設定に戻す。
+    Effect::new(move |_| flow.return_from_editor());
 
     let do_export = move || {
         let s = client.read().get_untracked();
@@ -138,7 +174,7 @@ pub fn SettingsModal(
                                     <AttributesTab client=client />
                                 }.into_any(),
                                 "resource" => view! {
-                                    <EntitiesTab client=client editing=editing settings_open=open return_to_settings=return_to_settings />
+                                    <EntitiesTab client=client flow=flow />
                                 }.into_any(),
                                 "data" => view! {
                                     <div class="settings-section">

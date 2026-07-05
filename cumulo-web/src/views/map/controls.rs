@@ -1,7 +1,8 @@
 use super::zoom::ZoomController;
-use crate::category::{CategoryAttribute, Filters};
+use crate::category::CategoryAttribute;
 use crate::client::Client;
 use crate::platform::Platform;
+use crate::query::QueryState;
 use crate::resource::ResourceAttribute;
 use cumulo_model::{Resource, Selection};
 use leptos::prelude::*;
@@ -9,7 +10,7 @@ use leptos::prelude::*;
 #[component]
 pub fn Controls(
     client: Client,
-    selected_tags: RwSignal<Filters>,
+    state: RwSignal<QueryState>,
     zoom_level: ReadSignal<u32>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
     controller: ZoomController,
@@ -17,6 +18,7 @@ pub fn Controls(
     fit_action: Callback<()>,
 ) -> impl IntoView {
     let bipartite = client.read();
+    let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
     let resource_count = Memo::new(move |_| {
         let s = bipartite.get();
         let tags = selected_tags.get();

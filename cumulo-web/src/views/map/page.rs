@@ -3,34 +3,23 @@
 use super::canvas::MapCanvas;
 use super::controls::Controls;
 use super::zoom::ZoomController;
-use crate::category::{CategoryAttribute, Filters};
+use crate::category::CategoryAttribute;
 use crate::client::Client;
-use crate::platform::Platform;
+use crate::query::QueryState;
 use crate::resource::detail_panel::DetailPanel;
 use crate::resource::{ResourceAttribute, ResourceId};
 use crate::views::facet::sidebar::FacetSidebar;
-use cumulo_model::{Forest, Resource};
+use cumulo_model::Resource;
 use leptos::prelude::*;
 
 #[component]
 pub fn MapView(
     client: Client,
-    selected_tags: RwSignal<Filters>,
+    state: RwSignal<QueryState>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
-    let bipartite = client.read();
     let selected_resource_id = RwSignal::new(Option::<ResourceId>::None);
     let zoom_level = RwSignal::new(0u32);
-    // ズーム軸＝軸（根カテゴリ）。既定は最初の根。セレクタの候補も根なので既定も根に揃える。
-    // taxonomy が空の場合は表示対象がないため、使われないダミー id を割り当てる
-    let zoom_axis = RwSignal::new({
-        let s = bipartite.get_untracked();
-        s.taxonomy
-            .roots()
-            .first()
-            .map(|d| d.id.clone())
-            .unwrap_or_else(Platform::new_node_id)
-    });
 
     // ズーム状態は Controls（ボタン）と MapCanvas（描画・操作）で共有する。
     let controller = ZoomController::new();
@@ -40,26 +29,27 @@ pub fn MapView(
     let fit_action = Callback::new(move |()| {
         controller.zoom_to_fit();
         zoom_level.set(0);
-        let zd = zoom_axis.get_untracked();
-        selected_tags.update(|t| t.remove_root(&zd));
+        let zd = state
+            .with_untracked(|q| q.zoom_axis.clone())
+            .unwrap_or_else(|| client.default_zoom_axis());
+        state.update(|q| q.filters.remove_root(&zd));
     });
 
     view! {
         <div class="map-view">
             <Controls
                 client=client
-                selected_tags=selected_tags
+                state=state
                 zoom_level=zoom_level.read_only()
                 editing=editing
                 controller=controller
                 fit_action=fit_action
             />
             <div class="map-area">
-                <FacetSidebar client=client selected_tags=selected_tags zoom_axis=zoom_axis />
+                <FacetSidebar client=client state=state />
                 <MapCanvas
                     client=client
-                    selected_tags=selected_tags
-                    zoom_axis=zoom_axis
+                    state=state
                     selected_resource=selected_resource_id
                     zoom_level=zoom_level
                     controller=controller

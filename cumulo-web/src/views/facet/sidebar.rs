@@ -1,19 +1,17 @@
-use crate::category::{CategoryId, Filters};
+use crate::category::CategoryId;
 use crate::client::Client;
+use crate::query::{QueryState, View};
 use cumulo_model::{Forest, Selection};
 use leptos::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 #[component]
-pub fn FacetSidebar(
-    client: Client,
-    selected_tags: RwSignal<Filters>,
-    /// マップビューでのみ渡す。渡されたときはカテゴリ軸タイトルをクリックで
-    /// ズーム軸に設定できるようにする。
-    #[prop(optional)]
-    zoom_axis: Option<RwSignal<CategoryId>>,
-) -> impl IntoView {
+pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
     let bipartite = client.read();
+    let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
+    // マップビューでは軸タイトルのクリックでズーム軸を設定する（ファセットでは軸全体フィルタ）。
+    // どちらのモードかは view で決まる（このサイドバーの生存中は固定なので untracked）。
+    let map_mode = state.with_untracked(|q| q.view) == View::Map;
     // 折りたたまれているパネルの根id を管理（ノード単位ではなくパネル単位）
     let collapsed = RwSignal::new(HashSet::<CategoryId>::new());
 
@@ -84,45 +82,42 @@ pub fn FacetSidebar(
 
                         // 軸の見出し＝根。マップではクリックでズーム軸、ファセットでは
                         // 根フィルタ（その軸の部分木全体にマッチ）。見出しと根を1要素に統合する。
-                        let axis_btn = match zoom_axis {
-                            Some(zd) => {
-                                let did = root_id.clone();
-                                let did_eq = root_id.clone();
-                                view! {
-                                    <button
-                                        class="facet-panel-title facet-panel-title-btn"
-                                        class:active=move || zd.get() == did_eq
-                                        title="ズーム軸にする"
-                                        on:click=move |_| zd.set(did.clone())
-                                    >
-                                        <span class="fv-label">{root_label}</span>
-                                        <span class="fv-count">{root_count}</span>
-                                    </button>
-                                }
-                                .into_any()
+                        let axis_btn = if map_mode {
+                            let did = root_id.clone();
+                            let did_eq = root_id.clone();
+                            view! {
+                                <button
+                                    class="facet-panel-title facet-panel-title-btn"
+                                    class:active=move || state.with(|q| q.zoom_axis.as_ref() == Some(&did_eq))
+                                    title="ズーム軸にする"
+                                    on:click=move |_| state.update(|q| q.zoom_axis = Some(did.clone()))
+                                >
+                                    <span class="fv-label">{root_label}</span>
+                                    <span class="fv-count">{root_count}</span>
+                                </button>
                             }
-                            None => {
-                                let rid = root_id.clone();
-                                let is_sel = selected_val.as_deref() == Some(root_id.as_str());
-                                view! {
-                                    <button
-                                        class=if is_sel {
-                                            "facet-panel-title facet-panel-title-btn selected"
-                                        } else {
-                                            "facet-panel-title facet-panel-title-btn"
-                                        }
-                                        title="この軸全体で絞り込む"
-                                        on:click=move |_| {
-                                            // 根を選ぶ＝その軸全体での絞り込み（同値なら解除）
-                                            selected_tags.update(|t| t.toggle(rid.clone(), rid.clone()));
-                                        }
-                                    >
-                                        <span class="fv-label">{root_label}</span>
-                                        <span class="fv-count">{root_count}</span>
-                                    </button>
-                                }
-                                .into_any()
+                            .into_any()
+                        } else {
+                            let rid = root_id.clone();
+                            let is_sel = selected_val.as_deref() == Some(root_id.as_str());
+                            view! {
+                                <button
+                                    class=if is_sel {
+                                        "facet-panel-title facet-panel-title-btn selected"
+                                    } else {
+                                        "facet-panel-title facet-panel-title-btn"
+                                    }
+                                    title="この軸全体で絞り込む"
+                                    on:click=move |_| {
+                                        // 根を選ぶ＝その軸全体での絞り込み（同値なら解除）
+                                        state.update(|q| q.filters.toggle(rid.clone(), rid.clone()));
+                                    }
+                                >
+                                    <span class="fv-label">{root_label}</span>
+                                    <span class="fv-count">{root_count}</span>
+                                </button>
                             }
+                            .into_any()
                         };
 
                         let rid_vis = root_id.clone();
@@ -159,7 +154,7 @@ pub fn FacetSidebar(
                                                             }
                                                             on:click=move |_| {
                                                                 // 1軸1フィルタ: 同軸はその値に入れ替え（同値なら解除）
-                                                                selected_tags.update(|t| t.toggle(rid.clone(), nid.clone()));
+                                                                state.update(|q| q.filters.toggle(rid.clone(), nid.clone()));
                                                             }
                                                         >
                                                             <span class="fv-label">{node_label.clone()}</span>

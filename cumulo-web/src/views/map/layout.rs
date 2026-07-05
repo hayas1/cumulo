@@ -214,6 +214,25 @@ impl Layout {
         acc
     }
 
+    /// 指定軸の値に対応するクラスタの（絶対）配置を探す。見つからなければ None。
+    /// URL からズーム状態を復元する際、フィルタが指す値のクラスタへズームインするために使う。
+    pub fn cluster_placement(&self, axis: &CategoryId, value: &CategoryId) -> Option<Placement> {
+        Self::find_cluster(&self.tree, axis, value)
+    }
+
+    fn find_cluster(nodes: &[MapNode], axis: &CategoryId, value: &CategoryId) -> Option<Placement> {
+        for node in nodes {
+            let MapNode::Cluster(c) = node else { continue };
+            if matches!(c.drill_target(), Some((a, v)) if &a == axis && &v == value) {
+                return Some(c.placement);
+            }
+            if let Some(p) = Self::find_cluster(&c.sub_nodes, axis, value) {
+                return Some(p);
+            }
+        }
+        None
+    }
+
     fn accumulate_bounds(node: &MapNode, acc: &mut Option<Bounds>) {
         let p = node.placement();
         let b = Bounds {
