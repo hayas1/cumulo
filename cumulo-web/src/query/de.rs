@@ -94,7 +94,9 @@ impl<'de> Deserializer<'de> for ValueDeserializer {
         visitor: V,
     ) -> Result<V::Value, Error> {
         match self.0 {
-            Value::Scalar(s) => s.into_deserializer().deserialize_enum(name, variants, visitor),
+            Value::Scalar(s) => s
+                .into_deserializer()
+                .deserialize_enum(name, variants, visitor),
             // 値を持つ variant は 1nest では表現しないので、any 経由で型側に弾かせる。
             other => ValueDeserializer(other).deserialize_any(visitor),
         }

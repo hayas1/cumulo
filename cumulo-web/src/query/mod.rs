@@ -84,7 +84,11 @@ impl QueryState {
     /// （runtime 無しで単体テストできる）。push=true は履歴に積む（view 切替）、false は replace。
     /// 比較相手は raw な from_params（未解決）。既定 zoom_axis を持つ self とずれることで、
     /// 裸・既定省略の URL にも既定を書き出す（この非対称は意図的＝URL に既定を見せる）。
-    pub(crate) fn url_update(&self, current_url: &ParamsMap, pathname: &str) -> Option<(String, bool)> {
+    pub(crate) fn url_update(
+        &self,
+        current_url: &ParamsMap,
+        pathname: &str,
+    ) -> Option<(String, bool)> {
         let current = Self::from_params(current_url);
         if &current == self {
             return None;
@@ -234,7 +238,10 @@ mod tests {
         let (url, push) = desired
             .url_update(&ParamsMap::new(), "/base")
             .expect("裸 URL は書き直す");
-        assert_eq!(url, format!("/base{}", desired.to_params().to_query_string()));
+        assert_eq!(
+            url,
+            format!("/base{}", desired.to_params().to_query_string())
+        );
         assert!(!push, "view 不変なので replace（push=false）");
     }
 }

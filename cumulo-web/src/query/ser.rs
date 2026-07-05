@@ -54,41 +54,106 @@ impl Serializer for PairsSerializer {
     fn serialize_bool(self, _v: bool) -> Result<Self::Ok, Error> {
         Error::unsupported("a non-struct at the query top level")
     }
-    fn serialize_i8(self, _v: i8) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_i16(self, _v: i16) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_i32(self, _v: i32) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_i64(self, _v: i64) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_i128(self, _v: i128) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_u8(self, _v: u8) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_u16(self, _v: u16) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_u32(self, _v: u32) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_u64(self, _v: u64) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_u128(self, _v: u128) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_f32(self, _v: f32) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_f64(self, _v: f64) -> Result<Self::Ok, Error> { Error::unsupported("a number at the top level") }
-    fn serialize_char(self, _v: char) -> Result<Self::Ok, Error> { Error::unsupported("a char at the top level") }
-    fn serialize_str(self, _v: &str) -> Result<Self::Ok, Error> { Error::unsupported("a string at the top level") }
-    fn serialize_bytes(self, _v: &[u8]) -> Result<Self::Ok, Error> { Error::unsupported("bytes at the top level") }
+    fn serialize_i8(self, _v: i8) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_i16(self, _v: i16) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_i32(self, _v: i32) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_i64(self, _v: i64) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_i128(self, _v: i128) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_u8(self, _v: u8) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_u16(self, _v: u16) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_u32(self, _v: u32) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_u64(self, _v: u64) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_u128(self, _v: u128) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_f32(self, _v: f32) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_f64(self, _v: f64) -> Result<Self::Ok, Error> {
+        Error::unsupported("a number at the top level")
+    }
+    fn serialize_char(self, _v: char) -> Result<Self::Ok, Error> {
+        Error::unsupported("a char at the top level")
+    }
+    fn serialize_str(self, _v: &str) -> Result<Self::Ok, Error> {
+        Error::unsupported("a string at the top level")
+    }
+    fn serialize_bytes(self, _v: &[u8]) -> Result<Self::Ok, Error> {
+        Error::unsupported("bytes at the top level")
+    }
     fn serialize_unit_variant(
-        self, _n: &'static str, _i: u32, _v: &'static str,
-    ) -> Result<Self::Ok, Error> { Error::unsupported("a unit variant at the top level") }
+        self,
+        _n: &'static str,
+        _i: u32,
+        _v: &'static str,
+    ) -> Result<Self::Ok, Error> {
+        Error::unsupported("a unit variant at the top level")
+    }
     fn serialize_newtype_struct<T: ?Sized + Serialize>(
-        self, _n: &'static str, v: &T,
-    ) -> Result<Self::Ok, Error> { v.serialize(self) }
+        self,
+        _n: &'static str,
+        v: &T,
+    ) -> Result<Self::Ok, Error> {
+        v.serialize(self)
+    }
     fn serialize_newtype_variant<T: ?Sized + Serialize>(
-        self, _n: &'static str, _i: u32, _v: &'static str, _val: &T,
-    ) -> Result<Self::Ok, Error> { Error::unsupported("a newtype variant at the top level") }
-    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Error> { Error::unsupported("a sequence at the top level") }
-    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Error> { Error::unsupported("a tuple at the top level") }
+        self,
+        _n: &'static str,
+        _i: u32,
+        _v: &'static str,
+        _val: &T,
+    ) -> Result<Self::Ok, Error> {
+        Error::unsupported("a newtype variant at the top level")
+    }
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Error> {
+        Error::unsupported("a sequence at the top level")
+    }
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Error> {
+        Error::unsupported("a tuple at the top level")
+    }
     fn serialize_tuple_struct(
-        self, _n: &'static str, _len: usize,
-    ) -> Result<Self::SerializeTupleStruct, Error> { Error::unsupported("a tuple struct at the top level") }
+        self,
+        _n: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeTupleStruct, Error> {
+        Error::unsupported("a tuple struct at the top level")
+    }
     fn serialize_tuple_variant(
-        self, _n: &'static str, _i: u32, _v: &'static str, _len: usize,
-    ) -> Result<Self::SerializeTupleVariant, Error> { Error::unsupported("a tuple variant at the top level") }
+        self,
+        _n: &'static str,
+        _i: u32,
+        _v: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeTupleVariant, Error> {
+        Error::unsupported("a tuple variant at the top level")
+    }
     fn serialize_struct_variant(
-        self, _n: &'static str, _i: u32, _v: &'static str, _len: usize,
-    ) -> Result<Self::SerializeStructVariant, Error> { Error::unsupported("a struct variant at the top level") }
+        self,
+        _n: &'static str,
+        _i: u32,
+        _v: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeStructVariant, Error> {
+        Error::unsupported("a struct variant at the top level")
+    }
 }
 
 /// トップレベルのフィールド/エントリを集める。map でも struct でも同じ振る舞い。
@@ -139,7 +204,10 @@ impl SerializeMap for TopBuilder {
         Ok(())
     }
     fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), Error> {
-        let key = self.key.take().ok_or_else(|| Error::custom("value before key"))?;
+        let key = self
+            .key
+            .take()
+            .ok_or_else(|| Error::custom("value before key"))?;
         let field = value.serialize(ValueSerializer)?;
         self.push(&key, field);
         Ok(())
@@ -312,7 +380,10 @@ impl SerializeMap for SubBuilder {
         Ok(())
     }
     fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), Error> {
-        let key = self.key.take().ok_or_else(|| Error::custom("value before key"))?;
+        let key = self
+            .key
+            .take()
+            .ok_or_else(|| Error::custom("value before key"))?;
         let value = value.serialize(StringSerializer)?;
         self.out.push((key, value));
         Ok(())
