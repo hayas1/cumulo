@@ -1,6 +1,21 @@
-// 拡張版の wasm エントリ。UI 本体は cumulo-web を再利用し、この crate には Chrome 固有の
-// 差分（今は無し。将来 popup 判定など）を載せる。start は Pages 版と分けてここだけに置く。
-#[wasm_bindgen::prelude::wasm_bindgen(start)]
+// 拡張版の wasm エントリ。全画面アプリは cumulo-web を再利用し、Chrome 固有の差分
+// （popup 判定・Web クリッパー）だけをこの crate に載せる。start は Pages 版と分けてここに置く。
+use leptos::prelude::*;
+use wasm_bindgen::prelude::*;
+
+mod clip;
+mod popup;
+
+#[wasm_bindgen(start)]
 pub fn main() {
-    cumulo_web::mount();
+    #[cfg(debug_assertions)]
+    console_error_panic_hook::set_once();
+
+    // 同じ wasm を popup.html と index.html が読む。popup ページなら Web クリッパーを、
+    // それ以外は全画面アプリを body にマウントする。
+    if popup::is_popup() {
+        mount_to_body(popup::PopupApp);
+    } else {
+        cumulo_web::mount(&cumulo_web::LOCAL_STORE);
+    }
 }

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Cumulo",
   "version": "0.1.0",
-  "description": "ツールバーのアイコンから Cumulo を全画面タブで開く拡張",
+  "description": "開いているページを cumulo に追加し、全画面タブで cumulo を開く拡張",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -10,15 +10,14 @@
     "128": "icons/icon128.png"
   },
   "action": {
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
       "48": "icons/icon48.png"
     }
   },
-  "background": {
-    "service_worker": "background.js"
-  },
+  "permissions": ["activeTab"],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   }

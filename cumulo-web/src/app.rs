@@ -5,6 +5,7 @@ use crate::query::{QueryState, View};
 use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
 use crate::shared::{palette::Palette, settings_modal::SettingsModal};
+use crate::storage::DynStore;
 use crate::views::{facet::FacetView, map::MapView};
 use cumulo_model::Resource;
 
@@ -18,17 +19,17 @@ use leptos_router::NavigateOptions;
 /// マウントのエントリ。App を Router で包むだけの最上位ラッパ。
 /// view はクエリで持つので per-view ルートは無いが、クエリ系 hook の文脈確保に Router は要る。
 #[component]
-pub fn Root() -> impl IntoView {
+pub fn Root(store: &'static DynStore) -> impl IntoView {
     view! {
         <Router base=Platform::router_base()>
-            <App />
+            <App store=store />
         </Router>
     }
 }
 
 #[component]
-pub fn App() -> impl IntoView {
-    let client = Client::load();
+pub fn App(store: &'static DynStore) -> impl IntoView {
+    let client = Client::new(store);
     let editing = RwSignal::new(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
     let settings_open = RwSignal::new(false);
     let import_toast = RwSignal::new(Option::<String>::None);
