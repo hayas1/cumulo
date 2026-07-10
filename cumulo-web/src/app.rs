@@ -5,7 +5,7 @@ use crate::query::{QueryState, View};
 use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
 use crate::shared::{palette::Palette, settings_modal::SettingsModal};
-use crate::storage::DynStore;
+use crate::storage::{DynStore, LOCAL_STORE};
 use crate::views::{facet::FacetView, map::MapView};
 use cumulo_model::Resource;
 
@@ -15,6 +15,13 @@ use leptos_icons::Icon;
 use leptos_router::components::Router;
 use leptos_router::hooks::{use_location, use_navigate};
 use leptos_router::NavigateOptions;
+
+#[component]
+pub fn RootLocalStore() -> impl IntoView {
+    view! {
+        <Root store=&LOCAL_STORE />
+    }
+}
 
 /// マウントのエントリ。App を Router で包むだけの最上位ラッパ。
 /// view はクエリで持つので per-view ルートは無いが、クエリ系 hook の文脈確保に Router は要る。

@@ -16,6 +16,6 @@ pub fn main() {
     if popup::is_popup() {
         mount_to_body(popup::PopupApp);
     } else {
-        cumulo_web::mount(&cumulo_web::LOCAL_STORE);
+        mount_to_body(cumulo_web::RootLocalStore);
     }
 }
