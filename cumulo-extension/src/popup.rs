@@ -24,15 +24,6 @@ extern "C" {
     async fn active_tab() -> Result<JsValue, JsValue>;
 }
 
-/// popup ページ（action.default_popup=popup.html）として開かれたか。通常アプリと同じ wasm を
-/// 使うため、マウント先の分岐に使う。
-pub fn is_popup() -> bool {
-    web_sys::window()
-        .and_then(|w| w.location().pathname().ok())
-        .map(|p| p.contains("popup"))
-        .unwrap_or(false)
-}
-
 #[component]
 pub fn PopupApp() -> impl IntoView {
     // 全画面アプリと同じ store を使い、追加した Resource を共有する。
