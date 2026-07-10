@@ -1,25 +1,24 @@
 use crate::category::{CategoryAttribute, CategoryId};
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
-use crate::storage::StorageClient;
+use crate::storage::DynStore;
 use cumulo_model::{Bipartite, Forest};
 use leptos::prelude::*;
 
-/// データ源（メモリ上の二部グラフ signal）と永続化 backend [`StorageClient`] を束ねた
+/// データ源（メモリ上の二部グラフ signal）と永続化 backend [`Store`] を束ねた
 /// prop-drill 用ハンドル。`Copy` なので Leptos の prop として signal と同じ感覚で配れる。
-/// storage を内部に隠すことで、server 化時の差し替え点を `Client` の中だけに閉じ込める。
+/// store を trait 越しに持つことで、永続化先の差し替え点を `Client` の中だけに閉じ込める。
 #[derive(Clone, Copy)]
 pub struct Client {
     bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
-    storage: StorageClient,
+    store: &'static DynStore,
 }
 
 impl Client {
-    /// 永続化層から初期データを読み込んで生成する。
-    pub fn load() -> Self {
-        let storage = StorageClient;
-        let bipartite = RwSignal::new(storage.load());
-        Self { bipartite, storage }
+    /// 与えた [`Store`] から初期データを読み込んで生成する。保存先はこの `store` に閉じる。
+    pub fn new(store: &'static DynStore) -> Self {
+        let bipartite = RwSignal::new(store.load());
+        Self { bipartite, store }
     }
 
     /// 読み取りのみの箇所向け。read-only であることを型で表明する。
@@ -35,7 +34,7 @@ impl Client {
 
     /// 現在の状態を永続化する。
     pub fn save(&self) {
-        self.storage.save(&self.bipartite.get_untracked());
+        self.store.save(&self.bipartite.get_untracked());
     }
 
     /// 変更を適用して永続化する（update と save を 1 箇所に集約）。
@@ -52,7 +51,7 @@ impl Client {
 
     /// 永続化データを消去し、初期データに戻す。
     pub fn clear(&self) {
-        self.bipartite.set(self.storage.clear());
+        self.bipartite.set(self.store.clear());
     }
 
     /// 既定のズーム軸（taxonomy の先頭根）。root が無ければダミー id。
