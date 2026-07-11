@@ -21,6 +21,9 @@ jobs:
 
   versions:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -34,3 +37,10 @@ jobs:
             echo "Cargo.toml and manifest.json versions differ" >&2
             exit 1
           fi
+      # version が最新 tag と異なる=この PR がマージされたらリリースされる、という目印を
+      # PR に付ける。main での自動リリース(main.yml の should-release)と同じ判定を使う。
+      - name: Add release label
+        if: steps.versions.outputs.should-release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --add-label "release"
