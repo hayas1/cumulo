@@ -1,7 +1,10 @@
 [package]
 name = "cumulo-model"
 version.workspace = true
-edition = "2021"
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
 
 [lib]
 crate-type = ["rlib"]
