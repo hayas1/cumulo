@@ -92,7 +92,11 @@ jobs:
         working-directory: cumulo-extension/dist
         run: zip -r "$GITHUB_WORKSPACE/cumulo-extension-${{ needs.versions.outputs.expected-git-tag }}.zip" .
       - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.versions.outputs.expected-git-tag }}
-          files: cumulo-extension-*.zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # gh release create で tag 作成・zip 添付・ノート生成まで完結する。
+        # --generate-notes は「Generate release notes」ボタン相当（前回タグ以降の PR/commit から生成）。
+        run: |
+          gh release create "${{ needs.versions.outputs.expected-git-tag }}" \
+            cumulo-extension-*.zip \
+            --generate-notes
