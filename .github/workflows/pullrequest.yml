@@ -18,3 +18,19 @@ jobs:
       - run: cargo test --all
       - run: cargo fmt --check
       - run: cargo clippy --tests -- --deny warnings
+
+  versions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - id: versions
+        uses: ./.github/actions/versions
+      # release version の正は Cargo.toml。manifest.json は Chrome 要求の重複値なので、
+      # 生成せず一致だけ検証し、ズレたまま main に入るのを PR 時点で止める。
+      - name: Assert Cargo.toml and manifest.json versions match
+        run: |
+          if [ "${{ steps.versions.outputs.crate-version }}" != "${{ steps.versions.outputs.manifest-version }}" ]; then
+            echo "Cargo.toml and manifest.json versions differ" >&2
+            exit 1
+          fi
