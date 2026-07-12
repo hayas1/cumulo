@@ -2,8 +2,6 @@
 
 use cumulo_e2e::Session;
 
-const PRODUCT_AXIS: usize = 1;
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn deep_link_prefilters_the_facet_list() {
     let app = Session::open("/?filters.platform=gcp").await;
@@ -20,7 +18,7 @@ async fn deep_link_restores_map_axis_and_filter() {
 
     app.wait_for(".map-view").await;
 
-    app.wait_for_class(".facet-panel-title-btn", PRODUCT_AXIS, "active")
+    app.wait_for_class(".facet-panel-title-btn", 1, "active")
         .await;
     app.wait_for_text(".tag-pill", "gcp").await;
 }

@@ -2,9 +2,6 @@
 
 use cumulo_e2e::Session;
 
-const LABEL: &str = ".form-panel .form-input";
-const RESOURCE_TAB: usize = 1;
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn adding_a_resource_through_the_form_lists_it() {
     let app = Session::open("/").await;
@@ -14,7 +11,7 @@ async fn adding_a_resource_through_the_form_lists_it() {
     let label = format!("e2e-create-{}", std::process::id());
 
     app.click(".facet-results .add-resource-btn").await;
-    app.fill(LABEL, &label).await;
+    app.fill(".form-panel .form-input", &label).await;
     app.click(".form-save-btn").await;
 
     app.wait_for_text(".result-name", &label).await;
@@ -29,7 +26,7 @@ async fn opening_the_editor_prefills_the_resource_fields() {
     app.click_nth(".result-edit-btn", 0).await;
 
     app.wait_for(".form-panel").await;
-    app.wait_for_nonempty_value(LABEL).await;
+    app.wait_for_nonempty_value(".form-panel .form-input").await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -42,7 +39,7 @@ async fn editing_a_resource_updates_it_in_place() {
 
     app.click_nth(".result-edit-btn", 0).await;
     app.wait_for(".form-panel").await;
-    app.set_value(LABEL, &label).await;
+    app.set_value(".form-panel .form-input", &label).await;
     app.click(".form-save-btn").await;
 
     app.wait_for_text(".result-name", &label).await;
@@ -55,7 +52,7 @@ async fn deleting_a_resource_removes_it_from_the_list() {
 
     app.click(".header-settings-btn").await;
     app.wait_for(".settings-modal").await;
-    app.click_nth(".settings-tab", RESOURCE_TAB).await;
+    app.click_nth(".settings-tab", 1).await;
     app.wait_for(".resource-row").await;
     let before = app.count(".resource-row").await;
 

@@ -2,22 +2,19 @@
 
 use cumulo_e2e::Session;
 
-const INPUT: &str = ".palette-input";
-const SUGGESTION: &str = ".suggestion-btn";
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn palette_keyboard_selects_a_suggestion_and_filters() {
     let app = Session::open("/").await;
 
     app.wait_for(".facet-view").await;
 
-    app.fill(INPUT, "auth").await;
-    app.wait_for(SUGGESTION).await;
+    app.fill(".palette-input", "auth").await;
+    app.wait_for(".suggestion-btn").await;
 
-    app.press_key(INPUT, "ArrowDown").await;
+    app.press_key(".palette-input", "ArrowDown").await;
     app.wait_for(".suggestion-btn.focused").await;
 
-    app.press_key(INPUT, "Enter").await;
+    app.press_key(".palette-input", "Enter").await;
     app.wait_for(".tag-pill").await;
     app.wait_for_query("filters").await;
 }
@@ -28,18 +25,18 @@ async fn palette_keyboard_moves_between_candidates_and_back_to_input() {
 
     app.wait_for(".facet-view").await;
 
-    app.fill(INPUT, "cloud").await;
-    app.wait_for(SUGGESTION).await;
+    app.fill(".palette-input", "cloud").await;
+    app.wait_for(".suggestion-btn").await;
 
-    app.press_key(INPUT, "ArrowDown").await;
-    app.wait_for_class(SUGGESTION, 0, "focused").await;
+    app.press_key(".palette-input", "ArrowDown").await;
+    app.wait_for_class(".suggestion-btn", 0, "focused").await;
 
-    app.press_key(INPUT, "ArrowRight").await;
-    app.wait_for_class(SUGGESTION, 1, "focused").await;
+    app.press_key(".palette-input", "ArrowRight").await;
+    app.wait_for_class(".suggestion-btn", 1, "focused").await;
 
-    app.press_key(INPUT, "ArrowLeft").await;
-    app.wait_for_class(SUGGESTION, 0, "focused").await;
+    app.press_key(".palette-input", "ArrowLeft").await;
+    app.wait_for_class(".suggestion-btn", 0, "focused").await;
 
-    app.press_key(INPUT, "ArrowUp").await;
+    app.press_key(".palette-input", "ArrowUp").await;
     app.wait_for_gone(".suggestion-btn.focused").await;
 }

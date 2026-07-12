@@ -2,17 +2,16 @@
 
 use cumulo_e2e::Session;
 
-const AXIS: &str = ".facet-panel-title-btn";
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn selecting_a_map_axis_sets_the_zoom_axis() {
     let app = Session::open("/?view=map").await;
 
     app.wait_for(".map-view").await;
-    app.wait_for(AXIS).await;
+    app.wait_for(".facet-panel-title-btn").await;
 
-    app.click_nth(AXIS, 1).await;
-    app.wait_for_class(AXIS, 1, "active").await;
+    app.click_nth(".facet-panel-title-btn", 1).await;
+    app.wait_for_class(".facet-panel-title-btn", 1, "active")
+        .await;
     app.wait_for_query("zoom_axis").await;
 }
 
