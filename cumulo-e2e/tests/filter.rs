@@ -28,7 +28,6 @@ async fn palette_keyboard_moves_between_candidates_and_back_to_input() {
 
     app.wait_for(".facet-view").await;
 
-    // "cloud" surfaces several categories, so left/right can move between them.
     app.fill(INPUT, "cloud").await;
     app.wait_for(SUGGESTION).await;
 

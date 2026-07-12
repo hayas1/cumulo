@@ -30,7 +30,6 @@ impl Site {
         format!("{}{path}", self.base_url)
     }
 
-    // cumulo-web must be `trunk build`-ed first, otherwise serve() finds no dist.
     fn dist() -> PathBuf {
         PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../cumulo-web/dist"))
     }

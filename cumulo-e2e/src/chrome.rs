@@ -51,9 +51,6 @@ impl Chrome {
     }
 
     pub(crate) async fn open(&self, url: &str) -> Page {
-        // Create the tab on about:blank, then fire navigation via raw CDP.
-        // `new_page(url)` waits for a load event that never arrives for the WASM
-        // app on some CI runners; readiness is asserted with `wait_for` instead.
         let page = timeout(OPEN_TIMEOUT, self.browser.new_page("about:blank"))
             .await
             .expect("create tab timed out")
@@ -69,8 +66,6 @@ impl Chrome {
         page
     }
 
-    /// Tests run in parallel threads; a shared Chromium profile deadlocks on its
-    /// singleton lock, so each browser gets an isolated user-data dir.
     fn unique_profile_dir() -> PathBuf {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -97,17 +92,12 @@ impl Chrome {
     }
 }
 
-/// chromiumoxide does not reliably reap the Chromium process tree on drop, and
-/// with limited RAM the leftovers starve later launches. Kill the process tree
-/// by its unique `--user-data-dir` (safe: the path matches only this browser).
 impl Drop for Chrome {
     fn drop(&mut self) {
         self.handler.abort();
         let _ = std::process::Command::new("pkill")
             .args(["-9", "-f", &self.profile_dir.to_string_lossy()])
             .status();
-        // Let the OS reap the tree before the next test launches a browser, so
-        // teardown does not race a fresh launch on a memory-constrained host.
         std::thread::sleep(Duration::from_secs(1));
     }
 }

@@ -2,6 +2,8 @@
 
 use cumulo_e2e::Session;
 
+const PRODUCT_AXIS: usize = 1;
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn deep_link_prefilters_the_facet_list() {
     let app = Session::open("/?filters.platform=gcp").await;
@@ -18,8 +20,7 @@ async fn deep_link_restores_map_axis_and_filter() {
 
     app.wait_for(".map-view").await;
 
-    // product is the second taxonomy root, so its axis button is index 1.
-    app.wait_for_class(".facet-panel-title-btn", 1, "active")
+    app.wait_for_class(".facet-panel-title-btn", PRODUCT_AXIS, "active")
         .await;
     app.wait_for_text(".tag-pill", "gcp").await;
 }

@@ -14,8 +14,6 @@ async fn added_resource_survives_a_reload() {
 
     app.wait_for_text(".result-name", &label).await;
 
-    // A reload drops the in-memory signal; the resource must be rehydrated
-    // from the LocalStore (localStorage) to still be listed.
     app.reload().await;
     app.wait_for_text(".result-name", &label).await;
 }

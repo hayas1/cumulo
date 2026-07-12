@@ -2,7 +2,6 @@
 
 use cumulo_e2e::Session;
 
-// Nav buttons render in a fixed order in the header (see app.rs).
 const NAV_FACET: usize = 0;
 const NAV_MAP: usize = 1;
 const NAV: &str = ".app-nav .nav-link";
