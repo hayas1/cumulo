@@ -15,12 +15,11 @@ async fn nav_switches_view_and_syncs_the_url() {
 
     app.click_nth(NAV, NAV_MAP).await;
     app.wait_for(".map-view").await;
-    app.wait_until("location.search.includes('view=map')").await;
+    app.wait_for_query("view=map").await;
 
     app.click_nth(NAV, NAV_FACET).await;
     app.wait_for(".facet-view").await;
-    app.wait_until("!location.search.includes('view=map')")
-        .await;
+    app.wait_for_no_query("view=map").await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

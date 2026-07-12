@@ -3,7 +3,6 @@
 use cumulo_e2e::Session;
 
 const LABEL: &str = ".form-panel .form-input";
-const URL_FIELD: &str = "document.querySelectorAll('.form-panel .form-input')[1]";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn adding_a_resource_through_the_form_lists_it() {
@@ -29,8 +28,7 @@ async fn opening_the_editor_prefills_the_resource_fields() {
     app.click_nth(".result-edit-btn", 0).await;
 
     app.wait_for(".form-panel").await;
-    app.wait_until(&format!("{URL_FIELD} && {URL_FIELD}.value.length > 0"))
-        .await;
+    app.wait_for_nonempty_value(LABEL).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -64,9 +62,5 @@ async fn deleting_a_resource_removes_it_from_the_list() {
     app.wait_for(".confirm-dialog").await;
     app.click(".confirm-ok").await;
 
-    app.wait_until(&format!(
-        "document.querySelectorAll('.resource-row').length === {}",
-        before - 1
-    ))
-    .await;
+    app.wait_for_count(".resource-row", before - 1).await;
 }

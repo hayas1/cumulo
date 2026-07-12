@@ -34,11 +34,6 @@ impl Session {
         }
     }
 
-    /// For interactions the harness does not wrap.
-    pub fn page(&self) -> &Page {
-        &self.page
-    }
-
     pub async fn wait_for(&self, selector: &str) -> Element {
         // A Leptos CSR app mounts asynchronously, so a bare lookup races it.
         let deadline = Instant::now() + SELECTOR_TIMEOUT;
@@ -94,6 +89,28 @@ impl Session {
         self.wait_until(&expression).await;
     }
 
+    pub async fn wait_for_count(&self, selector: &str, n: usize) {
+        let expression = format!("document.querySelectorAll({selector:?}).length === {n}");
+        self.wait_until(&expression).await;
+    }
+
+    pub async fn wait_for_nonempty_value(&self, selector: &str) {
+        let expression = format!(
+            "(() => {{ const el = document.querySelector({selector:?}); return !!el && el.value.length > 0; }})()"
+        );
+        self.wait_until(&expression).await;
+    }
+
+    pub async fn wait_for_query(&self, substring: &str) {
+        let expression = format!("location.search.includes({substring:?})");
+        self.wait_until(&expression).await;
+    }
+
+    pub async fn wait_for_no_query(&self, substring: &str) {
+        let expression = format!("!location.search.includes({substring:?})");
+        self.wait_until(&expression).await;
+    }
+
     pub async fn count(&self, selector: &str) -> usize {
         let expression = format!("document.querySelectorAll({selector:?}).length");
         match timeout(CALL_TIMEOUT, self.page.evaluate(expression)).await {
@@ -126,17 +143,21 @@ impl Session {
     }
 
     pub async fn click_nth(&self, selector: &str, index: usize) {
-        let elements = self
-            .page
-            .find_elements(selector)
-            .await
-            .expect("find elements");
-        let element = elements.get(index).unwrap_or_else(|| {
-            panic!(
-                "no `{selector}` at index {index} ({} found)",
-                elements.len()
-            )
-        });
+        // Poll like `click`, so a not-yet-rendered nth match is awaited too.
+        let deadline = Instant::now() + SELECTOR_TIMEOUT;
+        let element = loop {
+            let elements = self.page.find_elements(selector).await.unwrap_or_default();
+            let found = elements.len();
+            if let Some(element) = elements.into_iter().nth(index) {
+                break element;
+            }
+            if Instant::now() >= deadline {
+                panic!(
+                    "no `{selector}` at index {index} within {SELECTOR_TIMEOUT:?} ({found} found)"
+                );
+            }
+            tokio::time::sleep(POLL_INTERVAL).await;
+        };
         match timeout(CALL_TIMEOUT, element.click()).await {
             Ok(Ok(_)) => {}
             Ok(Err(e)) => panic!("click `{selector}`[{index}] failed: {e:?}"),

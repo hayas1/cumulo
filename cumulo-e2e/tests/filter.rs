@@ -19,7 +19,7 @@ async fn palette_keyboard_selects_a_suggestion_and_filters() {
 
     app.press_key(INPUT, "Enter").await;
     app.wait_for(".tag-pill").await;
-    app.wait_until("location.search.includes('filters')").await;
+    app.wait_for_query("filters").await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -30,8 +30,7 @@ async fn palette_keyboard_moves_between_candidates_and_back_to_input() {
 
     // "cloud" surfaces several categories, so left/right can move between them.
     app.fill(INPUT, "cloud").await;
-    app.wait_until("document.querySelectorAll('.suggestion-btn').length >= 2")
-        .await;
+    app.wait_for(SUGGESTION).await;
 
     app.press_key(INPUT, "ArrowDown").await;
     app.wait_for_class(SUGGESTION, 0, "focused").await;
