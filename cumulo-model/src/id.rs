@@ -4,11 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::IdError;
 
-/// リソースやカテゴリの ID を表すファントム型付き newtype。
-/// T はマーカーとして機能し、異なる種類の ID の混在をコンパイル時に防ぐ。
-/// `fn() -> T` を使うことで T: Send + Sync なしに Id<T>: Send + Sync となる。
-/// Clone/Debug は derive ではなく手動実装 — derive は T: Clone/Debug 境界を生成するが、
-/// T は phantom marker なので T のトレイト境界を Id<T> に波及させるべきではないため。
 #[derive(Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Id<T>(pub String, #[serde(skip)] PhantomData<fn() -> T>);
@@ -30,7 +25,6 @@ impl<T> Id<T> {
         &self.0
     }
 
-    /// id 単体としての妥当性を検証する。空文字列はノードのルックアップを壊すため不正。
     pub fn validate(&self) -> Result<(), IdError> {
         if self.0.is_empty() {
             return Err(IdError::Empty);
@@ -38,8 +32,6 @@ impl<T> Id<T> {
         Ok(())
     }
 
-    /// バリデーションをスキップして Id を構築する。
-    /// 空 id を含む入力（インポート JSON など）の境界テストにのみ使用する。
     #[cfg(test)]
     pub(crate) fn new_unchecked(s: impl Into<String>) -> Self {
         Id(s.into(), PhantomData)
@@ -74,7 +66,6 @@ impl<T> Ord for Id<T> {
 
 impl<T> TryFrom<String> for Id<T> {
     type Error = IdError;
-    // 妥当性ルールは validate() に一本化する（空判定を各所で重複させない）
     fn try_from(s: String) -> Result<Self, Self::Error> {
         let id = Id(s, PhantomData);
         id.validate()?;
