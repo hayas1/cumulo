@@ -19,6 +19,22 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --tests -- --deny warnings
 
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-cargo
+      - name: Install trunk
+        run: curl -fsL https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin
+      - name: Build web app
+        working-directory: cumulo-web
+        run: trunk build
+      - name: Install Chromium
+        run: npx --yes playwright install --with-deps chromium
+      - name: Run scenarios
+        run: xvfb-run -a cargo test -p cumulo-e2e --features browser -- --test-threads=1
+
   versions:
     runs-on: ubuntu-latest
     permissions:
