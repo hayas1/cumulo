@@ -37,8 +37,6 @@ body {
   font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
-  /* iOS Safari は 100vh がツールバーを除いた高さを指し、横画面で可視領域より縦に長くなって
-     上端のヘッダ/Palette が画面外へ押し出される。dvh は実可視領域に追従する（vh はフォールバック）。 */
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
@@ -114,7 +112,6 @@ body {
 }
 .header-settings-btn:hover { color: var(--text-primary); }
 
-/* icondata_hi のアイコンは stroke/fill がハードコードされているため currentColor に上書き */
 .header-settings-btn svg *,
 .settings-action-btn svg *,
 .chip-editor-randomize svg *,
@@ -483,7 +480,6 @@ body {
 .category-tree {
   display: flex;
   flex-direction: column;
-  /* 行間にすき間を作らない（すき間はドロップ不可ゾーンになり並び替えできないため）*/
   gap: 0;
 }
 
@@ -496,12 +492,10 @@ body {
   position: relative;
   padding: 0.12rem 0;
 }
-/* 要素に重ねた = 子にする */
 .category-node-row.over-inside {
   border-color: var(--accent);
   background: rgba(88, 166, 255, 0.08);
 }
-/* 要素の間 = 並び替え（上端/下端に強調インジケータ線） */
 .category-node-row.over-before::before,
 .category-node-row.over-after::after {
   content: "";
@@ -514,7 +508,6 @@ body {
   box-shadow: 0 0 6px var(--accent);
   z-index: 2;
 }
-/* 線の先頭に丸ポチを付けて挿入位置をさらに強調 */
 .category-node-row.over-before::before { top: -2px; }
 .category-node-row.over-after::after { bottom: -2px; }
 .category-node-row.over-before,
@@ -581,7 +574,6 @@ body {
 
 .category-node-editor { flex: 1; }
 
-/* ドラッグ中のみタイトル横に出る「根へ」ドロップ枠 */
 .category-root-drop {
   border: 1px dashed var(--accent);
   border-radius: 20px;
@@ -785,7 +777,6 @@ body {
 }
 .palette-clear-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
 
-/* タグピル */
 .tag-pill {
   display: inline-flex;
   align-items: center;
@@ -819,7 +810,6 @@ body {
 }
 .pill-remove:hover { color: var(--text-primary); }
 
-/* 候補サジェスト */
 .palette-suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -846,7 +836,6 @@ body {
   transition: border-color 0.12s, color 0.12s;
 }
 .suggestion-btn:hover { border-color: var(--accent); color: var(--accent); }
-/* ↓↑ キーでハイライト中の候補 */
 .suggestion-btn.focused { border-color: var(--accent); color: var(--accent); background: rgba(88, 166, 255, 0.12); }
 
 .sug-key { color: var(--text-muted); margin-right: 0.1rem; }
@@ -1007,21 +996,18 @@ body {
   display: block;
 }
 
-/* ズームで枠線が太くならないよう、stroke は常に一定の画面幅に保つ */
 #main-svg .cluster-bg,
 #main-svg .mini-node-circle,
 #main-svg .child-node-circle {
   vector-effect: non-scaling-stroke;
 }
 
-/* テキスト共通（中央寄せ・ヒットテスト無効・フォント）。色やサイズは描画側で動的に与える */
 #main-svg text {
   font-family: system-ui, sans-serif;
   text-anchor: middle;
   pointer-events: none;
 }
 
-/* クラスタ背景円。塗り/枠の色と不透明度はフィルタ状態に応じて描画側が与える */
 #main-svg .cluster-bg {
   cursor: pointer;
   stroke-width: 1.2;
@@ -1032,12 +1018,10 @@ body {
   stroke-dasharray: none;
 }
 
-/* クラスタラベル・件数 */
 #main-svg .cluster-label { font-weight: 600; }
 #main-svg .cluster-d0 > .cluster-label { font-weight: 700; }
 #main-svg .cluster-count { fill-opacity: 0.65; }
 
-/* リソースノード */
 #main-svg .mini-node { cursor: pointer; }
 #main-svg .mini-node-circle { stroke: #0d1117; stroke-width: 1; }
 #main-svg .node-label { fill: #e6edf3; dominant-baseline: middle; }
@@ -1232,7 +1216,6 @@ body {
   padding: 0.4rem 0.5rem 0.25rem;
 }
 
-/* マップ時: タイトルをクリックでズーム軸に。選択中は文字色↔背景色を反転 */
 .facet-panel-title-btn {
   display: flex;
   align-items: center;
@@ -1256,7 +1239,6 @@ body {
 }
 .facet-panel-title-btn.selected { color: var(--accent); }
 
-/* パネルヘッダー: 折りたたみ chevron + タイトル */
 .facet-panel-header {
   display: flex;
   align-items: center;

@@ -28,10 +28,5 @@ web-sys = { version = "0.3", features = [
 gloo-storage = "0.3"
 console_error_panic_hook = "0.1"
 
-# テスト時のみ leptos_router の ssr を足す。ssr 有効時 Url の escape/unescape が
-# js-sys ではなく純 Rust の percent-encoding になり、host の cargo test で ParamsMap を
-# 組み立てても "non-wasm targets" panic を起こさず QueryState を単体テストできる。
-# ssr は dep:percent-encoding を足すだけで leptos/ssr には波及せず、resolver 2 のため
-# 本番 wasm ビルド（dev-deps 不参加）には漏れない＝csr の encodeURIComponent 経路を保つ。
 [dev-dependencies]
 leptos_router = { version = "0.8", features = ["ssr"] }
