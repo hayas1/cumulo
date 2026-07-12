@@ -1,60 +1,51 @@
 #![cfg(feature = "browser")]
 
-use cumulo_e2e::{
-    dist, fill, press_key, wait_for, wait_for_class, wait_for_gone, wait_until, Chrome, Site,
-};
+use cumulo_e2e::Session;
 
 const INPUT: &str = ".palette-input";
 const SUGGESTION: &str = ".suggestion-btn";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn palette_keyboard_selects_a_suggestion_and_filters() {
-    let site = Site::serve(dist()).await;
-    let chrome = Chrome::launch().await;
-    let page = chrome.open(site.url("/")).await;
+    let app = Session::open("/").await;
 
-    wait_for(&page, ".facet-view").await;
+    app.wait_for(".facet-view").await;
 
     // Typing surfaces category suggestions; ArrowDown highlights the first and
     // Enter commits it as a filter pill.
-    fill(&page, INPUT, "auth").await;
-    wait_for(&page, SUGGESTION).await;
+    app.fill(INPUT, "auth").await;
+    app.wait_for(SUGGESTION).await;
 
-    press_key(&page, INPUT, "ArrowDown").await;
-    wait_for(&page, ".suggestion-btn.focused").await;
+    app.press_key(INPUT, "ArrowDown").await;
+    app.wait_for(".suggestion-btn.focused").await;
 
-    press_key(&page, INPUT, "Enter").await;
-    wait_for(&page, ".tag-pill").await;
-    wait_until(&page, "location.search.includes('filters')").await;
+    app.press_key(INPUT, "Enter").await;
+    app.wait_for(".tag-pill").await;
+    app.wait_until("location.search.includes('filters')").await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn palette_keyboard_moves_between_candidates_and_back_to_input() {
-    let site = Site::serve(dist()).await;
-    let chrome = Chrome::launch().await;
-    let page = chrome.open(site.url("/")).await;
+    let app = Session::open("/").await;
 
-    wait_for(&page, ".facet-view").await;
+    app.wait_for(".facet-view").await;
 
     // "cloud" surfaces several categories, so left/right can move between them.
-    fill(&page, INPUT, "cloud").await;
-    wait_until(
-        &page,
-        "document.querySelectorAll('.suggestion-btn').length >= 2",
-    )
-    .await;
+    app.fill(INPUT, "cloud").await;
+    app.wait_until("document.querySelectorAll('.suggestion-btn').length >= 2")
+        .await;
 
     // Down focuses the first candidate, Right/Left move between candidates.
-    press_key(&page, INPUT, "ArrowDown").await;
-    wait_for_class(&page, SUGGESTION, 0, "focused").await;
+    app.press_key(INPUT, "ArrowDown").await;
+    app.wait_for_class(SUGGESTION, 0, "focused").await;
 
-    press_key(&page, INPUT, "ArrowRight").await;
-    wait_for_class(&page, SUGGESTION, 1, "focused").await;
+    app.press_key(INPUT, "ArrowRight").await;
+    app.wait_for_class(SUGGESTION, 1, "focused").await;
 
-    press_key(&page, INPUT, "ArrowLeft").await;
-    wait_for_class(&page, SUGGESTION, 0, "focused").await;
+    app.press_key(INPUT, "ArrowLeft").await;
+    app.wait_for_class(SUGGESTION, 0, "focused").await;
 
     // Up returns focus to the input, leaving no candidate highlighted.
-    press_key(&page, INPUT, "ArrowUp").await;
-    wait_for_gone(&page, ".suggestion-btn.focused").await;
+    app.press_key(INPUT, "ArrowUp").await;
+    app.wait_for_gone(".suggestion-btn.focused").await;
 }
