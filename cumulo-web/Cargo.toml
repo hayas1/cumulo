@@ -6,15 +6,6 @@ authors.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
-[features]
-# 既定では単体デプロイ（GitHub Pages）向けに、自分を body へ自動マウントする wasm エントリ
-# #[wasm_bindgen(start)] を備える。cumulo-extension のように埋め込みライブラリとして使う側は
-# embed を有効化してエントリを落とし、マウントは自前の start から行う。
-embed = []
-
 [dependencies]
 cumulo-model = { path = "../cumulo-model", features = ["demo"] }
 leptos = { version = "0.8", features = ["csr"] }

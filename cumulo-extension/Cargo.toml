@@ -6,12 +6,9 @@ authors.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
-# 全画面アプリ本体は cumulo-web を再利用。start を二重に載せないよう embed で本体のエントリを落とす。
-cumulo-web = { path = "../cumulo-web", features = ["embed"] }
+# 全画面アプリ本体は cumulo-web を再利用。エントリは web 側の bin にあり lib には無いので二重 start にならない。
+cumulo-web = { path = "../cumulo-web" }
 # popup（Web クリッパー）は chrome.tabs 依存の拡張固有 UI なのでこの crate 側に持つ。
 cumulo-model = { path = "../cumulo-model" }
 leptos = { version = "0.8", features = ["csr"] }
