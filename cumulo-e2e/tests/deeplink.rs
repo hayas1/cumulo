@@ -8,7 +8,6 @@ async fn deep_link_prefilters_the_facet_list() {
 
     app.wait_for(".facet-view").await;
 
-    // The URL filter is adopted as an active pill and the list renders narrowed.
     app.wait_for_text(".tag-pill", "gcp").await;
     app.wait_for(".result-card").await;
 }
@@ -19,8 +18,7 @@ async fn deep_link_restores_map_axis_and_filter() {
 
     app.wait_for(".map-view").await;
 
-    // The map opens on the deep-linked axis (product, the second root) already
-    // filtered by the deep-linked tag.
+    // product is the second taxonomy root, so its axis button is index 1.
     app.wait_for_class(".facet-panel-title-btn", 1, "active")
         .await;
     app.wait_for_text(".tag-pill", "gcp").await;

@@ -11,7 +11,6 @@ async fn selecting_a_map_axis_sets_the_zoom_axis() {
     app.wait_for(".map-view").await;
     app.wait_for(AXIS).await;
 
-    // A non-default axis becomes the active zoom axis when clicked.
     app.click_nth(AXIS, 1).await;
     app.wait_for_class(AXIS, 1, "active").await;
     app.wait_until("location.search.includes('zoom_axis')")
@@ -25,8 +24,6 @@ async fn clicking_a_map_cluster_drills_down_and_updates_url() {
     app.wait_for(".map-view").await;
     app.wait_for(".cluster-bg").await;
 
-    // Clicking a cluster zooms into it (level badge advances) and drills down by
-    // setting a filter, which is reflected in the URL.
     app.click_nth(".cluster-bg", 0).await;
     app.wait_for(".tag-pill").await;
     app.wait_until("location.search.includes('filters')").await;

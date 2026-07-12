@@ -11,8 +11,6 @@ async fn palette_keyboard_selects_a_suggestion_and_filters() {
 
     app.wait_for(".facet-view").await;
 
-    // Typing surfaces category suggestions; ArrowDown highlights the first and
-    // Enter commits it as a filter pill.
     app.fill(INPUT, "auth").await;
     app.wait_for(SUGGESTION).await;
 
@@ -35,7 +33,6 @@ async fn palette_keyboard_moves_between_candidates_and_back_to_input() {
     app.wait_until("document.querySelectorAll('.suggestion-btn').length >= 2")
         .await;
 
-    // Down focuses the first candidate, Right/Left move between candidates.
     app.press_key(INPUT, "ArrowDown").await;
     app.wait_for_class(SUGGESTION, 0, "focused").await;
 
@@ -45,7 +42,6 @@ async fn palette_keyboard_moves_between_candidates_and_back_to_input() {
     app.press_key(INPUT, "ArrowLeft").await;
     app.wait_for_class(SUGGESTION, 0, "focused").await;
 
-    // Up returns focus to the input, leaving no candidate highlighted.
     app.press_key(INPUT, "ArrowUp").await;
     app.wait_for_gone(".suggestion-btn.focused").await;
 }

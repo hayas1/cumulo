@@ -30,8 +30,7 @@ impl Site {
         format!("{}{path}", self.base_url)
     }
 
-    /// The `cumulo-web` build output the harness serves. Produce it with
-    /// `trunk build` in `cumulo-web` before running the scenarios.
+    // cumulo-web must be `trunk build`-ed first, otherwise serve() finds no dist.
     fn dist() -> PathBuf {
         PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../cumulo-web/dist"))
     }
