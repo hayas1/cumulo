@@ -25,10 +25,10 @@ pub struct Resource<RA, CA> {
 pub type RootedNode<CA> = (Id<Category<CA>>, Id<Category<CA>>);
 
 impl<RA, CA: Clone> Resource<RA, CA> {
-    pub fn display_label(&self, forest: &Taxonomy<CA>) -> String {
+    pub fn resolved_label(&self, forest: &Taxonomy<CA>) -> Option<String> {
         if let Some(l) = &self.label {
             if !l.is_empty() {
-                return l.clone();
+                return Some(l.clone());
             }
         }
         let mut parts: Vec<String> = self
@@ -44,11 +44,7 @@ impl<RA, CA: Clone> Resource<RA, CA> {
             })
             .collect();
         parts.sort();
-        if parts.is_empty() {
-            "(名前なし)".to_string()
-        } else {
-            parts.join(" / ")
-        }
+        (!parts.is_empty()).then(|| parts.join(" / "))
     }
 
     pub fn rooted_nodes(&self, taxonomy: &Taxonomy<CA>) -> Vec<RootedNode<CA>> {
@@ -129,6 +125,7 @@ impl<RA, CA> Catalog<RA, CA> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::category::{Category, Taxonomy};
 
     fn id(s: &str) -> Id<Resource<(), ()>> {
         s.try_into().unwrap()
@@ -139,8 +136,72 @@ mod tests {
     }
 
     #[test]
+    fn resolved_label_uses_explicit_label_when_present() {
+        let tax: Taxonomy<()> = Taxonomy(vec![]);
+        let r = Resource {
+            id: id("r1"),
+            label: Some("My Label".into()),
+            parent: None,
+            categories: Vec::new(),
+            attribute: (),
+        };
+        assert_eq!(r.resolved_label(&tax), Some("My Label".to_string()));
+    }
+
+    #[test]
+    fn resolved_label_composes_category_labels_sorted() {
+        let tax: Taxonomy<()> = Taxonomy(vec![
+            Category {
+                id: cid("bigquery"),
+                label: "BigQuery".into(),
+                parent: None,
+                attribute: (),
+            },
+            Category {
+                id: cid("prod"),
+                label: "prod".into(),
+                parent: None,
+                attribute: (),
+            },
+        ]);
+        let r = Resource {
+            id: id("r1"),
+            label: None,
+            parent: None,
+            categories: vec![cid("prod"), cid("bigquery")],
+            attribute: (),
+        };
+        assert_eq!(r.resolved_label(&tax), Some("BigQuery / prod".to_string()));
+    }
+
+    #[test]
+    fn resolved_label_is_none_when_no_label_and_no_categories() {
+        let tax: Taxonomy<()> = Taxonomy(vec![]);
+        let r = Resource {
+            id: id("r1"),
+            label: None,
+            parent: None,
+            categories: Vec::new(),
+            attribute: (),
+        };
+        assert_eq!(r.resolved_label(&tax), None);
+    }
+
+    #[test]
+    fn resolved_label_treats_empty_label_as_absent() {
+        let tax: Taxonomy<()> = Taxonomy(vec![]);
+        let r = Resource {
+            id: id("r1"),
+            label: Some(String::new()),
+            parent: None,
+            categories: Vec::new(),
+            attribute: (),
+        };
+        assert_eq!(r.resolved_label(&tax), None);
+    }
+
+    #[test]
     fn rooted_nodes_pairs_each_node_with_its_root_sorted() {
-        use crate::category::{Category, Taxonomy};
         let tax: Taxonomy<()> = Taxonomy(vec![
             Category {
                 id: cid("platform"),

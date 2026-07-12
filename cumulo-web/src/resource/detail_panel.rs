@@ -31,7 +31,9 @@ pub fn DetailPanel(
                             let freq = r.attribute.freq;
                             let r_for_edit = r.clone();
                             let s = bipartite.get();
-                            let display = r.display_label(&s.taxonomy);
+                            let display = r
+                                .resolved_label(&s.taxonomy)
+                                .unwrap_or_else(|| r.id.to_string());
 
                             let dims_sorted: Vec<(String, String)> = r.rooted_nodes(&s.taxonomy)
                                 .into_iter()

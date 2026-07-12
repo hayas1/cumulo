@@ -39,7 +39,9 @@ pub fn EntitiesTab(client: Client, flow: SettingsEditFlow) -> impl IntoView {
                     .map(|r| {
                         let r_id = r.id.clone();
                         let r_edit = r.clone();
-                        let display = r.display_label(&s.taxonomy);
+                        let display = r
+                            .resolved_label(&s.taxonomy)
+                            .unwrap_or_else(|| r.id.to_string());
                         let has_children = !s.catalog.children_of(&r.id).is_empty();
                         view! {
                             <div class="resource-row">
@@ -75,7 +77,7 @@ pub fn EntitiesTab(client: Client, flow: SettingsEditFlow) -> impl IntoView {
             target=delete_target
             label={move |id: &ResourceId| {
                 bipartite
-                    .with(|s| s.catalog.node(id).map(|r| r.display_label(&s.taxonomy)))
+                    .with(|s| s.catalog.node(id).and_then(|r| r.resolved_label(&s.taxonomy)))
                     .unwrap_or_else(|| id.to_string())
             }}
         />
