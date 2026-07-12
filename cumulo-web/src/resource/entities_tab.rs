@@ -13,7 +13,6 @@ use leptos_icons::Icon;
 #[component]
 pub fn EntitiesTab(client: Client, flow: SettingsEditFlow) -> impl IntoView {
     let bipartite = client.read();
-    // 削除対象 (id, 子を持つか)。子を持つ場合は繰り上げ / サブツリーを popup で選ばせる。
     let delete_target = RwSignal::new(Option::<(ResourceId, bool)>::None);
 
     view! {

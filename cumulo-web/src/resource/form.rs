@@ -15,7 +15,6 @@ enum CategoryTreeItem {
         color: String,
         depth: usize,
     },
-    /// 同じ親を持つ葉ノードをまとめた行 (id, label, color)
     Leaves {
         depth: usize,
         nodes: Vec<(CategoryId, String, String)>,
@@ -23,9 +22,6 @@ enum CategoryTreeItem {
 }
 
 impl CategoryTreeItem {
-    /// root 配下のカテゴリ木を、フォームのチェックリスト用の行に整形する。
-    /// 木の走査（深さ・葉判定）はモデルの dfs_order に委譲し、ここは
-    /// 「連続する同一親の葉を 1 行にまとめる」プレゼンテーション整形のみを担う。
     fn rows(forest: &Taxonomy<CategoryAttribute>, root_id: &CategoryId) -> Vec<CategoryTreeItem> {
         let flat: Vec<(CategoryId, String, String, usize, bool, CategoryId)> = forest
             .dfs_order(root_id, &HashSet::new())
@@ -38,7 +34,6 @@ impl CategoryTreeItem {
             })
             .collect();
 
-        // 連続する同一親の葉ノードをまとめる
         let mut result = Vec::new();
         let mut i = 0;
         while i < flat.len() {
@@ -104,7 +99,6 @@ pub fn ResourceForm(
         form_label.set(r.label.clone().unwrap_or_default());
         form_url.set(r.attribute.console_url.clone());
         form_freq.set(r.attribute.freq.max(1));
-        // モデルは値リストだが、フォームは軸→値の map で編集する（軸は root_of で導出）
         form_dims.set(bipartite.with_untracked(|s| {
             r.categories
                 .iter()
@@ -123,7 +117,6 @@ pub fn ResourceForm(
         }
     });
 
-    // draft は既にランダム id を持つので、catalog に未登録なら新規と見なす
     let is_new = move || {
         editing.with(|e| {
             e.as_ref()
@@ -146,7 +139,6 @@ pub fn ResourceForm(
                 Some(lbl)
             },
             parent: None,
-            // 軸→値の map から値リストへ（軸は値から導出できるので値だけ保存）
             categories: form_dims.get_untracked().into_values().collect(),
             attribute: ResourceAttribute {
                 console_url: form_url.get_untracked(),
@@ -210,7 +202,6 @@ pub fn ResourceForm(
                         }
                     />
 
-                    // ── 軸ごとのカテゴリチップ ──────────────────────────
                     <label class="form-label">"カテゴリ"</label>
                     {move || {
                         let s = bipartite.get();

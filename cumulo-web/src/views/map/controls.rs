@@ -14,7 +14,6 @@ pub fn Controls(
     zoom_level: ReadSignal<u32>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
     controller: ZoomController,
-    /// 全体表示（フィルタ解除込み）。MapCanvas の背景クリックと共有する。
     fit_action: Callback<()>,
 ) -> impl IntoView {
     let bipartite = client.read();

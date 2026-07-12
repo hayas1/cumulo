@@ -1,5 +1,3 @@
-//! マップ画面（ルート `/map`）。ズーム状態を生成し、Controls / Canvas / Sidebar / DetailPanel を束ねる枠。
-
 use super::canvas::MapCanvas;
 use super::controls::Controls;
 use super::zoom::ZoomController;
@@ -21,11 +19,8 @@ pub fn MapView(
     let selected_resource_id = RwSignal::new(Option::<ResourceId>::None);
     let zoom_level = RwSignal::new(0u32);
 
-    // ズーム状態は Controls（ボタン）と MapCanvas（描画・操作）で共有する。
     let controller = ZoomController::new();
 
-    // 全体表示は「ズーム軸の絞り込み解除」と「ズームレベル 0」を伴う。
-    // 「全体表示」ボタンと背景クリックの両方から呼べるよう Callback にまとめる。
     let fit_action = Callback::new(move |()| {
         controller.zoom_to_fit();
         zoom_level.set(0);

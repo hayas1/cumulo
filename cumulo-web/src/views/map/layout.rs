@@ -1,9 +1,3 @@
-//! リソース群をズーム軸の階層クラスタへ配置するレイアウト計算。
-//!
-//! 階層クラスタの構築・配置（トップレベル/子/リソース葉）とラベル・色の導出を行う。
-//! 座標はすべて「ルート座標系の絶対値」で持ち、
-//! 入れ子描画時の相対変換は描画層（view）が行う。
-
 use std::f64::consts::PI;
 
 use cumulo_model::{Forest, Resource, Taxonomy};
@@ -13,31 +7,20 @@ use super::lod::Lod;
 use crate::category::{CategoryAttribute, CategoryId};
 use crate::resource::{ResourceAttribute, ResourceId};
 
-/// 値が見つからないノードの既定色。
 pub const DEFAULT_COLOR: &str = "#6b8099";
-/// ズーム軸に値を持たないリソースを集約するクラスタの表示名。
 pub const OTHER_LABEL: &str = "その他";
 
-// ── レイアウト調整パラメータ ──────────────────────────────────────────────────
-/// レイアウト全体スケールの基準にする「ふつう」の密集クラスタ葉数。
 const BASELINE_LEAVES: usize = 3;
-/// トップレベルクラスタ半径の上限（min(w,h) に対する比）。
 const TOP_MAX_RADIUS_FACTOR: f64 = 0.22;
-/// トップレベルクラスタ半径の下限（px、leaf_scale 適用前）。
 const TOP_MIN_RADIUS: f64 = 60.0;
-/// トップレベルクラスタを並べる円の半径（min(w,h) に対する比）。
 const TOP_ORBIT_FACTOR: f64 = 0.3;
-/// 子クラスタ半径の上限・下限（親半径に対する比）と下限の絶対値 px。
 const CHILD_MAX_RADIUS_FACTOR: f64 = 0.40;
 const CHILD_MIN_RADIUS_FACTOR: f64 = 0.12;
 const CHILD_MIN_RADIUS: f64 = 8.0;
-/// 子を親円内に並べる円の半径（親半径に対する比）。
 const CHILD_ORBIT_FACTOR: f64 = 0.45;
-/// リソース葉の黄金角配置（度）と、広がり（親半径比）・充填密度。
 const GOLDEN_ANGLE_DEG: f64 = 137.508;
 const SATELLITE_SPREAD_FACTOR: f64 = 0.68;
 const SATELLITE_PACKING: f64 = 0.28;
-/// リソース円半径 = clamp(MIN, MAX, BASE + PER_FREQ * freq)。
 const RESOURCE_MIN_RADIUS: f64 = 4.0;
 const RESOURCE_MAX_RADIUS: f64 = 10.0;
 const RESOURCE_RADIUS_BASE: f64 = 2.5;
@@ -45,14 +28,12 @@ const RESOURCE_RADIUS_PER_FREQ: f64 = 0.7;
 
 type Res = Resource<ResourceAttribute, CategoryAttribute>;
 
-/// ズーム軸パスの 1 セグメント。値なしリソースは [`PathSeg::Other`] に集約される。
 #[derive(Clone, Debug, PartialEq)]
 pub enum PathSeg {
     Category(CategoryId),
     Other,
 }
 
-/// 絶対座標での配置（中心 x,y と半径 r）。
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Placement {
     pub x: f64,
@@ -60,35 +41,26 @@ pub struct Placement {
     pub r: f64,
 }
 
-/// レイアウト済みのノード木。クラスタ（入れ子）かリソース（葉）のいずれか。
 #[derive(Clone, Debug)]
 pub enum MapNode {
     Cluster(Cluster),
     Resource(ResourceNode),
 }
 
-/// 同一ズーム軸値でまとめたクラスタ。
 #[derive(Clone, Debug)]
 pub struct Cluster {
-    /// グルーピングキー。ドリル可否の判定に使う（Other はドリル対象外）。
     pub key: PathSeg,
     pub label: String,
     pub color: String,
-    /// ドリル先の軸（zoom_axis）。
     pub axis: CategoryId,
     pub depth: usize,
     pub total_freq: f64,
-    /// 配下のリソース総数（"N リソース" 表示用）。
     pub leaf_count: usize,
     pub sub_nodes: Vec<MapNode>,
     pub placement: Placement,
 }
 
 impl Cluster {
-    /// このクラスタをクリックしたときにドリルダウンすべき (軸, 値)。
-    /// 値を持たない Other クラスタはドリル対象外なので None。
-    /// 「クリックが何を意味するか」はイベント型やビュー状態に依存しない純粋な判定なので、
-    /// 描画クロージャではなくレイアウト層（ここ）に置きテスト可能にする。
     pub fn drill_target(&self) -> Option<(CategoryId, CategoryId)> {
         match &self.key {
             PathSeg::Category(value) => Some((self.axis.clone(), value.clone())),
@@ -97,13 +69,11 @@ impl Cluster {
     }
 }
 
-/// 葉となる 1 リソース。
 #[derive(Clone, Debug)]
 pub struct ResourceNode {
     pub id: ResourceId,
     pub label: String,
     pub color: String,
-    /// 衛星円の半径計算に使う出現頻度（最低 1）。
     pub freq: f64,
     pub placement: Placement,
 }
@@ -130,7 +100,6 @@ impl MapNode {
         }
     }
 
-    /// このノード以下のリソース id をすべて集める（クラスタ背景のフィルタ濃淡判定用）。
     pub fn collect_resource_ids(&self, out: &mut Vec<ResourceId>) {
         match self {
             MapNode::Resource(n) => out.push(n.id.clone()),
@@ -146,7 +115,6 @@ impl MapNode {
         matches!(self, MapNode::Resource(_))
     }
 
-    /// このサブツリーで、直下にリソースを最も多く持つクラスタの子数（layoutScale 用の B）。
     fn max_resource_child_count(&self) -> usize {
         let MapNode::Cluster(c) = self else {
             return 0;
@@ -164,7 +132,6 @@ impl MapNode {
     }
 }
 
-/// 内容を囲む軸平行バウンディングボックス（ルート絶対座標）。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Bounds {
     pub min_x: f64,
@@ -196,7 +163,6 @@ impl Bounds {
     }
 }
 
-/// レイアウト結果。木と、LOD 計算に必要な最大深さ・レイアウト倍率を返す。
 #[derive(Clone)]
 pub struct Layout {
     pub tree: Vec<MapNode>,
@@ -204,8 +170,6 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// 全ノードの円を囲む内容バウンディングボックス。空なら None。
-    /// getBBox 相当をレイアウト座標から直接求めるため DOM 測定が不要になる。
     pub fn content_bounds(&self) -> Option<Bounds> {
         let mut acc: Option<Bounds> = None;
         for node in &self.tree {
@@ -214,8 +178,6 @@ impl Layout {
         acc
     }
 
-    /// 指定軸の値に対応するクラスタの（絶対）配置を探す。見つからなければ None。
-    /// URL からズーム状態を復元する際、フィルタが指す値のクラスタへズームインするために使う。
     pub fn cluster_placement(&self, axis: &CategoryId, value: &CategoryId) -> Option<Placement> {
         Self::find_cluster(&self.tree, axis, value)
     }
@@ -253,7 +215,6 @@ impl Layout {
     }
 }
 
-/// レイアウト計算の入口。taxonomy / zoom_axis / キャンバス寸法を固定して resources を配置する。
 pub struct LayoutEngine<'a> {
     taxonomy: &'a Taxonomy<CategoryAttribute>,
     zoom_axis: &'a CategoryId,
@@ -261,7 +222,6 @@ pub struct LayoutEngine<'a> {
     height: f64,
 }
 
-/// 構築途中のリソース項目。木構築で消費する。
 struct Item {
     id: ResourceId,
     label: String,
@@ -285,7 +245,6 @@ impl<'a> LayoutEngine<'a> {
         }
     }
 
-    /// resources を木へ構築し、座標を確定して返す。
     pub fn build(&self, resources: &[Res]) -> Layout {
         let items: Vec<Item> = resources.iter().map(|r| self.to_item(r)).collect();
 
@@ -305,7 +264,6 @@ impl<'a> LayoutEngine<'a> {
         }
     }
 
-    /// 1 リソースを Item（パス・ラベル・色・freq）へ変換する。
     fn to_item(&self, r: &Res) -> Item {
         Item {
             id: r.id.clone(),
@@ -316,19 +274,16 @@ impl<'a> LayoutEngine<'a> {
         }
     }
 
-    /// ズーム軸でのフォレスト根直下から葉までのパス（上→下）。値なしは [Other]。
     fn zoom_path(&self, r: &Res) -> Vec<PathSeg> {
         let Some(leaf) = r.category(self.taxonomy, self.zoom_axis) else {
             return vec![PathSeg::Other];
         };
-        // ancestry は [leaf, .., root(=zoom_axis)]。根（軸自身）を除いて上→下へ並べ替える。
         let mut chain = self.taxonomy.ancestry(leaf);
-        chain.pop(); // 軸の根を除く
+        chain.pop();
         chain.reverse();
         chain.into_iter().map(PathSeg::Category).collect()
     }
 
-    /// リソース円の色＝ズーム軸の値（葉）の色。
     fn resource_color(&self, r: &Res) -> String {
         match r.category(self.taxonomy, self.zoom_axis) {
             Some(leaf) => self.category_color(leaf),
@@ -336,7 +291,6 @@ impl<'a> LayoutEngine<'a> {
         }
     }
 
-    /// カテゴリ id の色を CSS 文字列で返す。色が未指定なら既定色。
     fn category_color(&self, id: &CategoryId) -> String {
         self.taxonomy
             .node(id)
@@ -345,7 +299,6 @@ impl<'a> LayoutEngine<'a> {
             .unwrap_or_else(|| DEFAULT_COLOR.to_string())
     }
 
-    /// クラスタキーの表示ラベル。
     fn key_label(&self, key: &PathSeg) -> String {
         match key {
             PathSeg::Other => OTHER_LABEL.to_string(),
@@ -363,7 +316,6 @@ impl<'a> LayoutEngine<'a> {
         }
     }
 
-    /// items を level でグルーピングしながら葉まで入れ子にする。
     fn build_level(&self, items: Vec<Item>, level: usize) -> Vec<MapNode> {
         let mut leaves: Vec<Item> = Vec::new();
         let mut deeper: Vec<Item> = Vec::new();
@@ -375,7 +327,6 @@ impl<'a> LayoutEngine<'a> {
             }
         }
 
-        // 初出順を保ってグルーピングする（安定なグループ順）。
         let mut groups: Vec<(PathSeg, Vec<Item>)> = Vec::new();
         for it in deeper {
             let key = it.path[level].clone();
@@ -418,8 +369,6 @@ impl<'a> LayoutEngine<'a> {
         nodes
     }
 
-    /// トップレベル配置。最も密集したクラスタに合わせて全体を leafScale 倍に広げる。
-    /// 返り値は layout_scale。
     fn layout_top_level(&self, nodes: &mut [MapNode]) -> f64 {
         if nodes.is_empty() {
             return 1.0;
@@ -465,7 +414,6 @@ impl<'a> LayoutEngine<'a> {
         leaf_scale
     }
 
-    /// クラスタ内の子配置。子がリソースなら衛星配置、クラスタなら再帰。
     fn layout_children(&self, nodes: &mut [MapNode], parent_x: f64, parent_y: f64, parent_r: f64) {
         if nodes.is_empty() {
             return;
@@ -483,7 +431,6 @@ impl<'a> LayoutEngine<'a> {
         for (i, node) in nodes.iter_mut().enumerate() {
             let freq = node.total_freq();
             let p = node.placement_mut();
-            // JS の Math.max(minR, Math.min(maxR, v)): min>max でも破綻しないよう clamp は使わない。
             let v = min_r + (max_r - min_r) * (freq / max_freq).sqrt();
             p.r = min_r.max(max_r.min(v));
             let angle = (i as f64 / len) * 2.0 * PI;
@@ -504,7 +451,6 @@ impl<'a> LayoutEngine<'a> {
         }
     }
 
-    /// リソース葉の衛星配置。golden-angle 初期配置のあと衝突解消する。
     fn layout_resource_nodes(nodes: &mut [MapNode], parent_x: f64, parent_y: f64, parent_r: f64) {
         let golden = GOLDEN_ANGLE_DEG.to_radians();
         let spread = parent_r * SATELLITE_SPREAD_FACTOR;
@@ -514,7 +460,6 @@ impl<'a> LayoutEngine<'a> {
                 MapNode::Resource(n) => n.freq,
                 _ => 1.0,
             };
-            // clamp(MIN, MAX, BASE + PER_FREQ*freq)。min<max が保証される定数なので素直に書ける。
             let base_r = RESOURCE_MIN_RADIUS.max(
                 RESOURCE_MAX_RADIUS.min(freq * RESOURCE_RADIUS_PER_FREQ + RESOURCE_RADIUS_BASE),
             );
@@ -529,7 +474,6 @@ impl<'a> LayoutEngine<'a> {
         Self::simulate_forces(nodes, parent_x, parent_y, Some(parent_r));
     }
 
-    /// ノードの現在位置から Body を作り力学シミュレーションし、確定した x,y を書き戻す。
     fn simulate_forces(nodes: &mut [MapNode], cx: f64, cy: f64, bound_r: Option<f64>) {
         let bodies: Vec<Body> = nodes
             .iter()
@@ -590,7 +534,6 @@ mod tests {
         }
     }
 
-    // platform > gcp > bigquery / bigtable ; aws > s3
     fn taxonomy() -> Taxonomy<CategoryAttribute> {
         Taxonomy(vec![
             cat("platform", "Platform", None, "#111111"),
@@ -602,7 +545,6 @@ mod tests {
         ])
     }
 
-    // ズーム軸 platform で bigquery のパスは [gcp, bigquery]（軸 platform 自身は除く）。
     #[test]
     fn zoom_path_excludes_axis_root_and_orders_top_down() {
         let tax = taxonomy();
@@ -618,7 +560,6 @@ mod tests {
         );
     }
 
-    // 軸に値を持たないリソースは Other パスへ。
     #[test]
     fn zoom_path_without_value_is_other() {
         let tax = taxonomy();
@@ -628,7 +569,6 @@ mod tests {
         assert_eq!(engine.zoom_path(&r), vec![PathSeg::Other]);
     }
 
-    // 同じ gcp 配下のリソースは gcp クラスタ → bigquery/bigtable のサブクラスタへ集約される。
     #[test]
     fn build_groups_resources_under_shared_ancestors() {
         let tax = taxonomy();
@@ -640,7 +580,6 @@ mod tests {
             res("r3", &["s3"], 1),
         ];
         let layout = engine.build(&resources);
-        // トップレベルは gcp と aws の 2 クラスタ
         let top_keys: Vec<&PathSeg> = layout
             .tree
             .iter()
@@ -654,7 +593,6 @@ mod tests {
         assert_eq!(top_keys.len(), 2);
     }
 
-    // クラスタは色とラベルを taxonomy から得る。
     #[test]
     fn cluster_carries_label_and_color() {
         let tax = taxonomy();
@@ -669,7 +607,6 @@ mod tests {
         assert_eq!(gcp.leaf_count, 1);
     }
 
-    // 配置後、トップレベルクラスタには有限の座標と正の半径が入る。
     #[test]
     fn build_assigns_finite_placement() {
         let tax = taxonomy();
@@ -686,7 +623,6 @@ mod tests {
         }
     }
 
-    // 値ありクラスタのドリル先は (軸, 値)。クリックの意味を純粋判定としてテストできる。
     #[test]
     fn cluster_drill_target_is_axis_and_value() {
         let tax = taxonomy();
@@ -699,7 +635,6 @@ mod tests {
         assert_eq!(gcp.drill_target(), Some((cid("platform"), cid("gcp"))));
     }
 
-    // 値を持たない Other クラスタはドリル対象外（None）。
     #[test]
     fn other_cluster_has_no_drill_target() {
         let tax = taxonomy();
@@ -713,7 +648,6 @@ mod tests {
         assert_eq!(other.drill_target(), None);
     }
 
-    // 空入力でもパニックせず、空の木を返す。
     #[test]
     fn empty_resources_produce_empty_tree() {
         let tax = taxonomy();
@@ -723,7 +657,6 @@ mod tests {
         assert!(layout.tree.is_empty());
     }
 
-    // Catalog 経由でも問題なく動く（型確認）。
     #[test]
     fn works_with_catalog_slice() {
         let tax = taxonomy();
@@ -732,6 +665,6 @@ mod tests {
         let catalog = Catalog(vec![res("r1", &["bigquery"], 3)]);
         let layout = engine.build(&catalog);
         assert_eq!(layout.tree.len(), 1);
-        let _ = Id::<()>::try_from("x"); // Id 型の再エクスポート確認
+        let _ = Id::<()>::try_from("x");
     }
 }

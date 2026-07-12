@@ -9,10 +9,7 @@ use std::collections::{HashMap, HashSet};
 pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
     let bipartite = client.read();
     let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
-    // マップビューでは軸タイトルのクリックでズーム軸を設定する（ファセットでは軸全体フィルタ）。
-    // どちらのモードかは view で決まる（このサイドバーの生存中は固定なので untracked）。
     let map_mode = state.with_untracked(|q| q.view) == View::Map;
-    // 折りたたまれているパネルの根id を管理（ノード単位ではなくパネル単位）
     let collapsed = RwSignal::new(HashSet::<CategoryId>::new());
 
     view! {
@@ -24,7 +21,6 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                 s.taxonomy.roots()
                     .into_iter()
                     .filter_map(|root| {
-                        // この軸の候補件数は、他の軸で絞った母集団に対して数える
                         let base = s.filtered(&tags.without_root(&root.id));
 
                         let mut counts: HashMap<CategoryId, usize> = HashMap::new();
@@ -43,15 +39,12 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                             return None;
                         }
 
-                        // 1軸1フィルタなので、その軸で選択中の値は高々1つ
                         let selected_val = tags.get(&root.id).cloned();
 
-                        // 軸（根）はヘッダの見出し兼フィルタ要素に集約する。配下の値だけを行に並べる。
                         let root_count = counts.get(root.id.as_str()).copied().unwrap_or(0);
                         let mut ordered: Vec<(CategoryId, String, usize, usize)> = Vec::new();
                         s.taxonomy.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
-                        // collapse は折りたためる子がある軸でのみ可能にする
                         let has_children = !s.taxonomy.children_of(&root.id).is_empty();
                         let root_id = root.id.clone();
                         let root_label = if root.label.is_empty() {
@@ -80,8 +73,6 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                             }
                         });
 
-                        // 軸の見出し＝根。マップではクリックでズーム軸、ファセットでは
-                        // 根フィルタ（その軸の部分木全体にマッチ）。見出しと根を1要素に統合する。
                         let axis_btn = if map_mode {
                             let did = root_id.clone();
                             let did_eq = root_id.clone();
@@ -109,7 +100,6 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                                     }
                                     title="この軸全体で絞り込む"
                                     on:click=move |_| {
-                                        // 根を選ぶ＝その軸全体での絞り込み（同値なら解除）
                                         state.update(|q| q.filters.toggle(rid.clone(), rid.clone()));
                                     }
                                 >
@@ -153,7 +143,6 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                                                                 "facet-value"
                                                             }
                                                             on:click=move |_| {
-                                                                // 1軸1フィルタ: 同軸はその値に入れ替え（同値なら解除）
                                                                 state.update(|q| q.filters.toggle(rid.clone(), nid.clone()));
                                                             }
                                                         >
