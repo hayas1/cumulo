@@ -1,10 +1,6 @@
-//! ブラウザのタブから取り込む「クリップ」を Resource へ射影する。
-//! ブラウザ副作用（id 生成・現在時刻）は呼び出し側から値で受け取り、変換自体は純粋に保つ。
-
 use cumulo_model::Resource;
 use cumulo_web::{CategoryAttribute, CategoryId, ResourceAttribute, ResourceId};
 
-/// popup が集めたタブ情報＋選択カテゴリ。`into_resource` で Catalog に足す Resource になる。
 pub struct Clip {
     pub id: ResourceId,
     pub title: String,
@@ -18,7 +14,6 @@ impl Clip {
         let title = self.title.trim();
         Resource {
             id: self.id,
-            // 空タイトルは None にして、モデル側の「カテゴリ値から自動生成」に委ねる。
             label: (!title.is_empty()).then(|| title.to_string()),
             parent: None,
             categories: self.categories,

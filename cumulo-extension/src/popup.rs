@@ -1,6 +1,3 @@
-//! 拡張のツールバー popup（Web クリッパー）。いま開いているタブを Resource として cumulo に足す。
-//! chrome.* に触れる拡張固有 UI なので、cumulo-web ではなくこの crate に置く。
-
 use std::collections::{HashMap, HashSet};
 
 use js_sys::Reflect;
@@ -13,8 +10,6 @@ use cumulo_web::{CategoryId, Client, Platform, LOCAL_STORE};
 
 use crate::clip::Clip;
 
-// chrome.tabs は web-sys に無いので最小の inline_js ブリッジで呼ぶ。inline_js は
-// wasm-bindgen の snippet ファイルになり HTML inline ではないため MV3 CSP に適合する。
 #[wasm_bindgen(inline_js = "export async function active_tab() { \
     const [t] = await chrome.tabs.query({ active: true, currentWindow: true }); \
     return t ? { url: t.url ?? '', title: t.title ?? '' } : null; \
@@ -26,16 +21,13 @@ extern "C" {
 
 #[component]
 pub fn PopupApp() -> impl IntoView {
-    // 全画面アプリと同じ store を使い、追加した Resource を共有する。
     let client = Client::new(&LOCAL_STORE);
     let bipartite = client.read();
     let title = RwSignal::new(String::new());
     let url = RwSignal::new(String::new());
-    // 軸(root)→値 の選択。モデルは値リストなので追加時に into_values する（form と対称）。
     let dims = RwSignal::new(HashMap::<CategoryId, CategoryId>::new());
     let added = RwSignal::new(false);
 
-    // 現在タブを取得して初期値にする。
     spawn_local(async move {
         if let Ok(tab) = active_tab().await {
             let field = |k: &str| {
