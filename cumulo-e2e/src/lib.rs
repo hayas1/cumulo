@@ -178,6 +178,27 @@ pub async fn eval_bool(page: &Page, expression: &str) -> bool {
     }
 }
 
+/// Wait until some element matching `selector` contains `needle` in its text.
+pub async fn wait_for_text(page: &Page, selector: &str, needle: &str) {
+    let expression = format!(
+        "Array.from(document.querySelectorAll({selector:?})).some(e => e.textContent.includes({needle:?}))"
+    );
+    wait_until(page, &expression).await;
+}
+
+/// Focus `selector` and dispatch a `keydown` for `key` (e.g. "ArrowDown",
+/// "Enter"). Handlers that call preventDefault cancel the event, so success is
+/// the element existing rather than the dispatch return value.
+pub async fn press_key(page: &Page, selector: &str, key: &str) {
+    let expression = format!(
+        "(() => {{ const el = document.querySelector({selector:?}); if (!el) return false; el.focus(); el.dispatchEvent(new KeyboardEvent('keydown', {{ key: {key:?}, bubbles: true, cancelable: true }})); return true; }})()"
+    );
+    assert!(
+        eval_bool(page, &expression).await,
+        "no element `{selector}` to press `{key}` on"
+    );
+}
+
 /// Click the `index`-th match of `selector` via a native CDP input event.
 pub async fn click_nth(page: &Page, selector: &str, index: usize) {
     let elements = page.find_elements(selector).await.expect("find elements");
