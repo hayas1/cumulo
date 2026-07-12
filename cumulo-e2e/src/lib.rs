@@ -186,6 +186,20 @@ pub async fn wait_for_text(page: &Page, selector: &str, needle: &str) {
     wait_until(page, &expression).await;
 }
 
+/// Wait until the `index`-th match of `selector` carries `class`.
+pub async fn wait_for_class(page: &Page, selector: &str, index: usize, class: &str) {
+    let expression = format!(
+        "(() => {{ const el = document.querySelectorAll({selector:?})[{index}]; return !!el && el.classList.contains({class:?}); }})()"
+    );
+    wait_until(page, &expression).await;
+}
+
+/// Wait until nothing matches `selector`.
+pub async fn wait_for_gone(page: &Page, selector: &str) {
+    let expression = format!("!document.querySelector({selector:?})");
+    wait_until(page, &expression).await;
+}
+
 /// Focus `selector` and dispatch a `keydown` for `key` (e.g. "ArrowDown",
 /// "Enter"). Handlers that call preventDefault cancel the event, so success is
 /// the element existing rather than the dispatch return value.
