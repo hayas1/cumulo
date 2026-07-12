@@ -23,8 +23,6 @@ pub fn RootLocalStore() -> impl IntoView {
     }
 }
 
-/// マウントのエントリ。App を Router で包むだけの最上位ラッパ。
-/// view はクエリで持つので per-view ルートは無いが、クエリ系 hook の文脈確保に Router は要る。
 #[component]
 pub fn Root(store: &'static DynStore) -> impl IntoView {
     view! {
@@ -42,26 +40,18 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
     let import_toast = RwSignal::new(Option::<String>::None);
     let return_to_settings = RwSignal::new(false);
 
-    // URL に載る UI 状態（view / 絞り込み / ズーム軸）を 1 つの signal(QueryState) に集約し、
-    // URL クエリと双方向に束ねて prop-drill する。初期値はクエリから同期に seed（ちらつき防止）、
-    // 以後は下の 2 Effect で URL⇄signal を対称に張る。中身のロジックは QueryState 側に置く。
     let location = use_location();
     let navigate = use_navigate();
-    // params/pathname は location から取る（use_query_map() は location.query と同じ Memo で冗長）。
     let query = location.query;
     let pathname = location.pathname;
     let state = RwSignal::new(query.with_untracked(|p| QueryState::resolved_from(p, &client)));
-    // view だけを購読する Memo。これが無いと下の match / nav が state 全体を購読し、
-    // 絞り込み変更のたびに FacetView/MapView を作り直して（再マウント）しまう。
     let view = Memo::new(move |_| state.with(|q| q.view));
 
-    // URL → signal（共有リンク・戻る/進む を取り込む）。判断は adopt_url、signal 操作はここ。
     Effect::new(move |_| {
         if let Some(next) = state.get_untracked().adopt_url(&query.get(), &client) {
             state.set(next);
         }
     });
-    // signal → URL（UI 操作の反映＋マウント時の初期 URL 正準化）。判断は url_update、navigate はここ。
     Effect::new(move |_| {
         let desired = state.get();
         if let Some((url, push)) =
@@ -82,8 +72,6 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
     view! {
         <div class="app">
             <header class="app-header">
-                // rel="external" で router のクリック横取りを抜け、本当のページ遷移＝再ロードにする。
-                // これでロゴは何度押しても「既定へリロード → 初回 store で既定クエリを書く」に収束する。
                 <a href=Platform::href("/") rel="external" class="app-logo">
                     <span class="app-logo-icon" aria-hidden="true" inner_html=include_str!("../public/favicon.svg") />
                     "Cumulo"

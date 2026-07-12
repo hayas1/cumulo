@@ -26,7 +26,6 @@ impl CategoryTabActions {
             .update(|s| s.taxonomy.move_relative(&dragged, &target, after));
     }
 
-    // カテゴリ（根）ごと削除する経路で使う。根は繰り上げ先がないので subtree のみ。
     fn delete_subtree(self, node_id: CategoryId) {
         self.0.update(|s| s.taxonomy.delete_subtree(&node_id));
     }
@@ -56,7 +55,6 @@ impl CategoryTabActions {
         if new_id.trim().is_empty() {
             return;
         }
-        // 直前の trim().is_empty() チェックで空文字列は排除済みなので安全
         self.0.update(|s| {
             s.taxonomy.rename_node(
                 &old_id,
@@ -189,7 +187,6 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                         let root_id_add = root.id.clone();
 
                         let order = s.taxonomy.dfs_order(&root.id, &collapsed_set);
-                        // "\x00root:" プレフィックスがあるので空文字列にはならない
                         let sentinel: CategoryId = format!("\x00root:{}", root.id).try_into().unwrap();
 
                         let is_root_editing = current_editing.as_deref() == Some(root.id.as_str());
@@ -292,9 +289,6 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                         .into_any()
                                     }}
 
-                                    // Root drop zone: dragging シグナルだけを追跡する独立した reactive closure。
-                                    // 外側 closure が dragging を読むと dragstart 時に row_ref が全部作り直され
-                                    // drop ハンドラが stale ref を掴んでしまうため分離している。
                                     {
                                         let s_drag_z = sentinel.clone();
                                         let rid_drop_z = root_id_drop.clone();

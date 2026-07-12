@@ -33,7 +33,6 @@ pub fn DetailPanel(
                             let s = bipartite.get();
                             let display = r.display_label(&s.taxonomy);
 
-                            // 森射影・並べ替えはモデル（rooted_nodes）に委譲し、ここはラベル解決のみ
                             let dims_sorted: Vec<(String, String)> = r.rooted_nodes(&s.taxonomy)
                                 .into_iter()
                                 .map(|(k, v)| {

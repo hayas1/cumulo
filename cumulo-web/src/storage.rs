@@ -6,23 +6,16 @@ use gloo_storage::{LocalStorage, Storage as GlooStorage};
 
 const STORAGE_KEY: &str = "cumulo_store";
 
-/// 二部グラフの永続化 backend。`Client` はこの trait 越しにしか保存先を触らないので、
-/// localStorage・chrome.storage・server API などを差し替える 1 点になる。
-/// `Client` を `Copy` に保つため実装は `&'static dyn Store` として持ち回る（値は状態を持たない前提）。
 pub trait Store {
     fn load(&self) -> Bipartite<ResourceAttribute, CategoryAttribute>;
     fn save(&self, bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>);
     fn clear(&self) -> Bipartite<ResourceAttribute, CategoryAttribute>;
 }
 
-/// `Client` が持ち回る store の型。`Client` は Leptos の Callback（`Send + Sync` 要求）へ
-/// 載るので、trait object にも `Send + Sync` を課す（store は状態なしなので自明に満たす）。
 pub type DynStore = dyn Store + Send + Sync;
 
-/// localStorage を backend とする既定の [`Store`]。Pages 版・拡張版の全画面アプリが使う。
 pub struct LocalStore;
 
-/// アプリ既定の store。エントリ（`mount`）から `&LOCAL_STORE` として渡す。
 pub static LOCAL_STORE: LocalStore = LocalStore;
 
 impl LocalStore {

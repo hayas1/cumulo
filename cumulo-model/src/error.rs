@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::fmt;
 
-/// id 単体の検証エラー。検証ルール自体は `Id::validate` が持つ。
 #[derive(Debug, PartialEq)]
 pub enum IdError {
     Empty,
@@ -43,7 +42,6 @@ impl fmt::Display for ForestError {
 }
 
 impl Error for ForestError {
-    // InvalidId は下層の IdError を原因として連鎖させる
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             ForestError::InvalidId { error, .. } => Some(error),
@@ -56,16 +54,8 @@ impl Error for ForestError {
 pub enum ValidationError {
     Catalog(ForestError),
     Taxonomy(ForestError),
-    /// 値が taxonomy に存在しない。
-    CategoryValueMissing {
-        resource: String,
-        value: String,
-    },
-    /// 同一軸（root_of が同じ）に複数の値が付いている（1軸1値違反）。
-    DuplicateAxis {
-        resource: String,
-        axis: String,
-    },
+    CategoryValueMissing { resource: String, value: String },
+    DuplicateAxis { resource: String, axis: String },
 }
 
 impl fmt::Display for ValidationError {
@@ -87,7 +77,6 @@ impl fmt::Display for ValidationError {
 }
 
 impl Error for ValidationError {
-    // 森由来のエラーは下層の ForestError を原因として連鎖させる
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             ValidationError::Catalog(e) | ValidationError::Taxonomy(e) => Some(e),
@@ -96,13 +85,10 @@ impl Error for ValidationError {
     }
 }
 
-/// インポート境界でのパースエラー。JSON 不正・バージョン不一致・構造不整合の3種を区別する。
 #[derive(Debug)]
 pub enum ParseError {
-    /// serde 由来のデシリアライズ失敗。JSON に限らない（今後 JSON 以外もあり得る）。
     Serde(String),
     UnsupportedVersion(u32),
-    /// 構造検証（forest + categories クロス整合）で収集されたエラー群。
     Invalid(Errors<ValidationError>),
 }
 
@@ -125,8 +111,6 @@ impl Error for ParseError {
     }
 }
 
-/// 全件収集した検証エラーの集約。
-/// `Vec` は `std::error::Error` を実装しないため、エラーとして扱える型でラップする。
 #[derive(Debug, PartialEq)]
 pub struct Errors<E>(pub Vec<E>);
 

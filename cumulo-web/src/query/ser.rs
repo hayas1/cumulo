@@ -1,23 +1,13 @@
-//! Serialize 側。serde 型 → ドットパス対。
-//!
-//! トップレベル（struct / flatten 時は map）の各フィールドを [`ValueSerializer`] に流し、scalar は
-//! そのまま、1 段 map は `field.sub` に展開して対を積む。クエリ値は文字列スカラと 1 段 map に限るので、
-//! それ以外（seq・深いネスト等）は明示的にエラーにする。
-
 use leptos_router::params::ParamsMap;
 use serde::ser::{Error as _, Impossible, SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 
 use super::error::Error;
 
-/// T をクエリ（[`ParamsMap`]）へシリアライズする。`field.sub` の **単段（1段）** ネストだけを出す:
-/// scalar フィールドはそのまま、map フィールドは `field.sub` に展開する。de 側 `from_1nest_params`
-/// と対称で、より深い構造（map の値がさらに map 等）はキー/葉に落ちず `Error::unsupported` で弾く。
 pub fn to_1nest_params<T: Serialize>(value: &T) -> Result<ParamsMap, Error> {
     value.serialize(PairsSerializer)
 }
 
-/// トップレベル直列化器。struct / map のみ受け、各フィールドを [`ValueSerializer`] に流す。
 struct PairsSerializer;
 
 impl Serializer for PairsSerializer {
@@ -50,7 +40,6 @@ impl Serializer for PairsSerializer {
         Ok(ParamsMap::new())
     }
 
-    // トップレベルは map/struct のはず。スカラ等が来たら構造エラー。
     fn serialize_bool(self, _v: bool) -> Result<Self::Ok, Error> {
         Error::unsupported("a non-struct at the query top level")
     }
@@ -156,7 +145,6 @@ impl Serializer for PairsSerializer {
     }
 }
 
-/// トップレベルのフィールド/エントリを集める。map でも struct でも同じ振る舞い。
 #[derive(Default)]
 struct TopBuilder {
     out: ParamsMap,
@@ -217,14 +205,12 @@ impl SerializeMap for TopBuilder {
     }
 }
 
-/// 1 フィールドの値の直列化結果。scalar か sub-map か、無し（None）。
 enum Field {
     Scalar(String),
     Pairs(Vec<(String, String)>),
     Skip,
 }
 
-/// フィールド値の直列化器。scalar 値はそのまま、map/struct は sub 対へ。
 struct ValueSerializer;
 
 impl Serializer for ValueSerializer {
@@ -257,7 +243,6 @@ impl Serializer for ValueSerializer {
         Ok(SubBuilder::default())
     }
 
-    // クエリ値は文字列なので、スカラ系は Display で文字列フィールドに落とす。
     fn serialize_bool(self, v: bool) -> Result<Field, Error> {
         Ok(Field::Scalar(v.to_string()))
     }
@@ -319,7 +304,6 @@ impl Serializer for ValueSerializer {
         v.serialize(self)
     }
 
-    // 文字列スカラと 1 段 map 以外はクエリに載らないので明示的に拒否する。
     fn serialize_bytes(self, _v: &[u8]) -> Result<Field, Error> {
         Error::unsupported("bytes")
     }
@@ -365,7 +349,6 @@ impl Serializer for ValueSerializer {
     }
 }
 
-/// sub-map（`field.sub`）を集める。サブ値は scalar 文字列のみ許す。
 #[derive(Default)]
 struct SubBuilder {
     out: Vec<(String, String)>,
@@ -410,7 +393,6 @@ impl SerializeStruct for SubBuilder {
     }
 }
 
-/// 文字列スカラへの直列化器。キーやサブ値（必ず文字列に落ちる）に使う。
 struct StringSerializer;
 
 impl Serializer for StringSerializer {
@@ -447,7 +429,6 @@ impl Serializer for StringSerializer {
         Error::unsupported("a struct as a key/leaf")
     }
 
-    // キー/葉は必ず文字列に落ちる。スカラ系は Display で文字列化する。
     fn serialize_bool(self, v: bool) -> Result<String, Error> {
         Ok(v.to_string())
     }
@@ -509,7 +490,6 @@ impl Serializer for StringSerializer {
         v.serialize(self)
     }
 
-    // 文字列に落ちないものはキー/葉として不正。
     fn serialize_bytes(self, _v: &[u8]) -> Result<String, Error> {
         Error::unsupported("bytes as a key/leaf")
     }
@@ -568,7 +548,6 @@ mod tests {
         rest: BTreeMap<String, String>,
     }
 
-    // map フィールドを field.sub に展開し、scalar はそのまま出す
     #[test]
     fn serializes_fields_into_dotted_paths() {
         let s = Sample {

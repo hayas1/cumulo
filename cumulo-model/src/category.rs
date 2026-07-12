@@ -6,8 +6,6 @@ use crate::error::{Errors, ForestError};
 use crate::forest::{Forest, ForestMut, ForestNode};
 use crate::id::Id;
 
-/// カテゴリ木の各ノード。categories は値 id のリストで、軸（根）は root_of で導出する。
-/// `#[serde(bound)]` でデシリアライズ境界を明示し、flatten が生成する CA: Default 境界を除去する。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(bound(serialize = "CA: Serialize", deserialize = "CA: Deserialize<'de>"))]
 pub struct Category<CA> {
@@ -15,7 +13,6 @@ pub struct Category<CA> {
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<Id<Category<CA>>>,
-    /// web 層は `CA = CategoryAttribute { color }` を指定して color を同じ JSON レベルに展開する。
     #[serde(flatten)]
     pub attribute: CA,
 }
@@ -32,7 +29,6 @@ impl<CA> ForestNode for Category<CA> {
     }
 }
 
-/// parent リンクで森を構成する。parent が None のノードが軸の根となる。
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(transparent)]
 pub struct Taxonomy<CA>(pub Vec<Category<CA>>);
@@ -96,7 +92,6 @@ impl<CA> Taxonomy<CA> {
         }
     }
 
-    /// 深さ優先で子孫を列挙し、counts > 0 のノードのみ (id, label, depth, count) を out に追加する。
     pub fn dfs_collect_counts(
         &self,
         parent_id: &Id<Category<CA>>,
@@ -180,7 +175,6 @@ impl<CA> Taxonomy<CA> {
 }
 
 impl<CA> Taxonomy<CA> {
-    /// 森の構造整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
     pub fn try_new(nodes: Vec<Category<CA>>) -> Result<Self, Errors<ForestError>> {
         Taxonomy(nodes).validated()
     }
@@ -195,8 +189,6 @@ pub(crate) mod tests {
     }
 
     pub fn test_forest() -> Taxonomy<()> {
-        // platform > cloud > gcp > bigquery / bigtable
-        //                  > aws > s3
         Taxonomy(vec![
             Category {
                 id: id("platform"),
@@ -258,12 +250,10 @@ pub(crate) mod tests {
     fn root_of_is_total_for_existing_nodes() {
         use crate::forest::Forest;
         let f = test_forest();
-        // root_of は存在するノードに対して total（根自身も Some を返す）
         assert_eq!(f.root_of(&id("bigquery")), Some(id("platform")));
         assert_eq!(f.root_of(&id("gcp")), Some(id("platform")));
         assert_eq!(f.root_of(&id("cloud")), Some(id("platform")));
         assert_eq!(f.root_of(&id("platform")), Some(id("platform")));
-        // 存在しない id は None
         assert_eq!(f.root_of(&id("unknown")), None);
     }
 
@@ -285,8 +275,6 @@ pub(crate) mod tests {
         assert!(desc.contains("bigtable"));
         assert!(!desc.contains("s3"));
     }
-
-    // --- try_new のテスト ---
 
     #[test]
     fn try_new_returns_ok_for_valid_nodes() {

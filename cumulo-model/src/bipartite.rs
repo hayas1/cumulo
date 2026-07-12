@@ -14,7 +14,6 @@ pub struct Bipartite<RA, CA> {
 }
 
 impl<RA, CA> Bipartite<RA, CA> {
-    /// 全整合性を検証してから構築する。検証を通った場合のみ Ok を返す。
     pub fn try_new(
         catalog: crate::resource::Catalog<RA, CA>,
         taxonomy: crate::category::Taxonomy<CA>,
@@ -22,13 +21,11 @@ impl<RA, CA> Bipartite<RA, CA> {
         Bipartite { catalog, taxonomy }.validated()
     }
 
-    /// 検証を通れば所有権ごと返す。`?` と相性がよく構築境界で使う。
     pub fn validated(self) -> Result<Self, Errors<ValidationError>> {
         self.validate()?;
         Ok(self)
     }
 
-    /// Catalog・Taxonomy それぞれの森構造整合性と、categories のクロス整合性を全件検証する。
     pub fn validate(&self) -> Result<&Self, Errors<ValidationError>> {
         let mut errors: Vec<ValidationError> = Vec::new();
         if let Err(e) = self.catalog.validate() {
@@ -40,11 +37,9 @@ impl<RA, CA> Bipartite<RA, CA> {
 
         for resource in self.catalog.nodes() {
             let rid = resource.id.as_str().to_string();
-            // 軸（root_of）の重複を検出するため、見た軸を覚えておく
             let mut seen_axes: std::collections::HashSet<Id<Category<CA>>> =
                 std::collections::HashSet::new();
             for value in &resource.categories {
-                // B2: value は存在する Category
                 if self.taxonomy.node(value).is_none() {
                     errors.push(ValidationError::CategoryValueMissing {
                         resource: rid.clone(),
@@ -52,13 +47,10 @@ impl<RA, CA> Bipartite<RA, CA> {
                     });
                     continue;
                 }
-                // 軸 = value の根（root_of は total）。
                 let Some(axis) = self.taxonomy.root_of(value) else {
-                    // B2 通過後はここに来ない（存在するノードの root_of は Some）
                     continue;
                 };
 
-                // B4: 1軸1値。同じ軸に複数の値があれば違反
                 if !seen_axes.insert(axis.clone()) {
                     errors.push(ValidationError::DuplicateAxis {
                         resource: rid.clone(),
@@ -77,8 +69,6 @@ impl<RA, CA> Bipartite<RA, CA> {
 }
 
 impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
-    /// filters を適用したリソースの選択（[`CategorySelection`] と同型の [`Selection`]）。
-    /// 同じ絞り込みを「一覧」と「id 集合（膜検査）」の両方で使えるよう 1 つにまとめる。
     pub fn filtered(&self, filters: &Filters<CA>) -> ResourceSelection<'_, RA, CA> {
         let items = self
             .catalog
@@ -88,15 +78,12 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         ResourceSelection { items }
     }
 
-    /// リソース id 単体が filters に一致するか（存在しない id は false）。
-    /// web 側で一致 id 集合を持たずに、bipartite から直接「膜」を判定するための述語。
     pub fn matches(&self, id: &Id<Resource<RA, CA>>, filters: &Filters<CA>) -> bool {
         self.catalog
             .node(id)
             .is_some_and(|r| self.matches_resource(r, filters))
     }
 
-    /// Filters は軸ごとに値が1つなので、各軸の条件を素直に AND で評価する。
     fn matches_resource(&self, r: &Resource<RA, CA>, filters: &Filters<CA>) -> bool {
         filters.iter().all(|(k, v)| self.tag_matches(r, k, v))
     }
@@ -116,7 +103,6 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         self.taxonomy.ancestry(rv).iter().any(|a| a == v)
     }
 
-    /// カテゴリフォレストの全ノード（根を含む）の選択を返す。`query()` で絞り込む。
     pub fn category_selection(&self) -> CategorySelection<'_, CA> {
         CategorySelection {
             items: self.taxonomy.iter().collect(),
@@ -124,15 +110,11 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
     }
 }
 
-/// 絞り込み済みの要素を借用で保持する「選択」。一覧・件数を共通 API で提供する。
-/// 借用なので、シグナル等に保持したい場合は items() から必要な所有値を取り出す。
 pub trait Selection {
     type Item: ForestNode;
 
-    /// 選択された要素（借用）。
     fn items(&self) -> &[&Self::Item];
 
-    /// 件数。
     fn len(&self) -> usize {
         self.items().len()
     }
@@ -142,7 +124,6 @@ pub trait Selection {
     }
 }
 
-/// Filters で絞り込んだリソースの選択。
 pub struct ResourceSelection<'a, RA, CA> {
     items: Vec<&'a Resource<RA, CA>>,
 }
@@ -154,7 +135,6 @@ impl<RA, CA> Selection for ResourceSelection<'_, RA, CA> {
     }
 }
 
-/// 検索語で絞り込んだカテゴリの選択。`query()` で段階的に絞れる。
 pub struct CategorySelection<'a, CA> {
     items: Vec<&'a Category<CA>>,
 }
@@ -167,7 +147,6 @@ impl<CA> Selection for CategorySelection<'_, CA> {
 }
 
 impl<'a, CA> CategorySelection<'a, CA> {
-    /// id または label に対するサブシーケンス照合で絞り込む（大文字小文字を区別しない）。
     pub fn query(self, q: &str) -> Self {
         if q.is_empty() {
             return self;
@@ -184,7 +163,6 @@ impl<'a, CA> CategorySelection<'a, CA> {
         CategorySelection { items }
     }
 
-    /// "bq" → "bigquery" のような略称にも対応するサブシーケンス照合。
     fn subsequence_matches(query: &str, target: &str) -> bool {
         let mut target_iter = target.chars();
         for qc in query.chars() {
@@ -247,16 +225,14 @@ mod tests {
         s.try_into().unwrap()
     }
 
-    // 異なる軸を選ぶと AND で絞り込む
     #[test]
     fn filter_ands_across_axes() {
-        let bipartite = valid_bipartite(); // platform>{bigquery,bigtable}, env>prod; r1=[bigquery,prod]
+        let bipartite = valid_bipartite();
         let both = Filters::from_iter([
             (cid("platform"), cid("bigquery")),
             (cid("env"), cid("prod")),
         ]);
         assert_eq!(bipartite.filtered(&both).len(), 1);
-        // 片方の軸を満たさない（platform=bigtable）と r1 は外れる
         let unmatched = Filters::from_iter([
             (cid("platform"), cid("bigtable")),
             (cid("env"), cid("prod")),
@@ -264,29 +240,24 @@ mod tests {
         assert!(bipartite.filtered(&unmatched).is_empty());
     }
 
-    // filtered() は一致リソースの選択を返す（件数・membership は items から得る）
     #[test]
     fn filtered_lists_matching_resources() {
-        let bipartite = valid_bipartite(); // r1 = [bigquery, prod]
+        let bipartite = valid_bipartite();
         let view = bipartite.filtered(&Filters::from_iter([(cid("platform"), cid("bigquery"))]));
         assert_eq!(view.len(), 1);
         assert!(view.items().iter().any(|r| r.id == rid("r1")));
-        // 一致なしは空
         assert!(bipartite
             .filtered(&Filters::from_iter([(cid("platform"), cid("bigtable"))]))
             .is_empty());
     }
 
-    // matches() は id 単体の膜判定（filtered() と同じ条件を 1 リソースで評価）
     #[test]
     fn matches_tests_single_resource_against_filters() {
-        let bipartite = valid_bipartite(); // r1 = [bigquery, prod]
+        let bipartite = valid_bipartite();
         let f = Filters::from_iter([(cid("platform"), cid("bigquery"))]);
         assert!(bipartite.matches(&rid("r1"), &f));
-        // 軸を満たさない値では一致しない
         let f2 = Filters::from_iter([(cid("platform"), cid("bigtable"))]);
         assert!(!bipartite.matches(&rid("r1"), &f2));
-        // 存在しない id は false
         assert!(!bipartite.matches(&rid("ghost"), &f));
     }
 
@@ -339,7 +310,7 @@ mod tests {
             taxonomy: Taxonomy(vec![
                 Category {
                     id: cid("platform"),
-                    label: "プラットフォーム".into(),
+                    label: "Platform".into(),
                     parent: None,
                     attribute: (),
                 },
@@ -351,7 +322,7 @@ mod tests {
                 },
                 Category {
                     id: cid("env"),
-                    label: "環境".into(),
+                    label: "Env".into(),
                     parent: None,
                     attribute: (),
                 },
@@ -380,7 +351,6 @@ mod tests {
             "store": { "catalog": [], "taxonomy": [] }
         })
         .to_string();
-        // バージョン不正は ParseError::UnsupportedVersion になるはず
         assert!(ExportData::<(), ()>::parse(&json).is_err());
     }
 
@@ -407,7 +377,6 @@ mod tests {
     #[test]
     fn structurally_invalid_json_gives_invalid_error() {
         use crate::error::ParseError;
-        // JSON としては正しいが構造不正: taxonomy にない axis をキーに使う dangling parent あり
         let json = serde_json::json!({
             "cumulo_version": 1,
             "exported_at": "2026-06-10T00:00:00.000Z",
@@ -519,12 +488,7 @@ mod tests {
         assert_eq!(bipartite.category_selection().query("").len(), all_nodes);
     }
 
-    // --- validate() のテスト ---
-
     fn valid_bipartite() -> Bipartite<(), ()> {
-        // taxonomy: platform(root) > bigquery, bigtable
-        //           env(root) > prod
-        // catalog: r1 が platform=bigquery, env=prod という正しい参照を持つ
         Bipartite {
             taxonomy: Taxonomy(vec![
                 Category {
@@ -568,19 +532,17 @@ mod tests {
         }
     }
 
-    // 正常系 — エラーなし
     #[test]
     fn valid_bipartite_has_no_validation_errors() {
         assert!(valid_bipartite().validate().is_ok());
     }
 
-    // Catalog の森エラーが ValidationError::Catalog にラップされる
     #[test]
     fn catalog_forest_error_is_wrapped() {
         use crate::error::{ForestError, ValidationError};
         let mut b = valid_bipartite();
         b.catalog.push(Resource {
-            id: rid("r1"), // duplicate
+            id: rid("r1"),
             label: None,
             parent: None,
             categories: vec![],
@@ -594,13 +556,12 @@ mod tests {
         );
     }
 
-    // Taxonomy の森エラーが ValidationError::Taxonomy にラップされる
     #[test]
     fn taxonomy_forest_error_is_wrapped() {
         use crate::error::{ForestError, ValidationError};
         let mut b = valid_bipartite();
         b.taxonomy.push(Category {
-            id: cid("bigquery"), // duplicate
+            id: cid("bigquery"),
             label: "dup".into(),
             parent: Some(cid("platform")),
             attribute: (),
@@ -613,12 +574,11 @@ mod tests {
         );
     }
 
-    // B2: value が taxonomy に存在しない場合は CategoryValueMissing
     #[test]
     fn b2_missing_value_is_detected() {
         use crate::error::ValidationError;
         let mut b = valid_bipartite();
-        b.catalog[0].categories.push(cid("staging")); // staging は存在しない
+        b.catalog[0].categories.push(cid("staging"));
         let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
             e,
@@ -629,7 +589,6 @@ mod tests {
 
     #[test]
     fn b3_root_value_is_selectable() {
-        // axis（子なし根）唯一値として axis 自身を持つリソースが valid になることを確認
         let b: Bipartite<(), ()> = Bipartite {
             taxonomy: Taxonomy(vec![Category {
                 id: cid("axis"),
@@ -641,7 +600,6 @@ mod tests {
                 id: rid("r1"),
                 label: None,
                 parent: None,
-                // 軸 axis の唯一値として根 axis 自身を選択できる
                 categories: vec![cid("axis")],
                 attribute: (),
             }]),
@@ -649,12 +607,10 @@ mod tests {
         assert!(b.validate().is_ok());
     }
 
-    // B4: 同一軸に複数の値があれば DuplicateAxis
     #[test]
     fn b4_duplicate_axis_is_detected() {
         use crate::error::ValidationError;
         let mut b = valid_bipartite();
-        // r1 は既に bigquery（軸 platform）を持つ。bigtable も軸 platform なので重複
         b.catalog[0].categories.push(cid("bigtable"));
         let errs = b.validate().unwrap_err();
         assert!(errs.iter().any(|e| matches!(
@@ -664,7 +620,6 @@ mod tests {
         )));
     }
 
-    // categories が空のリソースは正常
     #[test]
     fn resource_with_no_categories_is_valid() {
         let b: Bipartite<(), ()> = Bipartite {
@@ -684,8 +639,6 @@ mod tests {
         };
         assert!(b.validate().is_ok());
     }
-
-    // --- Bipartite::try_new のテスト ---
 
     fn valid_taxonomy() -> Taxonomy<()> {
         Taxonomy(vec![
@@ -722,7 +675,6 @@ mod tests {
     #[test]
     fn try_new_returns_err_for_missing_category_value() {
         use crate::error::ValidationError;
-        // 存在しない値を指定すると CategoryValueMissing になる
         let catalog = Catalog(vec![Resource {
             id: rid("r1"),
             label: None,
@@ -740,7 +692,6 @@ mod tests {
     #[test]
     fn try_new_returns_err_for_catalog_forest_error() {
         use crate::error::ValidationError;
-        // catalog に重複 id
         let catalog = Catalog(vec![
             Resource {
                 id: rid("r1"),

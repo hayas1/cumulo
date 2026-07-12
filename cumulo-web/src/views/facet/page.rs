@@ -1,5 +1,3 @@
-//! ファセット画面（ルート `/` `/facet`）。サイドバーで絞り込み、一致リソースを一覧表示する枠。
-
 use super::sidebar::FacetSidebar;
 use crate::category::CategoryAttribute;
 use crate::client::Client;
@@ -29,7 +27,6 @@ pub fn FacetView(
                         let s = bipartite.get();
                         let tags = selected_tags.get();
 
-                        // 一致リソースは filtered() の結果をそのまま使う（id 集合は作らない）
                         let entities: Vec<_> =
                             s.filtered(&tags).items().iter().map(|r| (*r).clone()).collect();
 
@@ -58,7 +55,6 @@ pub fn FacetView(
                                     .map(|r| {
                                         let url = r.attribute.console_url.clone();
 
-                                        // 森射影・並べ替えはモデル（rooted_nodes）に委譲し、ここはラベル/色の解決のみ
                                         let chips: Vec<(String, String, String)> = r.rooted_nodes(&s.taxonomy)
                                             .into_iter()
                                             .map(|(k, v)| {
