@@ -200,6 +200,27 @@ pub async fn wait_for_gone(page: &Page, selector: &str) {
     wait_until(page, &expression).await;
 }
 
+/// Count the elements matching `selector`.
+pub async fn count(page: &Page, selector: &str) -> usize {
+    let expression = format!("document.querySelectorAll({selector:?}).length");
+    match timeout(CALL_TIMEOUT, page.evaluate(expression)).await {
+        Ok(Ok(result)) => result.into_value::<f64>().unwrap_or(0.0) as usize,
+        _ => 0,
+    }
+}
+
+/// Replace the value of the input at `selector` and fire `input` so the
+/// framework picks the change up (unlike typing, this does not append).
+pub async fn set_value(page: &Page, selector: &str, value: &str) {
+    let expression = format!(
+        "(() => {{ const el = document.querySelector({selector:?}); if (!el) return false; el.value = {value:?}; el.dispatchEvent(new Event('input', {{ bubbles: true }})); return true; }})()"
+    );
+    assert!(
+        eval_bool(page, &expression).await,
+        "no element `{selector}` to set value on"
+    );
+}
+
 /// Focus `selector` and dispatch a `keydown` for `key` (e.g. "ArrowDown",
 /// "Enter"). Handlers that call preventDefault cancel the event, so success is
 /// the element existing rather than the dispatch return value.
