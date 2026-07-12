@@ -1,9 +1,13 @@
 name: Setup Cargo
+description: Install the Rust toolchain and restore the cargo build cache.
 
 inputs:
   components:
     description: 'Rust toolchain components to install'
     default: ''
+  cache-suffix:
+    description: 'Namespaces the cargo cache so builds with different features do not evict each other'
+    default: 'default'
 
 runs:
   using: composite
@@ -21,4 +25,6 @@ runs:
         path: |
           target
           ${{ steps.cargo-home.outputs.path }}
-        key: cargo-${{ hashFiles('**/Cargo.toml') }}
+        key: cargo-${{ inputs.cache-suffix }}-${{ hashFiles('**/Cargo.toml') }}
+        restore-keys: |
+          cargo-${{ inputs.cache-suffix }}-

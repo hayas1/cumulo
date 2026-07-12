@@ -25,6 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-cargo
+        with:
+          cache-suffix: e2e
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}
       - name: Install trunk
         run: curl -fsL https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar xz -C /usr/local/bin
       - name: Build web app
