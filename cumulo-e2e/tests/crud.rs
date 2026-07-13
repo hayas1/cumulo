@@ -62,3 +62,21 @@ async fn deleting_a_resource_removes_it_from_the_list() {
 
     app.wait_for_count(".resource-row", before - 1).await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn adding_a_resource_with_a_category_shows_a_chip() {
+    let app = Session::open("/").await;
+
+    app.wait_for(".result-card").await;
+    let label = format!("e2e-cat-{}", std::process::id());
+
+    app.click(".facet-results .add-resource-btn").await;
+    app.fill(".form-panel .form-input", &label).await;
+    app.click_nth(".form-panel .attr-chip", 0).await;
+    app.click(".form-save-btn").await;
+
+    app.wait_until(&format!(
+        "Array.from(document.querySelectorAll('.result-card')).some(c => {{ const n = c.querySelector('.result-name'); return n && n.textContent.includes({label:?}) && c.querySelector('.result-chip'); }})"
+    ))
+    .await;
+}
