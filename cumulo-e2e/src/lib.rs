@@ -7,4 +7,4 @@ mod chrome;
 mod session;
 mod site;
 
-pub use session::Session;
+pub use session::{DropZone, Session};

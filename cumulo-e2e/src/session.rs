@@ -10,6 +10,24 @@ const SELECTOR_TIMEOUT: Duration = Duration::from_secs(15);
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 const CALL_TIMEOUT: Duration = Duration::from_secs(10);
 
+pub enum DropZone {
+    Before,
+    Inside,
+    After,
+}
+
+impl DropZone {
+    // Fraction of the target's height where the drop lands; the app reads the
+    // cursor Y to choose reorder-before (<0.3), nest-inside, or reorder-after (>0.7).
+    fn height_fraction(&self) -> f64 {
+        match self {
+            DropZone::Before => 0.15,
+            DropZone::Inside => 0.5,
+            DropZone::After => 0.85,
+        }
+    }
+}
+
 pub struct Session {
     page: Page,
     _chrome: Chrome,
@@ -109,6 +127,48 @@ impl Session {
             Ok(Ok(result)) => result.into_value::<f64>().unwrap_or(0.0) as usize,
             _ => 0,
         }
+    }
+
+    pub async fn text(&self, selector: &str) -> String {
+        let expression = format!(
+            "(() => {{ const el = document.querySelector({selector:?}); return el ? el.textContent : ''; }})()"
+        );
+        match timeout(CALL_TIMEOUT, self.page.evaluate(expression)).await {
+            Ok(Ok(result)) => result.into_value::<String>().unwrap_or_default(),
+            _ => String::new(),
+        }
+    }
+
+    // HTML5 drag-and-drop cannot be produced by native mouse events, but the app
+    // keeps its drag state in signals and guards every dataTransfer access, so
+    // dispatching synthetic DragEvents (with a cursor Y for the drop zone) drives it.
+    pub async fn drag(
+        &self,
+        source: &str,
+        source_index: usize,
+        target: &str,
+        target_index: usize,
+        zone: DropZone,
+    ) {
+        let fraction = zone.height_fraction();
+        let expression = format!(
+            "(() => {{ \
+               const src = document.querySelectorAll({source:?})[{source_index}]; \
+               const tgt = document.querySelectorAll({target:?})[{target_index}]; \
+               if (!src || !tgt) return false; \
+               src.dispatchEvent(new DragEvent('dragstart', {{ bubbles: true }})); \
+               const r = tgt.getBoundingClientRect(); \
+               const opts = {{ bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height * {fraction} }}; \
+               tgt.dispatchEvent(new DragEvent('dragover', opts)); \
+               tgt.dispatchEvent(new DragEvent('drop', opts)); \
+               src.dispatchEvent(new DragEvent('dragend', {{ bubbles: true }})); \
+               return true; \
+             }})()"
+        );
+        assert!(
+            self.eval_bool(&expression).await,
+            "drag `{source}`[{source_index}] onto `{target}`[{target_index}]"
+        );
     }
 
     pub async fn set_value(&self, selector: &str, value: &str) {

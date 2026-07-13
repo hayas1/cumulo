@@ -3,8 +3,8 @@
 End-to-end scenarios that drive the built `cumulo-web` app in a real headless
 Chromium via [chromiumoxide](https://crates.io/crates/chromiumoxide) (Chrome
 DevTools Protocol). These cover screen behaviour that native unit tests cannot:
-URL/state sync, history, drag-and-drop, map interaction, persistence across
-reloads, and responsive layout.
+URL/state sync, history, drag-and-drop, map interaction, resource CRUD, and
+persistence across reloads.
 
 The whole crate is gated behind the `browser` feature, so `cargo test --all`
 (which CI runs without a browser) compiles nothing here. Opt in with
@@ -24,7 +24,7 @@ The whole crate is gated behind the `browser` feature, so `cargo test --all`
 - A built app. The harness serves `cumulo-web/dist`:
 
   ```sh
-  trunk build --config cumulo-web
+  ( cd cumulo-web && trunk build )
   ```
 
 ## Run
