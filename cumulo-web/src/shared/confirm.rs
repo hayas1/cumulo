@@ -1,4 +1,4 @@
-use crate::category::CategoryAttribute;
+use crate::category::{CategoryAttribute, CategoryId};
 use crate::client::Client;
 use crate::resource::ResourceAttribute;
 use cumulo_model::{Bipartite, ForestMut, Id};
@@ -63,6 +63,74 @@ fn DeleteShell(
 }
 
 type App = Bipartite<ResourceAttribute, CategoryAttribute>;
+
+#[derive(Clone)]
+pub struct CategoryRename {
+    pub old_id: CategoryId,
+    pub new_id: CategoryId,
+    pub label: String,
+    pub attribute: CategoryAttribute,
+}
+
+const RENAME_PREVIEW_CAP: usize = 8;
+
+#[component]
+pub fn CategoryRenameConfirm(
+    client: Client,
+    pending: RwSignal<Option<CategoryRename>>,
+    on_after: Callback<()>,
+) -> impl IntoView {
+    move || {
+        pending.get().map(|p| {
+            let names = client.read().with(|b| {
+                b.resources_with_category(&p.old_id)
+                    .iter()
+                    .map(|r| {
+                        r.resolved_label(&b.taxonomy)
+                            .unwrap_or_else(|| r.id.to_string())
+                    })
+                    .collect::<Vec<_>>()
+            });
+            let total = names.len();
+            let shown: Vec<String> = names.into_iter().take(RENAME_PREVIEW_CAP).collect();
+            let overflow = total - shown.len();
+            let message = format!(
+                "「{}」を「{}」に変更します。参照している {total} 件のリソースも更新されます。",
+                p.old_id, p.new_id,
+            );
+            let on_cancel = Callback::new(move |_| pending.set(None));
+            let on_confirm = move |_| {
+                client.update(|b| {
+                    let _ = b.rename_category(
+                        &p.old_id,
+                        p.new_id.clone(),
+                        &p.label,
+                        p.attribute.clone(),
+                    );
+                });
+                pending.set(None);
+                on_after.run(());
+            };
+            view! {
+                <ConfirmShell on_cancel=on_cancel>
+                    <p class="confirm-text">{message}</p>
+                    <ul class="confirm-list">
+                        {shown.into_iter().map(|n| view! { <li>{n}</li> }).collect_view()}
+                        {(overflow > 0).then(|| view! { <li>{format!("ほか {overflow} 件")}</li> })}
+                    </ul>
+                    <div class="confirm-btns">
+                        <button class="confirm-cancel" on:click=move |_| pending.set(None)>
+                            "キャンセル"
+                        </button>
+                        <button class="confirm-ok" on:click=on_confirm>
+                            "変更"
+                        </button>
+                    </div>
+                </ConfirmShell>
+            }
+        })
+    }
+}
 
 #[component]
 pub fn ForestDeleteConfirm<F, S, L>(

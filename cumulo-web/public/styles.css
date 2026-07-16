@@ -1736,6 +1736,18 @@ body {
   margin: 0;
   text-align: center;
 }
+.confirm-list {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  max-height: 9rem;
+  overflow-y: auto;
+  list-style: disc;
+}
+.confirm-list li {
+  margin: 0.15rem 0;
+}
 .confirm-btns {
   display: flex;
   gap: 0.6rem;

@@ -1,7 +1,7 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
-use crate::error::{Errors, ParseError, ValidationError};
+use crate::error::{Errors, ForestError, ParseError, ValidationError};
 use crate::filters::Filters;
 use crate::forest::{Forest, ForestNode};
 use crate::id::Id;
@@ -65,6 +65,34 @@ impl<RA, CA> Bipartite<RA, CA> {
         } else {
             Err(Errors(errors))
         }
+    }
+
+    pub fn resources_with_category(&self, category: &Id<Category<CA>>) -> Vec<&Resource<RA, CA>> {
+        self.catalog
+            .iter()
+            .filter(|r| r.categories.iter().any(|c| c == category))
+            .collect()
+    }
+
+    pub fn rename_category(
+        &mut self,
+        old_id: &Id<Category<CA>>,
+        new_id: Id<Category<CA>>,
+        label: &str,
+        attribute: CA,
+    ) -> Result<(), ForestError> {
+        self.taxonomy
+            .rename_node(old_id, new_id.clone(), label, attribute)?;
+        if old_id != &new_id {
+            for resource in self.catalog.iter_mut() {
+                for c in resource.categories.iter_mut() {
+                    if c == old_id {
+                        *c = new_id.clone();
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -715,5 +743,50 @@ mod tests {
     #[test]
     fn try_new_returns_ok_for_empty_bipartite() {
         assert!(Bipartite::<(), ()>::try_new(Catalog(vec![]), Taxonomy(vec![])).is_ok());
+    }
+
+    #[test]
+    fn resources_with_category_lists_referencing_resources() {
+        let b = valid_bipartite();
+        let users = b.resources_with_category(&cid("bigquery"));
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].id, rid("r1"));
+        assert!(b.resources_with_category(&cid("bigtable")).is_empty());
+    }
+
+    #[test]
+    fn rename_category_cascades_to_resources() {
+        let mut b = valid_bipartite();
+        b.rename_category(&cid("bigquery"), cid("bq"), "BQ", ())
+            .unwrap();
+        assert!(b.taxonomy.node(&cid("bigquery")).is_none());
+        assert_eq!(b.taxonomy.node(&cid("bq")).unwrap().label, "BQ");
+        assert!(b.catalog[0].categories.contains(&cid("bq")));
+        assert!(!b.catalog[0].categories.contains(&cid("bigquery")));
+        assert!(b.validate().is_ok());
+    }
+
+    #[test]
+    fn rename_category_label_only_keeps_references() {
+        let mut b = valid_bipartite();
+        b.rename_category(&cid("bigquery"), cid("bigquery"), "BigQuery 2", ())
+            .unwrap();
+        assert_eq!(
+            b.taxonomy.node(&cid("bigquery")).unwrap().label,
+            "BigQuery 2"
+        );
+        assert!(b.catalog[0].categories.contains(&cid("bigquery")));
+    }
+
+    #[test]
+    fn rename_category_to_existing_id_is_rejected_and_leaves_unchanged() {
+        use crate::error::ForestError;
+        let mut b = valid_bipartite();
+        let err = b
+            .rename_category(&cid("bigquery"), cid("bigtable"), "x", ())
+            .unwrap_err();
+        assert!(matches!(err, ForestError::DuplicateId { id } if id == "bigtable"));
+        assert!(b.taxonomy.node(&cid("bigquery")).is_some());
+        assert!(b.catalog[0].categories.contains(&cid("bigquery")));
     }
 }
