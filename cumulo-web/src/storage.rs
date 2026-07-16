@@ -2,13 +2,17 @@ use crate::category::CategoryAttribute;
 use crate::resource::ResourceAttribute;
 use cumulo_model::Bipartite;
 use cumulo_model::ExportData;
+use cumulo_model::{Errors, ValidationError};
 use gloo_storage::{LocalStorage, Storage as GlooStorage};
 
 const STORAGE_KEY: &str = "cumulo_store";
 
 pub trait Store {
     fn load(&self) -> Bipartite<ResourceAttribute, CategoryAttribute>;
-    fn save(&self, bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>);
+    fn save(
+        &self,
+        bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>,
+    ) -> Result<(), Errors<ValidationError>>;
     fn clear(&self) -> Bipartite<ResourceAttribute, CategoryAttribute>;
 }
 
@@ -46,10 +50,15 @@ impl Store for LocalStore {
         }
     }
 
-    fn save(&self, bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>) {
+    fn save(
+        &self,
+        bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>,
+    ) -> Result<(), Errors<ValidationError>> {
+        bipartite.validate()?;
         if let Err(e) = LocalStorage::set(STORAGE_KEY, bipartite) {
             web_sys::console::error_1(&format!("[cumulo] save failed: {e:?}").into());
         }
+        Ok(())
     }
 
     fn clear(&self) -> Bipartite<ResourceAttribute, CategoryAttribute> {

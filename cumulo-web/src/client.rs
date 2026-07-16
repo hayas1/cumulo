@@ -26,7 +26,11 @@ impl Client {
     }
 
     pub fn save(&self) {
-        self.store.save(&self.bipartite.get_untracked());
+        if let Err(errs) = self.store.save(&self.bipartite.get_untracked()) {
+            web_sys::console::warn_1(
+                &format!("[cumulo] refused to save invalid data: {errs}").into(),
+            );
+        }
     }
 
     pub fn update(&self, f: impl FnOnce(&mut Bipartite<ResourceAttribute, CategoryAttribute>)) {
