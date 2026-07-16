@@ -98,6 +98,6 @@ impl Drop for Chrome {
         let _ = std::process::Command::new("pkill")
             .args(["-9", "-f", &self.profile_dir.to_string_lossy()])
             .status();
-        std::thread::sleep(Duration::from_secs(1));
+        std::thread::sleep(Duration::from_millis(200));
     }
 }
