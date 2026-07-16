@@ -72,7 +72,7 @@ pub struct CategoryRename {
     pub attribute: CategoryAttribute,
 }
 
-const RENAME_PREVIEW_CAP: usize = 8;
+const AFFECTED_PREVIEW_CAP: usize = 8;
 
 #[component]
 pub fn CategoryRenameConfirm(
@@ -92,7 +92,7 @@ pub fn CategoryRenameConfirm(
                     .collect::<Vec<_>>()
             });
             let total = names.len();
-            let shown: Vec<String> = names.into_iter().take(RENAME_PREVIEW_CAP).collect();
+            let shown: Vec<String> = names.into_iter().take(AFFECTED_PREVIEW_CAP).collect();
             let overflow = total - shown.len();
             let message = format!(
                 "「{}」を「{}」に変更します。参照している {total} 件のリソースも更新されます。",
@@ -134,6 +134,91 @@ pub fn CategoryRenameConfirm(
                         <button class="confirm-ok" on:click=on_confirm>
                             "変更"
                         </button>
+                    </div>
+                </ConfirmShell>
+            }
+        })
+    }
+}
+
+#[component]
+pub fn CategoryDeleteConfirm(
+    client: Client,
+    target: RwSignal<Option<(CategoryId, bool)>>,
+    on_after: Callback<()>,
+) -> impl IntoView {
+    let apply = move |id: CategoryId, subtree: bool| {
+        client.update(|b| b.delete_category(&id, subtree));
+        on_after.run(());
+        target.set(None);
+    };
+    move || {
+        target.get().map(|(id, has_children)| {
+            let (promote_count, subtree_names) = client.read().with(|b| {
+                let subtree_names = b
+                    .resources_affected_by_delete(&id, true)
+                    .iter()
+                    .map(|r| {
+                        r.resolved_label(&b.taxonomy)
+                            .unwrap_or_else(|| r.id.to_string())
+                    })
+                    .collect::<Vec<_>>();
+                (b.resources_affected_by_delete(&id, false).len(), subtree_names)
+            });
+            let total = subtree_names.len();
+            let shown: Vec<String> = subtree_names.into_iter().take(AFFECTED_PREVIEW_CAP).collect();
+            let overflow = total - shown.len();
+            let impact = if has_children {
+                format!("子を繰り上げ: {promote_count} 件 / サブツリーごと: {total} 件 のリソースからタグを外します。")
+            } else {
+                format!("参照している {total} 件のリソースからタグを外します。")
+            };
+            let on_cancel = Callback::new(move |_| target.set(None));
+            let label = id.to_string();
+            let buttons = if has_children {
+                let promote_id = id.clone();
+                view! {
+                    <button class="confirm-ok" on:click=move |_| apply(promote_id.clone(), false)>
+                        "子を繰り上げ"
+                    </button>
+                    <button
+                        class="confirm-ok confirm-danger"
+                        on:click=move |_| apply(id.clone(), true)
+                    >
+                        "サブツリーごと"
+                    </button>
+                }
+                .into_any()
+            } else {
+                view! {
+                    <button class="confirm-ok" on:click=move |_| apply(id.clone(), false)>
+                        "削除"
+                    </button>
+                }
+                .into_any()
+            };
+            view! {
+                <ConfirmShell on_cancel=on_cancel>
+                    <p class="confirm-text">{format!("「{label}」を削除します")}</p>
+                    {(total > 0)
+                        .then(|| {
+                            view! {
+                                <p class="confirm-text">{impact}</p>
+                                <ul class="confirm-list">
+                                    {shown
+                                        .into_iter()
+                                        .map(|n| view! { <li>{n}</li> })
+                                        .collect_view()}
+                                    {(overflow > 0)
+                                        .then(|| view! { <li>{format!("ほか {overflow} 件")}</li> })}
+                                </ul>
+                            }
+                        })}
+                    <div class="confirm-btns">
+                        <button class="confirm-cancel" on:click=move |_| target.set(None)>
+                            "キャンセル"
+                        </button>
+                        {buttons}
                     </div>
                 </ConfirmShell>
             }

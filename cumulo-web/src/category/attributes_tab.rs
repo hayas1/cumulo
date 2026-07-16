@@ -1,11 +1,10 @@
 use crate::category::{CategoryAttribute, CategoryId, DEFAULT_COLOR};
 use crate::client::Client;
 use crate::platform::Platform;
-use crate::resource::ResourceAttribute;
 use crate::shared::{
-    CategoryRename, CategoryRenameConfirm, Color, ConfirmDialog, ForestDeleteConfirm,
+    CategoryDeleteConfirm, CategoryRename, CategoryRenameConfirm, Color, ConfirmDialog,
 };
-use cumulo_model::{Bipartite, Category, Forest, ForestMut};
+use cumulo_model::{Category, Forest};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -42,7 +41,7 @@ impl CategoryTabActions {
     }
 
     fn delete_subtree(self, node_id: CategoryId) {
-        self.0.update(|s| s.taxonomy.delete_subtree(&node_id));
+        self.0.update(|s| s.delete_category(&node_id, true));
     }
 
     fn commit_node_edit(
@@ -764,11 +763,9 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
             })
         }}
 
-        <ForestDeleteConfirm
+        <CategoryDeleteConfirm
             client=client
-            select={|b: &mut Bipartite<ResourceAttribute, CategoryAttribute>| &mut b.taxonomy}
             target=delete_target
-            label={|id: &CategoryId| id.to_string()}
             on_after=Callback::new(move |_| editing_id.set(None))
         />
 
