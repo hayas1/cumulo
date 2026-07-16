@@ -100,16 +100,25 @@ pub fn CategoryRenameConfirm(
             );
             let on_cancel = Callback::new(move |_| pending.set(None));
             let on_confirm = move |_| {
-                client.update(|b| {
-                    let _ = b.rename_category(
-                        &p.old_id,
-                        p.new_id.clone(),
-                        &p.label,
-                        p.attribute.clone(),
-                    );
-                });
+                let applied = client
+                    .signal()
+                    .try_update(|b| {
+                        b.rename_category(
+                            &p.old_id,
+                            p.new_id.clone(),
+                            &p.label,
+                            p.attribute.clone(),
+                        )
+                        .is_ok()
+                    })
+                    .unwrap_or(false);
                 pending.set(None);
-                on_after.run(());
+                if applied {
+                    client.save();
+                    on_after.run(());
+                } else {
+                    client.notify("名前を変更できませんでした");
+                }
             };
             view! {
                 <ConfirmShell on_cancel=on_cancel>

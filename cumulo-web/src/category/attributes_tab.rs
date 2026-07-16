@@ -20,15 +20,25 @@ struct CategoryTabActions(Client);
 
 impl CategoryTabActions {
     fn reparent(self, dragged: CategoryId, new_parent: Option<CategoryId>) {
-        self.0.update(|s| {
-            let _ = s.taxonomy.reparent(&dragged, new_parent);
-        });
+        let moved = self
+            .0
+            .signal()
+            .try_update(|s| s.taxonomy.reparent(&dragged, new_parent).is_ok())
+            .unwrap_or(false);
+        if moved {
+            self.0.save();
+        }
     }
 
     fn move_relative(self, dragged: CategoryId, target: CategoryId, after: bool) {
-        self.0.update(|s| {
-            let _ = s.taxonomy.move_relative(&dragged, &target, after);
-        });
+        let moved = self
+            .0
+            .signal()
+            .try_update(|s| s.taxonomy.move_relative(&dragged, &target, after).is_ok())
+            .unwrap_or(false);
+        if moved {
+            self.0.save();
+        }
     }
 
     fn delete_subtree(self, node_id: CategoryId) {
@@ -77,6 +87,7 @@ impl CategoryTabActions {
             )
         });
         if id_taken {
+            self.0.notify("その ID は既に使われています");
             return false;
         }
         if affected > 0 {
@@ -88,11 +99,19 @@ impl CategoryTabActions {
             }));
             return false;
         }
-        self.0.update(|s| {
-            let _ = s.rename_category(&old_id, new_id, &new_label, attribute);
-        });
-        editing_id.set(None);
-        true
+        let applied = self
+            .0
+            .signal()
+            .try_update(|s| {
+                s.rename_category(&old_id, new_id, &new_label, attribute)
+                    .is_ok()
+            })
+            .unwrap_or(false);
+        if applied {
+            self.0.save();
+            editing_id.set(None);
+        }
+        applied
     }
 }
 
