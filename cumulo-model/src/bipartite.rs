@@ -3,7 +3,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::category::{Category, Taxonomy};
 use crate::error::{Errors, ForestError, ParseError, ValidationError};
 use crate::filters::Filters;
-use crate::forest::{Forest, ForestNode};
+use crate::forest::{Forest, ForestMut, ForestNode};
 use crate::id::Id;
 use crate::resource::{Catalog, Resource};
 
@@ -93,6 +93,42 @@ impl<RA, CA> Bipartite<RA, CA> {
             }
         }
         Ok(())
+    }
+
+    fn categories_removed_by_delete(
+        &self,
+        node_id: &Id<Category<CA>>,
+        subtree: bool,
+    ) -> std::collections::HashSet<Id<Category<CA>>> {
+        if subtree {
+            self.taxonomy.collect_descendants(node_id)
+        } else {
+            std::iter::once(node_id.clone()).collect()
+        }
+    }
+
+    pub fn resources_affected_by_delete(
+        &self,
+        node_id: &Id<Category<CA>>,
+        subtree: bool,
+    ) -> Vec<&Resource<RA, CA>> {
+        let removed = self.categories_removed_by_delete(node_id, subtree);
+        self.catalog
+            .iter()
+            .filter(|r| r.categories.iter().any(|c| removed.contains(c)))
+            .collect()
+    }
+
+    pub fn delete_category(&mut self, node_id: &Id<Category<CA>>, subtree: bool) {
+        let removed = self.categories_removed_by_delete(node_id, subtree);
+        if subtree {
+            self.taxonomy.delete_subtree(node_id);
+        } else {
+            self.taxonomy.delete_promote(node_id);
+        }
+        for resource in self.catalog.iter_mut() {
+            resource.categories.retain(|c| !removed.contains(c));
+        }
     }
 }
 
@@ -788,5 +824,40 @@ mod tests {
         assert!(matches!(err, ForestError::DuplicateId { id } if id == "bigtable"));
         assert!(b.taxonomy.node(&cid("bigquery")).is_some());
         assert!(b.catalog[0].categories.contains(&cid("bigquery")));
+    }
+
+    #[test]
+    fn delete_category_promote_strips_the_node_from_resources() {
+        let mut b = valid_bipartite();
+        b.delete_category(&cid("bigquery"), false);
+        assert!(b.taxonomy.node(&cid("bigquery")).is_none());
+        assert!(!b.catalog[0].categories.contains(&cid("bigquery")));
+        assert!(b.catalog[0].categories.contains(&cid("prod")));
+        assert!(b.validate().is_ok());
+    }
+
+    #[test]
+    fn delete_category_subtree_strips_descendants_from_resources() {
+        let mut b = valid_bipartite();
+        b.delete_category(&cid("platform"), true);
+        assert!(b.taxonomy.node(&cid("platform")).is_none());
+        assert!(b.taxonomy.node(&cid("bigquery")).is_none());
+        assert!(b.taxonomy.node(&cid("bigtable")).is_none());
+        assert_eq!(b.catalog[0].categories, vec![cid("prod")]);
+        assert!(b.validate().is_ok());
+    }
+
+    #[test]
+    fn resources_affected_by_delete_reports_referencing_resources() {
+        let b = valid_bipartite();
+        let subtree = b.resources_affected_by_delete(&cid("platform"), true);
+        assert_eq!(subtree.len(), 1);
+        assert_eq!(subtree[0].id, rid("r1"));
+        assert!(b
+            .resources_affected_by_delete(&cid("platform"), false)
+            .is_empty());
+        assert!(b
+            .resources_affected_by_delete(&cid("bigtable"), false)
+            .is_empty());
     }
 }
