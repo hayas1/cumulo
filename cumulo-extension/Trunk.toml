@@ -1,14 +1,7 @@
-# 拡張ページは chrome-extension://<id>/ 配信なのでアセットは相対参照にする。
-# MV3 の extension_pages CSP は inline script を実行しないので、inject_scripts=false で
-# trunk の inline module ローダ注入を止め、filehash=false でグルー名を固定して、
-# 自前の外部 public/bootstrap.js から読み込む（→ 後処理フックが不要になる）。
 [build]
 public_url = "./"
 filehash = false
 inject_scripts = false
 
-# この crate を trunk serve でブラウザ確認するとき、ライブリロードは <body> に inline script を
-# 注入する。拡張は unpacked で dist を直読みするので serve は本番経路ではないが、注入を止めて
-# serve 出力を build と同じ（inline script ゼロ）に保ち、拡張 CSP と同条件で確認できるようにする。
 [serve]
 no_autoreload = true

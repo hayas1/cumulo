@@ -189,7 +189,7 @@
       }
     ],
     "taxonomy": [
-      { "id": "platform",         "label": "プラットフォーム",   "color": "#8899AA" },
+      { "id": "platform",         "label": "Platform",         "color": "#8899AA" },
       { "id": "cloud",            "label": "Cloud",            "color": "#5B8DEF", "parent": "platform" },
       { "id": "gcp",              "label": "GCP",              "color": "#1D9E75", "parent": "cloud" },
       { "id": "aws",              "label": "AWS",              "color": "#F2920C", "parent": "cloud" },
@@ -208,12 +208,12 @@
       { "id": "self-hosted",      "label": "Self-hosted",      "color": "#64748B", "parent": "platform" },
       { "id": "kafka-ui",         "label": "Kafka UI",         "color": "#94A3B8", "parent": "self-hosted" },
 
-      { "id": "product",          "label": "プロダクト",         "color": "#8899AA" },
+      { "id": "product",          "label": "Product",          "color": "#8899AA" },
       { "id": "auth",             "label": "Auth",             "color": "#E07A5F", "parent": "product" },
       { "id": "payment",          "label": "Payment",          "color": "#3D8AC9", "parent": "product" },
       { "id": "infra",            "label": "Infra",            "color": "#6A994E", "parent": "product" },
 
-      { "id": "env",              "label": "環境",              "color": "#8899AA" },
+      { "id": "env",              "label": "Environment",      "color": "#8899AA" },
       { "id": "prod",             "label": "prod",             "color": "#E24B4A", "parent": "env" },
       { "id": "stg",              "label": "stg",              "color": "#BA7517", "parent": "env" },
       { "id": "dev",              "label": "dev",              "color": "#378ADD", "parent": "env" }

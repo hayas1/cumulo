@@ -77,7 +77,7 @@ pub fn FacetView(
                                                         class="result-name result-name-link"
                                                         on:click=move |_| Platform::open_url(&url)
                                                     >
-                                                        {r.display_label(&s.taxonomy)}
+                                                        {r.resolved_label(&s.taxonomy).unwrap_or_else(|| r.id.to_string())}
                                                     </span>
                                                     <div class="result-card-actions">
                                                         <button

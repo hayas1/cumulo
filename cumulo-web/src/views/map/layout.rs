@@ -267,7 +267,9 @@ impl<'a> LayoutEngine<'a> {
     fn to_item(&self, r: &Res) -> Item {
         Item {
             id: r.id.clone(),
-            label: r.display_label(self.taxonomy),
+            label: r
+                .resolved_label(self.taxonomy)
+                .unwrap_or_else(|| r.id.to_string()),
             color: self.resource_color(r),
             freq: (r.attribute.freq.max(1)) as f64,
             path: self.zoom_path(r),
