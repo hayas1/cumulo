@@ -130,6 +130,18 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
                     </button>
                 </div>
             })}
+
+            {move || client.toast().get().map(|msg| view! {
+                <div class="import-toast error-toast">
+                    <span class="import-toast-msg">{msg}</span>
+                    <button
+                        class="import-toast-close"
+                        on:click=move |_| client.toast().set(None)
+                    >
+                        "×"
+                    </button>
+                </div>
+            })}
         </div>
     }
 }

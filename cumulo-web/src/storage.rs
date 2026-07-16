@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::category::CategoryAttribute;
 use crate::resource::ResourceAttribute;
 use cumulo_model::Bipartite;
@@ -7,12 +9,26 @@ use gloo_storage::{LocalStorage, Storage as GlooStorage};
 
 const STORAGE_KEY: &str = "cumulo_store";
 
+pub enum SaveError {
+    Invalid(Errors<ValidationError>),
+    Storage(String),
+}
+
+impl fmt::Display for SaveError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SaveError::Invalid(errs) => write!(f, "invalid data: {errs}"),
+            SaveError::Storage(msg) => write!(f, "storage error: {msg}"),
+        }
+    }
+}
+
 pub trait Store {
     fn load(&self) -> Bipartite<ResourceAttribute, CategoryAttribute>;
     fn save(
         &self,
         bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>,
-    ) -> Result<(), Errors<ValidationError>>;
+    ) -> Result<(), SaveError>;
     fn clear(&self) -> Bipartite<ResourceAttribute, CategoryAttribute>;
 }
 
@@ -53,11 +69,10 @@ impl Store for LocalStore {
     fn save(
         &self,
         bipartite: &Bipartite<ResourceAttribute, CategoryAttribute>,
-    ) -> Result<(), Errors<ValidationError>> {
-        bipartite.validate()?;
-        if let Err(e) = LocalStorage::set(STORAGE_KEY, bipartite) {
-            web_sys::console::error_1(&format!("[cumulo] save failed: {e:?}").into());
-        }
+    ) -> Result<(), SaveError> {
+        bipartite.validate().map_err(SaveError::Invalid)?;
+        LocalStorage::set(STORAGE_KEY, bipartite)
+            .map_err(|e| SaveError::Storage(format!("{e:?}")))?;
         Ok(())
     }
 

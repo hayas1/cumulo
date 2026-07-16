@@ -699,6 +699,8 @@ body {
   animation: toast-in 0.2s ease;
 }
 
+.error-toast { border-color: #e05c5c; }
+
 .import-toast-msg { white-space: nowrap; }
 
 .import-toast-close {
