@@ -1,0 +1,18 @@
+[package]
+name = "cumulo-e2e"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+repository.workspace = true
+license-file.workspace = true
+publish = false
+
+[features]
+browser = ["dep:chromiumoxide", "dep:tokio", "dep:futures", "dep:axum", "dep:tower-http"]
+
+[dependencies]
+chromiumoxide = { version = "0.7", features = ["tokio-runtime"], default-features = false, optional = true }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time", "process"], optional = true }
+futures = { version = "0.3", optional = true }
+axum = { version = "0.7", optional = true }
+tower-http = { version = "0.6", features = ["fs"], optional = true }
