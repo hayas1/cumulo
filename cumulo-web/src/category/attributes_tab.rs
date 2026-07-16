@@ -18,12 +18,15 @@ struct CategoryTabActions(Client);
 
 impl CategoryTabActions {
     fn reparent(self, dragged: CategoryId, new_parent: Option<CategoryId>) {
-        self.0.update(|s| s.taxonomy.reparent(&dragged, new_parent));
+        self.0.update(|s| {
+            let _ = s.taxonomy.reparent(&dragged, new_parent);
+        });
     }
 
     fn move_relative(self, dragged: CategoryId, target: CategoryId, after: bool) {
-        self.0
-            .update(|s| s.taxonomy.move_relative(&dragged, &target, after));
+        self.0.update(|s| {
+            let _ = s.taxonomy.move_relative(&dragged, &target, after);
+        });
     }
 
     fn delete_subtree(self, node_id: CategoryId) {
@@ -55,17 +58,19 @@ impl CategoryTabActions {
         if new_id.trim().is_empty() {
             return;
         }
+        let attribute = CategoryAttribute {
+            color: Color::from_hex(&new_color),
+        };
+        let mut renamed = false;
         self.0.update(|s| {
-            s.taxonomy.rename_node(
-                &old_id,
-                new_id.try_into().unwrap(),
-                &new_label,
-                CategoryAttribute {
-                    color: Color::from_hex(&new_color),
-                },
-            )
+            renamed = s
+                .taxonomy
+                .rename_node(&old_id, new_id.try_into().unwrap(), &new_label, attribute)
+                .is_ok();
         });
-        editing_id.set(None);
+        if renamed {
+            editing_id.set(None);
+        }
     }
 }
 
