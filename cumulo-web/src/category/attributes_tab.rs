@@ -211,7 +211,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
     });
 
     view! {
-        <div class="category-tab">
+        <div class="category-tab" tabindex="-1">
             {move || {
                 let s = bipartite.get();
                 let collapsed_set = collapsed.get();
@@ -257,8 +257,12 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                     {if is_root_editing {
                                         let rid_cancel = root_id_header.clone();
                                         view! {
-                                            <div
+                                            <form
                                                 class="category-name-editor"
+                                                on:submit=move |ev: web_sys::SubmitEvent| {
+                                                    ev.prevent_default();
+                                                    acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm);
+                                                }
                                                 on:focusout=move |ev: web_sys::FocusEvent| {
                                                     if UiHelper::focus_left(&ev, ".category-name-editor") {
                                                         acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm);
@@ -289,6 +293,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                     }
                                                 />
                                                 <button
+                                                    type="button"
                                                     class="category-row-cancel"
                                                     on:click=move |_| {
                                                         editing_id.set(None);
@@ -309,7 +314,8 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                 >
                                                     "キャンセル"
                                                 </button>
-                                            </div>
+                                                <button type="submit" class="editor-submit" tabindex="-1" aria-hidden="true" />
+                                            </form>
                                         }
                                         .into_any()
                                     } else {
@@ -461,8 +467,12 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
 
                                             let row_body = if is_node_editing {
                                                 view! {
-                                                    <div
+                                                    <form
                                                         class="chip-editor category-node-editor"
+                                                        on:submit=move |ev: web_sys::SubmitEvent| {
+                                                            ev.prevent_default();
+                                                            acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm);
+                                                        }
                                                         on:focusout=move |ev: web_sys::FocusEvent| {
                                                             if UiHelper::focus_left(&ev, ".chip-editor") {
                                                                 acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm);
@@ -493,6 +503,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                             }
                                                         />
                                                         <button
+                                                            type="button"
                                                             class="chip-editor-randomize"
                                                             on:click=move |_| {
                                                                 let color = Platform::random_color();
@@ -510,12 +521,14 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                             />
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             class="chip-editor-cancel"
                                                             on:click=move |_| editing_id.set(None)
                                                         >
                                                             "キャンセル"
                                                         </button>
-                                                    </div>
+                                                        <button type="submit" class="editor-submit" tabindex="-1" aria-hidden="true" />
+                                                    </form>
                                                 }
                                                 .into_any()
                                             } else {

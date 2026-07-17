@@ -23,7 +23,7 @@ web-sys = { version = "0.3", features = [
     "HtmlAnchorElement", "Document", "Element", "HtmlElement", "Node",
     "HtmlInputElement", "FileList", "File",
     "DragEvent", "DataTransfer", "DomRect",
-    "MouseEvent", "WheelEvent", "PointerEvent",
+    "MouseEvent", "WheelEvent", "PointerEvent", "SubmitEvent",
 ] }
 gloo-storage = "0.3"
 console_error_panic_hook = "0.1"

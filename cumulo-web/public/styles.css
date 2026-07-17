@@ -350,6 +350,20 @@ body {
   gap: 0.6rem;
 }
 
+.category-tab:focus {
+  outline: none;
+}
+
+.editor-submit {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .category-row {
   background: var(--bg-card);
   border: 1px solid var(--border);

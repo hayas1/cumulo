@@ -6,11 +6,19 @@ use leptos::prelude::*;
 
 #[component]
 fn ConfirmShell(on_cancel: Callback<()>, children: Children) -> impl IntoView {
+    let armed = RwSignal::new(false);
     view! {
-        <div class="confirm-overlay" on:click=move |_| on_cancel.run(())>
-            <div class="confirm-dialog" on:click=|ev| ev.stop_propagation()>
-                {children()}
-            </div>
+        <div
+            class="confirm-overlay"
+            on:mousedown=move |ev: web_sys::MouseEvent| armed.set(ev.target() == ev.current_target())
+            on:click=move |ev: web_sys::MouseEvent| {
+                if armed.get() && ev.target() == ev.current_target() {
+                    on_cancel.run(());
+                }
+                armed.set(false);
+            }
+        >
+            <div class="confirm-dialog">{children()}</div>
         </div>
     }
 }
