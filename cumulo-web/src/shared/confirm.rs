@@ -1,7 +1,7 @@
 use crate::category::{CategoryAttribute, CategoryId};
 use crate::client::Client;
 use crate::resource::ResourceAttribute;
-use cumulo_model::{Bipartite, ForestMut, Id};
+use cumulo_model::{Bipartite, Forest, ForestMut, Id};
 use leptos::prelude::*;
 
 #[component]
@@ -162,7 +162,7 @@ pub fn CategoryDeleteConfirm(
     };
     move || {
         target.get().map(|(id, has_children)| {
-            let (promote_count, subtree_names) = client.read().with(|b| {
+            let (promote_count, subtree_names, parent_label) = client.read().with(|b| {
                 let subtree_names = b
                     .resources_affected_by_delete(&id, true)
                     .iter()
@@ -171,15 +171,38 @@ pub fn CategoryDeleteConfirm(
                             .unwrap_or_else(|| r.id.to_string())
                     })
                     .collect::<Vec<_>>();
-                (b.resources_affected_by_delete(&id, false).len(), subtree_names)
+                let parent_label = b
+                    .taxonomy
+                    .node(&id)
+                    .and_then(|n| n.parent.as_ref())
+                    .and_then(|p| b.taxonomy.node(p))
+                    .map(|p| {
+                        if p.label.is_empty() {
+                            p.id.to_string()
+                        } else {
+                            p.label.clone()
+                        }
+                    });
+                (
+                    b.resources_affected_by_delete(&id, false).len(),
+                    subtree_names,
+                    parent_label,
+                )
             });
             let total = subtree_names.len();
             let shown: Vec<String> = subtree_names.into_iter().take(AFFECTED_PREVIEW_CAP).collect();
             let overflow = total - shown.len();
-            let impact = if has_children {
-                format!("子を繰り上げ: {promote_count} 件 / サブツリーごと: {total} 件 のリソースからタグを外します。")
-            } else {
-                format!("参照している {total} 件のリソースからタグを外します。")
+            let impact = match (&parent_label, has_children) {
+                (Some(p), true) => format!(
+                    "子を繰り上げ: {promote_count} 件のリソースを「{p}」へ付け替え / サブツリーごと: {total} 件のタグを外します。"
+                ),
+                (Some(p), false) => {
+                    format!("参照している {total} 件のリソースを「{p}」へ付け替えます。")
+                }
+                (None, true) => format!(
+                    "子を繰り上げ: {promote_count} 件 / サブツリーごと: {total} 件 のリソースからタグを外します。"
+                ),
+                (None, false) => format!("参照している {total} 件のリソースからタグを外します。"),
             };
             let on_cancel = Callback::new(move |_| target.set(None));
             let label = id.to_string();

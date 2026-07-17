@@ -120,14 +120,25 @@ impl<RA, CA> Bipartite<RA, CA> {
     }
 
     pub fn delete_category(&mut self, node_id: &Id<Category<CA>>, subtree: bool) {
-        let removed = self.categories_removed_by_delete(node_id, subtree);
         if subtree {
+            let removed = self.categories_removed_by_delete(node_id, true);
             self.taxonomy.delete_subtree(node_id);
+            for resource in self.catalog.iter_mut() {
+                resource.categories.retain(|c| !removed.contains(c));
+            }
         } else {
+            let parent = self.taxonomy.node(node_id).and_then(|n| n.parent.clone());
             self.taxonomy.delete_promote(node_id);
-        }
-        for resource in self.catalog.iter_mut() {
-            resource.categories.retain(|c| !removed.contains(c));
+            for resource in self.catalog.iter_mut() {
+                match &parent {
+                    Some(parent) => resource.categories.iter_mut().for_each(|c| {
+                        if c == node_id {
+                            *c = parent.clone();
+                        }
+                    }),
+                    None => resource.categories.retain(|c| c != node_id),
+                }
+            }
         }
     }
 }
@@ -827,12 +838,36 @@ mod tests {
     }
 
     #[test]
-    fn delete_category_promote_strips_the_node_from_resources() {
+    fn delete_category_promote_reassigns_resources_to_parent() {
         let mut b = valid_bipartite();
         b.delete_category(&cid("bigquery"), false);
         assert!(b.taxonomy.node(&cid("bigquery")).is_none());
         assert!(!b.catalog[0].categories.contains(&cid("bigquery")));
+        assert!(b.catalog[0].categories.contains(&cid("platform")));
         assert!(b.catalog[0].categories.contains(&cid("prod")));
+        assert!(b.validate().is_ok());
+    }
+
+    #[test]
+    fn delete_category_promote_at_root_removes_the_tag() {
+        let mut b: Bipartite<(), ()> = Bipartite {
+            taxonomy: Taxonomy(vec![Category {
+                id: cid("axis"),
+                label: "Axis".into(),
+                parent: None,
+                attribute: (),
+            }]),
+            catalog: Catalog(vec![Resource {
+                id: rid("r1"),
+                label: None,
+                parent: None,
+                categories: vec![cid("axis")],
+                attribute: (),
+            }]),
+        };
+        b.delete_category(&cid("axis"), false);
+        assert!(b.taxonomy.node(&cid("axis")).is_none());
+        assert!(b.catalog[0].categories.is_empty());
         assert!(b.validate().is_ok());
     }
 
