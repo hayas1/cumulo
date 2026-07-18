@@ -8,6 +8,7 @@
 
   "nav_facet": "Facet",
   "nav_map": "Map",
+  "nav_matrix": "Matrix",
 
   "settings_title": "Settings",
   "settings_tab_data": "Data",
@@ -73,5 +74,10 @@
   "map_zoom_out": "Zoom out",
   "map_zoom_in": "Zoom in",
   "map_fit": "Fit to view",
-  "map_other": "Other"
+  "map_other": "Other",
+
+  "matrix_rows": "Rows",
+  "matrix_cols": "Columns",
+  "matrix_total": "Total",
+  "matrix_empty": "Pick two axes that have values to cross-tabulate."
 }

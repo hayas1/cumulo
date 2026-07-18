@@ -17,6 +17,7 @@ pub enum View {
     #[default]
     Facet,
     Map,
+    Matrix,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -27,6 +28,10 @@ pub struct QueryState {
     pub filters: Filters,
     #[serde(default)]
     pub zoom_axis: Option<CategoryId>,
+    #[serde(default)]
+    pub row_axis: Option<CategoryId>,
+    #[serde(default)]
+    pub col_axis: Option<CategoryId>,
     #[serde(default)]
     pub lang: Option<Lang>,
     #[serde(flatten)]
@@ -125,6 +130,28 @@ mod tests {
     fn shows_view_even_when_default() {
         let q = QueryState::default().to_params();
         assert_eq!(q.get("view").as_deref(), Some("facet"));
+    }
+
+    #[test]
+    fn round_trips_matrix_view_with_axes() {
+        let s = QueryState {
+            view: View::Matrix,
+            row_axis: Some(cid("platform")),
+            col_axis: Some(cid("env")),
+            ..Default::default()
+        };
+        let q = s.to_params();
+        assert_eq!(q.get("view").as_deref(), Some("matrix"));
+        assert_eq!(q.get("row_axis").as_deref(), Some("platform"));
+        assert_eq!(q.get("col_axis").as_deref(), Some("env"));
+        assert_eq!(QueryState::from_params(&q), s);
+    }
+
+    #[test]
+    fn omits_matrix_axes_when_none() {
+        let q = state(&[("platform", "gcp")]).to_params();
+        assert_eq!(q.get("row_axis"), None);
+        assert_eq!(q.get("col_axis"), None);
     }
 
     #[test]

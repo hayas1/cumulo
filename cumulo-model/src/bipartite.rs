@@ -183,6 +183,47 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
             items: self.taxonomy.iter().collect(),
         }
     }
+
+    pub fn pivot<'a>(
+        &'a self,
+        row_axis: &Id<Category<CA>>,
+        col_axis: &Id<Category<CA>>,
+        base: &Filters<CA>,
+    ) -> Pivot<'a, CA> {
+        let rows = self.taxonomy.children_of(row_axis);
+        let cols = self.taxonomy.children_of(col_axis);
+        let row_buckets: std::collections::HashSet<_> = rows.iter().map(|c| c.id.clone()).collect();
+        let col_buckets: std::collections::HashSet<_> = cols.iter().map(|c| c.id.clone()).collect();
+        let base = base.without_root(row_axis).without_root(col_axis);
+
+        let mut counts = std::collections::HashMap::new();
+        for resource in self.catalog.iter() {
+            if !self.matches_resource(resource, &base) {
+                continue;
+            }
+            let (Some(row), Some(col)) = (
+                self.bucketed_value(resource, row_axis, &row_buckets),
+                self.bucketed_value(resource, col_axis, &col_buckets),
+            ) else {
+                continue;
+            };
+            *counts.entry((row, col)).or_default() += 1;
+        }
+        Pivot { rows, cols, counts }
+    }
+
+    fn bucketed_value(
+        &self,
+        resource: &Resource<RA, CA>,
+        axis: &Id<Category<CA>>,
+        buckets: &std::collections::HashSet<Id<Category<CA>>>,
+    ) -> Option<Id<Category<CA>>> {
+        let value = resource.category(&self.taxonomy, axis)?;
+        self.taxonomy
+            .ancestry(value)
+            .into_iter()
+            .find(|node| buckets.contains(node))
+    }
 }
 
 pub trait Selection {
@@ -207,6 +248,33 @@ impl<RA, CA> Selection for ResourceSelection<'_, RA, CA> {
     type Item = Resource<RA, CA>;
     fn items(&self) -> &[&Resource<RA, CA>] {
         &self.items
+    }
+}
+
+pub struct Pivot<'a, CA> {
+    pub rows: Vec<&'a Category<CA>>,
+    pub cols: Vec<&'a Category<CA>>,
+    counts: std::collections::HashMap<(Id<Category<CA>>, Id<Category<CA>>), usize>,
+}
+
+impl<CA> Pivot<'_, CA> {
+    pub fn count(&self, row: &Id<Category<CA>>, col: &Id<Category<CA>>) -> usize {
+        self.counts
+            .get(&(row.clone(), col.clone()))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub fn row_total(&self, row: &Id<Category<CA>>) -> usize {
+        self.cols.iter().map(|col| self.count(row, &col.id)).sum()
+    }
+
+    pub fn col_total(&self, col: &Id<Category<CA>>) -> usize {
+        self.rows.iter().map(|row| self.count(&row.id, col)).sum()
+    }
+
+    pub fn total(&self) -> usize {
+        self.counts.values().sum()
     }
 }
 
@@ -894,5 +962,105 @@ mod tests {
         assert!(b
             .resources_affected_by_delete(&cid("bigtable"), false)
             .is_empty());
+    }
+
+    fn pivot_bipartite() -> Bipartite<(), ()> {
+        fn cat(id: &str, parent: Option<&str>) -> Category<()> {
+            Category {
+                id: cid(id),
+                label: id.into(),
+                parent: parent.map(cid),
+                attribute: (),
+            }
+        }
+        fn res(id: &str, categories: &[&str]) -> Resource<(), ()> {
+            Resource {
+                id: rid(id),
+                label: None,
+                parent: None,
+                categories: categories.iter().map(|c| cid(c)).collect(),
+                attribute: (),
+            }
+        }
+        Bipartite {
+            taxonomy: Taxonomy(vec![
+                cat("platform", None),
+                cat("gcp", Some("platform")),
+                cat("bigquery", Some("gcp")),
+                cat("aws", Some("platform")),
+                cat("s3", Some("aws")),
+                cat("env", None),
+                cat("prod", Some("env")),
+                cat("dev", Some("env")),
+                cat("team", None),
+                cat("t1", Some("team")),
+                cat("t2", Some("team")),
+            ]),
+            catalog: Catalog(vec![
+                res("r1", &["bigquery", "prod", "t1"]),
+                res("r2", &["s3", "prod", "t2"]),
+                res("r3", &["gcp", "dev", "t1"]),
+                res("r4", &["bigquery", "dev", "t2"]),
+            ]),
+        }
+    }
+
+    #[test]
+    fn pivot_rows_and_cols_are_direct_children_of_axes() {
+        let b = pivot_bipartite();
+        let p = b.pivot(&cid("platform"), &cid("env"), &Filters::new());
+        let rows: Vec<_> = p.rows.iter().map(|c| c.id.as_str()).collect();
+        let cols: Vec<_> = p.cols.iter().map(|c| c.id.as_str()).collect();
+        assert_eq!(rows, vec!["gcp", "aws"]);
+        assert_eq!(cols, vec!["prod", "dev"]);
+    }
+
+    #[test]
+    fn pivot_cell_counts_respect_ancestry_and_and() {
+        let b = pivot_bipartite();
+        let p = b.pivot(&cid("platform"), &cid("env"), &Filters::new());
+        assert_eq!(p.count(&cid("gcp"), &cid("prod")), 1);
+        assert_eq!(p.count(&cid("gcp"), &cid("dev")), 2);
+        assert_eq!(p.count(&cid("aws"), &cid("prod")), 1);
+        assert_eq!(p.count(&cid("aws"), &cid("dev")), 0);
+    }
+
+    #[test]
+    fn pivot_totals_sum_over_shown_cells() {
+        let b = pivot_bipartite();
+        let p = b.pivot(&cid("platform"), &cid("env"), &Filters::new());
+        assert_eq!(p.row_total(&cid("gcp")), 3);
+        assert_eq!(p.row_total(&cid("aws")), 1);
+        assert_eq!(p.col_total(&cid("prod")), 2);
+        assert_eq!(p.total(), 4);
+    }
+
+    #[test]
+    fn pivot_base_filters_on_a_third_axis_narrow_the_grid() {
+        let b = pivot_bipartite();
+        let base = Filters::from_iter([(cid("team"), cid("t1"))]);
+        let p = b.pivot(&cid("platform"), &cid("env"), &base);
+        assert_eq!(p.count(&cid("gcp"), &cid("prod")), 1);
+        assert_eq!(p.count(&cid("gcp"), &cid("dev")), 1);
+        assert_eq!(p.total(), 2);
+    }
+
+    #[test]
+    fn pivot_ignores_base_entries_on_its_own_axes() {
+        let b = pivot_bipartite();
+        let base = Filters::from_iter([(cid("platform"), cid("aws"))]);
+        let p = b.pivot(&cid("platform"), &cid("env"), &base);
+        assert_eq!(p.count(&cid("gcp"), &cid("dev")), 2);
+    }
+
+    #[test]
+    fn pivot_against_the_same_axis_is_diagonal() {
+        let b = pivot_bipartite();
+        let p = b.pivot(&cid("platform"), &cid("platform"), &Filters::new());
+        assert_eq!(p.count(&cid("gcp"), &cid("gcp")), 3);
+        assert_eq!(p.count(&cid("aws"), &cid("aws")), 1);
+        assert_eq!(p.count(&cid("gcp"), &cid("aws")), 0);
+        assert_eq!(p.count(&cid("aws"), &cid("gcp")), 0);
+        assert_eq!(p.total(), 4);
     }
 }
