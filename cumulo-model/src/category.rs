@@ -109,59 +109,6 @@ impl<CA> Taxonomy<CA> {
         }
     }
 
-    pub fn reparent(
-        &mut self,
-        dragged: &Id<Category<CA>>,
-        new_parent: Option<Id<Category<CA>>>,
-    ) -> Result<(), ForestError> {
-        if let Some(np) = &new_parent {
-            if np == dragged || self.ancestry_contains(np, dragged) {
-                return Err(ForestError::Cycle {
-                    id: dragged.as_str().to_string(),
-                });
-            }
-        }
-        if let Some(n) = self.iter_mut().find(|n| &n.id == dragged) {
-            n.parent = new_parent;
-        }
-        Ok(())
-    }
-
-    pub fn move_relative(
-        &mut self,
-        dragged: &Id<Category<CA>>,
-        target: &Id<Category<CA>>,
-        after: bool,
-    ) -> Result<(), ForestError> {
-        if dragged == target {
-            return Ok(());
-        }
-        let new_parent = self
-            .iter()
-            .find(|n| &n.id == target)
-            .and_then(|n| n.parent.clone());
-        if let Some(np) = &new_parent {
-            if self.ancestry_contains(np, dragged) {
-                return Err(ForestError::Cycle {
-                    id: dragged.as_str().to_string(),
-                });
-            }
-        }
-        let Some(dpos) = self.iter().position(|n| &n.id == dragged) else {
-            return Ok(());
-        };
-        let mut node = self.remove(dpos);
-        node.parent = new_parent;
-        let tpos = self
-            .iter()
-            .position(|n| &n.id == target)
-            .unwrap_or(self.len());
-        let insert_at = if after { tpos + 1 } else { tpos };
-        let len = self.len();
-        self.insert(insert_at.min(len), node);
-        Ok(())
-    }
-
     pub fn rename_node(
         &mut self,
         old_id: &Id<Category<CA>>,

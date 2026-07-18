@@ -260,6 +260,29 @@ mod tests {
         assert!(c.is_empty());
     }
 
+    #[test]
+    fn reparent_moves_resource_under_new_parent() {
+        let mut c = test_catalog();
+        c.reparent(&id("bigquery"), None).unwrap();
+        assert_eq!(c.node(&id("bigquery")).unwrap().parent, None);
+    }
+
+    #[test]
+    fn reparent_under_descendant_is_rejected_as_cycle() {
+        let mut c = test_catalog();
+        let err = c.reparent(&id("gcp"), Some(id("bigquery"))).unwrap_err();
+        assert!(matches!(err, ForestError::Cycle { id } if id == "gcp"));
+        assert_eq!(c.node(&id("gcp")).unwrap().parent, None);
+    }
+
+    #[test]
+    fn move_relative_reorders_and_reparents_resource() {
+        let mut c = test_catalog();
+        c.move_relative(&id("bigtable"), &id("bigquery"), false)
+            .unwrap();
+        assert_eq!(c.node(&id("bigtable")).unwrap().parent, Some(id("gcp")));
+    }
+
     fn test_catalog() -> Catalog<(), ()> {
         Catalog(vec![
             Resource {

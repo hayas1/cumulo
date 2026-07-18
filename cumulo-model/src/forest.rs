@@ -172,6 +172,57 @@ pub trait ForestMut: Forest {
         let doomed = self.collect_descendants(node_id);
         self.nodes_mut().retain(|n| !doomed.contains(n.id()));
     }
+
+    fn reparent(
+        &mut self,
+        dragged: &Id<Self::Node>,
+        new_parent: Option<Id<Self::Node>>,
+    ) -> Result<(), ForestError> {
+        if let Some(np) = &new_parent {
+            if np == dragged || self.ancestry_contains(np, dragged) {
+                return Err(ForestError::Cycle {
+                    id: dragged.as_str().to_string(),
+                });
+            }
+        }
+        if let Some(n) = self.nodes_mut().iter_mut().find(|n| n.id() == dragged) {
+            n.set_parent(new_parent);
+        }
+        Ok(())
+    }
+
+    fn move_relative(
+        &mut self,
+        dragged: &Id<Self::Node>,
+        target: &Id<Self::Node>,
+        after: bool,
+    ) -> Result<(), ForestError> {
+        if dragged == target {
+            return Ok(());
+        }
+        let new_parent = self.node(target).and_then(|n| n.parent().cloned());
+        if let Some(np) = &new_parent {
+            if self.ancestry_contains(np, dragged) {
+                return Err(ForestError::Cycle {
+                    id: dragged.as_str().to_string(),
+                });
+            }
+        }
+        let nodes = self.nodes_mut();
+        let Some(dpos) = nodes.iter().position(|n| n.id() == dragged) else {
+            return Ok(());
+        };
+        let mut node = nodes.remove(dpos);
+        node.set_parent(new_parent);
+        let tpos = nodes
+            .iter()
+            .position(|n| n.id() == target)
+            .unwrap_or(nodes.len());
+        let insert_at = if after { tpos + 1 } else { tpos };
+        let len = nodes.len();
+        nodes.insert(insert_at.min(len), node);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
