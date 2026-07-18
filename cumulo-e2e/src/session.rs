@@ -235,16 +235,7 @@ impl Session {
         let expression = format!(
             "(() => {{ const el = document.querySelectorAll({selector:?})[{index}]; if (!el) return false; el.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }})); return true; }})()"
         );
-        let deadline = Instant::now() + SELECTOR_TIMEOUT;
-        loop {
-            if self.eval_bool(&expression).await {
-                return;
-            }
-            if Instant::now() >= deadline {
-                panic!("no `{selector}` at index {index} to click within {SELECTOR_TIMEOUT:?}");
-            }
-            tokio::time::sleep(POLL_INTERVAL).await;
-        }
+        self.wait_until(&expression).await;
     }
 
     pub async fn click(&self, selector: &str) {
