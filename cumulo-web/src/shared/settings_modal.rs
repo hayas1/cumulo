@@ -2,6 +2,7 @@ use crate::category::attributes_tab::AttributesTab;
 use crate::category::CategoryAttribute;
 use crate::client::Client;
 use crate::i18n::*;
+use crate::locale::Lang;
 use crate::platform::Platform;
 use crate::resource::entities_tab::EntitiesTab;
 use crate::resource::ResourceAttribute;
@@ -131,21 +132,23 @@ pub fn SettingsModal(
                     <span class="settings-title">{t!(i18n, settings_title)}</span>
                     <select
                         class="settings-lang"
-                        prop:value=move || match i18n.get_locale() {
-                            Locale::ja => "ja",
-                            Locale::en => "en",
-                        }
+                        prop:value=move || Lang::from(i18n.get_locale()).as_str()
                         on:change=move |ev| {
-                            let locale = if event_target_value(&ev) == "ja" {
-                                Locale::ja
-                            } else {
-                                Locale::en
-                            };
-                            i18n.set_locale(locale);
+                            if let Ok(lang) = event_target_value(&ev).parse::<Lang>() {
+                                i18n.set_locale(lang.into());
+                            }
                         }
                     >
-                        <option value="en">{t!(i18n, lang_en)}</option>
-                        <option value="ja">{t!(i18n, lang_ja)}</option>
+                        {Lang::ALL
+                            .into_iter()
+                            .map(|lang| {
+                                let label = match lang {
+                                    Lang::En => t_string!(i18n, lang_en),
+                                    Lang::Ja => t_string!(i18n, lang_ja),
+                                };
+                                view! { <option value=lang.as_str()>{label}</option> }
+                            })
+                            .collect_view()}
                     </select>
                     <button class="settings-close" on:click=move |_| open.set(false)>"×"</button>
                 </div>

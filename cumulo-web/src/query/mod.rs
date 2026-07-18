@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::category::{CategoryId, Filters};
 use crate::client::Client;
+use crate::locale::Lang;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -27,7 +28,7 @@ pub struct QueryState {
     #[serde(default)]
     pub zoom_axis: Option<CategoryId>,
     #[serde(default)]
-    pub lang: Option<String>,
+    pub lang: Option<Lang>,
     #[serde(flatten)]
     rest: BTreeMap<String, String>,
 }
@@ -147,7 +148,7 @@ mod tests {
     #[test]
     fn round_trips_lang() {
         let s = QueryState {
-            lang: Some("ja".to_string()),
+            lang: Some(Lang::Ja),
             ..Default::default()
         };
         let q = s.to_params();

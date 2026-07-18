@@ -1,6 +1,7 @@
 use crate::category::CategoryAttribute;
 use crate::client::Client;
 use crate::i18n::*;
+use crate::locale::Lang;
 use crate::platform::Platform;
 use crate::query::{QueryState, View};
 use crate::resource::form::ResourceForm;
@@ -12,7 +13,6 @@ use cumulo_model::Resource;
 
 use icondata as icon;
 use leptos::prelude::*;
-use leptos_i18n::Locale as _;
 use leptos_icons::Icon;
 use leptos_router::components::Router;
 use leptos_router::hooks::{use_location, use_navigate};
@@ -75,19 +75,16 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
     });
 
     Effect::new(move |_| {
-        if let Some(loc) = state
-            .with(|q| q.lang.clone())
-            .and_then(|code| code.parse::<Locale>().ok())
-        {
+        if let Some(loc) = state.with(|q| q.lang).map(Locale::from) {
             if untrack(|| i18n.get_locale()) != loc {
                 i18n.set_locale(loc);
             }
         }
     });
     Effect::new(move |_| {
-        let code = i18n.get_locale().as_str();
-        if state.with_untracked(|q| q.lang.as_deref() != Some(code)) {
-            state.update(|q| q.lang = Some(code.to_string()));
+        let lang = Lang::from(i18n.get_locale());
+        if state.with_untracked(|q| q.lang != Some(lang)) {
+            state.update(|q| q.lang = Some(lang));
         }
     });
 
