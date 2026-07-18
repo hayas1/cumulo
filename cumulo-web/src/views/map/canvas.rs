@@ -96,6 +96,11 @@ impl NodeRenderer {
         };
 
         let drill = c.drill_target();
+        let bg_class = if c.is_drillable() {
+            "cluster-bg drillable"
+        } else {
+            "cluster-bg"
+        };
         let (abs_x, abs_y, abs_r) = (c.placement.x, c.placement.y, c.placement.r);
         let state = self.state;
         let zoom_level = self.zoom_level;
@@ -150,7 +155,7 @@ impl NodeRenderer {
                 style:pointer-events=group_pointer
             >
                 <circle
-                    class="cluster-bg"
+                    class=bg_class
                     r=radius
                     fill=color.clone()
                     fill-opacity=bg_fill_opacity

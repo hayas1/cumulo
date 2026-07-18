@@ -66,6 +66,10 @@ impl Cluster {
             PathSeg::Other => None,
         }
     }
+
+    pub fn is_drillable(&self) -> bool {
+        self.drill_target().is_some()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -647,6 +651,19 @@ mod tests {
         };
         assert_eq!(other.key, PathSeg::Other);
         assert_eq!(other.drill_target(), None);
+        assert!(!other.is_drillable());
+    }
+
+    #[test]
+    fn category_cluster_is_drillable() {
+        let tax = taxonomy();
+        let zd = cid("platform");
+        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let layout = engine.build(&[res("r1", &["bigquery"], 1)]);
+        let MapNode::Cluster(gcp) = &layout.tree[0] else {
+            panic!("expected cluster");
+        };
+        assert!(gcp.is_drillable());
     }
 
     #[test]

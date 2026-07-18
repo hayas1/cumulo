@@ -227,6 +227,17 @@ impl Session {
         }
     }
 
+    // Native clicks resolve a screen point, so an element that is being relocated
+    // by a running zoom animation or rebuilt on a layout change can slip out from
+    // under the cursor. Dispatching the click straight at the element drives the
+    // handler regardless of where it currently sits.
+    pub async fn click_nth_js(&self, selector: &str, index: usize) {
+        let expression = format!(
+            "(() => {{ const el = document.querySelectorAll({selector:?})[{index}]; if (!el) return false; el.dispatchEvent(new MouseEvent('click', {{ bubbles: true, cancelable: true }})); return true; }})()"
+        );
+        self.wait_until(&expression).await;
+    }
+
     pub async fn click(&self, selector: &str) {
         let element = self.wait_for(selector).await;
         match timeout(CALL_TIMEOUT, element.click()).await {
