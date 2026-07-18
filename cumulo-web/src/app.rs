@@ -12,6 +12,7 @@ use cumulo_model::Resource;
 
 use icondata as icon;
 use leptos::prelude::*;
+use leptos_i18n::Locale as _;
 use leptos_icons::Icon;
 use leptos_router::components::Router;
 use leptos_router::hooks::{use_location, use_navigate};
@@ -70,6 +71,23 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
                     ..Default::default()
                 },
             );
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(loc) = state
+            .with(|q| q.lang.clone())
+            .and_then(|code| code.parse::<Locale>().ok())
+        {
+            if i18n.get_locale() != loc {
+                i18n.set_locale(loc);
+            }
+        }
+    });
+    Effect::new(move |_| {
+        let code = i18n.get_locale().as_str();
+        if state.with_untracked(|q| q.lang.as_deref() != Some(code)) {
+            state.update(|q| q.lang = Some(code.to_string()));
         }
     });
 
