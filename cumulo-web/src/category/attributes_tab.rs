@@ -4,7 +4,7 @@ use crate::platform::Platform;
 use crate::shared::{
     CategoryDeleteConfirm, CategoryRename, CategoryRenameConfirm, Color, ConfirmDialog,
 };
-use cumulo_model::{Category, Forest};
+use cumulo_model::{Category, Forest, ForestMut};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
