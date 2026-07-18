@@ -1,6 +1,7 @@
 use crate::category::{CategoryAttribute, CategoryId};
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
+use crate::shared::Toast;
 use crate::storage::{DynStore, SaveError};
 use cumulo_model::{Bipartite, Forest};
 use leptos::prelude::*;
@@ -9,7 +10,7 @@ use leptos::prelude::*;
 pub struct Client {
     bipartite: RwSignal<Bipartite<ResourceAttribute, CategoryAttribute>>,
     store: &'static DynStore,
-    toast: RwSignal<Option<String>>,
+    toast: RwSignal<Option<Toast>>,
 }
 
 impl Client {
@@ -30,20 +31,20 @@ impl Client {
         self.bipartite
     }
 
-    pub fn toast(&self) -> RwSignal<Option<String>> {
+    pub fn toast(&self) -> RwSignal<Option<Toast>> {
         self.toast
     }
 
-    pub fn notify(&self, message: impl Into<String>) {
-        self.toast.set(Some(message.into()));
+    pub fn notify(&self, toast: Toast) {
+        self.toast.set(Some(toast));
     }
 
     pub fn save(&self) {
         if let Err(e) = self.store.save(&self.bipartite.get_untracked()) {
             web_sys::console::warn_1(&format!("[cumulo] {e}").into());
             self.notify(match e {
-                SaveError::Invalid(_) => "保存できませんでした（データが不正です）",
-                SaveError::Storage(_) => "保存に失敗しました",
+                SaveError::Invalid(_) => Toast::SaveFailedInvalid,
+                SaveError::Storage(_) => Toast::SaveFailedStorage,
             });
         }
     }

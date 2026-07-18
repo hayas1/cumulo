@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::category::{CategoryId, Filters};
 use crate::client::Client;
+use crate::locale::Lang;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -26,6 +27,8 @@ pub struct QueryState {
     pub filters: Filters,
     #[serde(default)]
     pub zoom_axis: Option<CategoryId>,
+    #[serde(default)]
+    pub lang: Option<Lang>,
     #[serde(flatten)]
     rest: BTreeMap<String, String>,
 }
@@ -140,6 +143,23 @@ mod tests {
     fn omits_zoom_axis_when_none() {
         let q = state(&[("platform", "gcp")]).to_params();
         assert_eq!(q.get("zoom_axis"), None);
+    }
+
+    #[test]
+    fn round_trips_lang() {
+        let s = QueryState {
+            lang: Some(Lang::Ja),
+            ..Default::default()
+        };
+        let q = s.to_params();
+        assert_eq!(q.get("lang").as_deref(), Some("ja"));
+        assert_eq!(QueryState::from_params(&q), s);
+    }
+
+    #[test]
+    fn omits_lang_when_none() {
+        let q = state(&[("platform", "gcp")]).to_params();
+        assert_eq!(q.get("lang"), None);
     }
 
     #[test]

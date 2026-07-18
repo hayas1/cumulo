@@ -1,5 +1,7 @@
+use super::Toast;
 use crate::category::{CategoryAttribute, CategoryId};
 use crate::client::Client;
+use crate::i18n::*;
 use crate::resource::ResourceAttribute;
 use cumulo_model::{Bipartite, Forest, ForestMut, Id};
 use leptos::prelude::*;
@@ -31,6 +33,7 @@ pub fn ConfirmDialog(
     on_confirm: Callback<()>,
     on_cancel: Callback<()>,
 ) -> impl IntoView {
+    let i18n = use_i18n();
     let ok_class = if danger {
         "confirm-ok confirm-danger"
     } else {
@@ -41,7 +44,7 @@ pub fn ConfirmDialog(
             <p class="confirm-text">{message}</p>
             <div class="confirm-btns">
                 <button class="confirm-cancel" on:click=move |_| on_cancel.run(())>
-                    "キャンセル"
+                    {t!(i18n, action_cancel)}
                 </button>
                 <button class=ok_class on:click=move |_| on_confirm.run(())>
                     {confirm_label}
@@ -57,12 +60,13 @@ fn DeleteShell(
     on_cancel: Callback<()>,
     children: Children,
 ) -> impl IntoView {
+    let i18n = use_i18n();
     view! {
         <ConfirmShell on_cancel=on_cancel>
-            <p class="confirm-text">{format!("「{label}」を削除します")}</p>
+            <p class="confirm-text">{t!(i18n, confirm_delete_label, label = label)}</p>
             <div class="confirm-btns">
                 <button class="confirm-cancel" on:click=move |_| on_cancel.run(())>
-                    "キャンセル"
+                    {t!(i18n, action_cancel)}
                 </button>
                 {children()}
             </div>
@@ -88,6 +92,7 @@ pub fn CategoryRenameConfirm(
     pending: RwSignal<Option<CategoryRename>>,
     on_after: Callback<()>,
 ) -> impl IntoView {
+    let i18n = use_i18n();
     move || {
         pending.get().map(|p| {
             let names = client.read().with(|b| {
@@ -102,10 +107,14 @@ pub fn CategoryRenameConfirm(
             let total = names.len();
             let shown: Vec<String> = names.into_iter().take(AFFECTED_PREVIEW_CAP).collect();
             let overflow = total - shown.len();
-            let message = format!(
-                "「{}」を「{}」に変更します。参照している {total} 件のリソースも更新されます。",
-                p.old_id, p.new_id,
-            );
+            let message = t_string!(
+                i18n,
+                rename_message,
+                old = p.old_id.to_string(),
+                new = p.new_id.to_string(),
+                count = total,
+            )
+            .to_string();
             let on_cancel = Callback::new(move |_| pending.set(None));
             let on_confirm = move |_| {
                 let applied = client
@@ -125,7 +134,7 @@ pub fn CategoryRenameConfirm(
                     client.save();
                     on_after.run(());
                 } else {
-                    client.notify("名前を変更できませんでした");
+                    client.notify(Toast::RenameFailed);
                 }
             };
             view! {
@@ -133,14 +142,14 @@ pub fn CategoryRenameConfirm(
                     <p class="confirm-text">{message}</p>
                     <ul class="confirm-list">
                         {shown.into_iter().map(|n| view! { <li>{n}</li> }).collect_view()}
-                        {(overflow > 0).then(|| view! { <li>{format!("ほか {overflow} 件")}</li> })}
+                        {(overflow > 0).then(|| view! { <li>{t!(i18n, confirm_more, count = overflow)}</li> })}
                     </ul>
                     <div class="confirm-btns">
                         <button class="confirm-cancel" on:click=move |_| pending.set(None)>
-                            "キャンセル"
+                            {t!(i18n, action_cancel)}
                         </button>
                         <button class="confirm-ok" on:click=on_confirm>
-                            "変更"
+                            {t!(i18n, rename_confirm)}
                         </button>
                     </div>
                 </ConfirmShell>
@@ -155,6 +164,7 @@ pub fn CategoryDeleteConfirm(
     target: RwSignal<Option<(CategoryId, bool)>>,
     on_after: Callback<()>,
 ) -> impl IntoView {
+    let i18n = use_i18n();
     let apply = move |id: CategoryId, subtree: bool| {
         client.update(|b| b.delete_category(&id, subtree));
         on_after.run(());
@@ -193,16 +203,25 @@ pub fn CategoryDeleteConfirm(
             let shown: Vec<String> = subtree_names.into_iter().take(AFFECTED_PREVIEW_CAP).collect();
             let overflow = total - shown.len();
             let impact = match (&parent_label, has_children) {
-                (Some(p), true) => format!(
-                    "子を繰り上げ: {promote_count} 件のリソースを「{p}」へ付け替え / サブツリーごと: {total} 件のタグを外します。"
-                ),
+                (Some(p), true) => t_string!(
+                    i18n,
+                    impact_promote_parent,
+                    promote = promote_count,
+                    parent = p.clone(),
+                    total = total,
+                )
+                .to_string(),
                 (Some(p), false) => {
-                    format!("参照している {total} 件のリソースを「{p}」へ付け替えます。")
+                    t_string!(i18n, impact_reparent, total = total, parent = p.clone()).to_string()
                 }
-                (None, true) => format!(
-                    "子を繰り上げ: {promote_count} 件 / サブツリーごと: {total} 件 のリソースからタグを外します。"
-                ),
-                (None, false) => format!("参照している {total} 件のリソースからタグを外します。"),
+                (None, true) => t_string!(
+                    i18n,
+                    impact_promote_root,
+                    promote = promote_count,
+                    total = total,
+                )
+                .to_string(),
+                (None, false) => t_string!(i18n, impact_untag, total = total).to_string(),
             };
             let on_cancel = Callback::new(move |_| target.set(None));
             let label = id.to_string();
@@ -210,27 +229,27 @@ pub fn CategoryDeleteConfirm(
                 let promote_id = id.clone();
                 view! {
                     <button class="confirm-ok" on:click=move |_| apply(promote_id.clone(), false)>
-                        "子を繰り上げ"
+                        {t!(i18n, promote_children)}
                     </button>
                     <button
                         class="confirm-ok confirm-danger"
                         on:click=move |_| apply(id.clone(), true)
                     >
-                        "サブツリーごと"
+                        {t!(i18n, delete_subtree)}
                     </button>
                 }
                 .into_any()
             } else {
                 view! {
                     <button class="confirm-ok" on:click=move |_| apply(id.clone(), false)>
-                        "削除"
+                        {t!(i18n, action_delete)}
                     </button>
                 }
                 .into_any()
             };
             view! {
                 <ConfirmShell on_cancel=on_cancel>
-                    <p class="confirm-text">{format!("「{label}」を削除します")}</p>
+                    <p class="confirm-text">{t!(i18n, confirm_delete_label, label = label.clone())}</p>
                     {(total > 0)
                         .then(|| {
                             view! {
@@ -241,13 +260,13 @@ pub fn CategoryDeleteConfirm(
                                         .map(|n| view! { <li>{n}</li> })
                                         .collect_view()}
                                     {(overflow > 0)
-                                        .then(|| view! { <li>{format!("ほか {overflow} 件")}</li> })}
+                                        .then(|| view! { <li>{t!(i18n, confirm_more, count = overflow)}</li> })}
                                 </ul>
                             }
                         })}
                     <div class="confirm-btns">
                         <button class="confirm-cancel" on:click=move |_| target.set(None)>
-                            "キャンセル"
+                            {t!(i18n, action_cancel)}
                         </button>
                         {buttons}
                     </div>
@@ -271,6 +290,7 @@ where
     S: Fn(&mut App) -> &mut F + Copy + Send + Sync + 'static,
     L: Fn(&Id<F::Node>) -> String + Copy + Send + Sync + 'static,
 {
+    let i18n = use_i18n();
     let apply = move |id: Id<F::Node>, subtree: bool| {
         client.update(|b| {
             let forest = select(b);
@@ -295,13 +315,13 @@ where
                 view! {
                     <DeleteShell label=text on_cancel=on_cancel>
                         <button class="confirm-ok" on:click=move |_| apply(promote_id.clone(), false)>
-                            "子を繰り上げ"
+                            {t!(i18n, promote_children)}
                         </button>
                         <button
                             class="confirm-ok confirm-danger"
                             on:click=move |_| apply(id.clone(), true)
                         >
-                            "サブツリーごと"
+                            {t!(i18n, delete_subtree)}
                         </button>
                     </DeleteShell>
                 }
@@ -310,7 +330,7 @@ where
                 view! {
                     <DeleteShell label=text on_cancel=on_cancel>
                         <button class="confirm-ok" on:click=move |_| apply(id.clone(), false)>
-                            "削除"
+                            {t!(i18n, action_delete)}
                         </button>
                     </DeleteShell>
                 }

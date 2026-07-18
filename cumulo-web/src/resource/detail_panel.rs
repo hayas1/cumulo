@@ -1,5 +1,6 @@
 use crate::category::CategoryAttribute;
 use crate::client::Client;
+use crate::i18n::*;
 use crate::platform::Platform;
 use crate::resource::{ResourceAttribute, ResourceId};
 use cumulo_model::{Forest, Resource};
@@ -13,6 +14,7 @@ pub fn DetailPanel(
     selected_id: RwSignal<Option<ResourceId>>,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
+    let i18n = use_i18n();
     let bipartite = client.read();
     let resource = Memo::new(move |_| {
         let id = selected_id.get()?;
@@ -61,7 +63,7 @@ pub fn DetailPanel(
                                         <button
                                             class="detail-edit-btn"
                                             on:click=move |_| editing.set(Some(r_for_edit.clone()))
-                                            title="編集"
+                                            title=move || t_string!(i18n, action_edit)
                                         >
                                             <Icon icon=icon::HiPencilOutlineLg width="14" height="14" />
                                         </button>
@@ -75,7 +77,7 @@ pub fn DetailPanel(
                                 </div>
 
                                 <div class="detail-body">
-                                    <div class="detail-section-title">"カテゴリ"</div>
+                                    <div class="detail-section-title">{t!(i18n, detail_category)}</div>
                                     <div class="detail-value">
                                         {dims_sorted
                                             .into_iter()
@@ -93,7 +95,7 @@ pub fn DetailPanel(
 
                                 <div class="detail-footer">
                                     <span class="detail-freq">
-                                        "アクセス頻度: " {freq}
+                                        {t!(i18n, detail_access_freq)} {freq}
                                     </span>
                                 </div>
                             }

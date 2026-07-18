@@ -4,11 +4,12 @@ use leptos::svg::Svg;
 use wasm_bindgen::JsCast;
 use web_sys::{MouseEvent, PointerEvent, WheelEvent};
 
-use super::layout::{Cluster, Layout, LayoutEngine, MapNode, Placement, ResourceNode};
+use super::layout::{Cluster, Layout, LayoutEngine, MapNode, PathSeg, Placement, ResourceNode};
 use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
 use crate::category::{CategoryAttribute, Filters};
 use crate::client::Client;
+use crate::i18n::*;
 use crate::query::QueryState;
 use crate::resource::{ResourceAttribute, ResourceId};
 
@@ -108,7 +109,13 @@ impl NodeRenderer {
             zoom_level.set(1);
         };
 
-        let label = c.label.clone();
+        let i18n = use_i18n();
+        let key = c.key.clone();
+        let base_label = c.label.clone();
+        let label = move || match &key {
+            PathSeg::Other => t_string!(i18n, map_other).to_string(),
+            _ => base_label.clone(),
+        };
         let leaf_count = c.leaf_count;
         let label_base_fs = if depth == 0 {
             (radius / CLUSTER_LABEL_FS_DIVISOR_TOP).max(CLUSTER_LABEL_FS_MIN_TOP)
@@ -167,7 +174,7 @@ impl NodeRenderer {
                     font-size=count_fs
                     style:opacity=move || count_opacity().to_string()
                 >
-                    {format!("{leaf_count} リソース")}
+                    {leaf_count}
                 </text>
                 {children}
             </g>

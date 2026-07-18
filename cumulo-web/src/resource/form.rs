@@ -1,5 +1,6 @@
 use crate::category::{CategoryAttribute, CategoryId};
 use crate::client::Client;
+use crate::i18n::*;
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
 use cumulo_model::{Forest, Resource, Taxonomy};
@@ -83,6 +84,7 @@ pub fn ResourceForm(
     client: Client,
     editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
 ) -> impl IntoView {
+    let i18n = use_i18n();
     let bipartite = client.read();
     let form_label = RwSignal::new(String::new());
     let form_url = RwSignal::new(String::new());
@@ -163,7 +165,11 @@ pub fn ResourceForm(
             <div class="form-panel">
                 <div class="form-header">
                     <span class="form-title">
-                        {move || if is_new() { "リソースを追加" } else { "リソースを編集" }}
+                        {move || if is_new() {
+                            t_string!(i18n, form_title_new)
+                        } else {
+                            t_string!(i18n, form_title_edit)
+                        }}
                     </span>
                     <button class="form-close" on:click=move |_| editing.set(None)>
                         "×"
@@ -171,16 +177,16 @@ pub fn ResourceForm(
                 </div>
 
                 <div class="form-body">
-                    <label class="form-label">"ラベル（省略可）"</label>
+                    <label class="form-label">{t!(i18n, form_label_optional)}</label>
                     <input
                         node_ref=label_ref
                         class="form-input"
                         type="text"
-                        placeholder="空欄でカテゴリ値から自動生成"
+                        placeholder=move || t_string!(i18n, form_label_placeholder)
                         on:input=move |ev| form_label.set(event_target_value(&ev))
                     />
 
-                    <label class="form-label">"コンソール URL"</label>
+                    <label class="form-label">{t!(i18n, form_console_url)}</label>
                     <input
                         node_ref=url_ref
                         class="form-input"
@@ -189,7 +195,7 @@ pub fn ResourceForm(
                         on:input=move |ev| form_url.set(event_target_value(&ev))
                     />
 
-                    <label class="form-label">"アクセス頻度"</label>
+                    <label class="form-label">{t!(i18n, form_access_freq)}</label>
                     <input
                         node_ref=freq_ref
                         class="form-input form-input-sm"
@@ -202,7 +208,7 @@ pub fn ResourceForm(
                         }
                     />
 
-                    <label class="form-label">"カテゴリ"</label>
+                    <label class="form-label">{t!(i18n, form_category)}</label>
                     {move || {
                         let s = bipartite.get();
                         s.taxonomy.roots()
@@ -318,10 +324,10 @@ pub fn ResourceForm(
 
                 <div class="form-footer">
                     <button class="form-cancel-btn" on:click=move |_| editing.set(None)>
-                        "キャンセル"
+                        {t!(i18n, action_cancel)}
                     </button>
                     <button class="form-save-btn" on:click=move |_| save()>
-                        "保存"
+                        {t!(i18n, action_save)}
                     </button>
                 </div>
             </div>

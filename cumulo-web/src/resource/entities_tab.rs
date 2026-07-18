@@ -1,5 +1,6 @@
 use crate::category::CategoryAttribute;
 use crate::client::Client;
+use crate::i18n::*;
 use crate::platform::Platform;
 use crate::resource::{ResourceAttribute, ResourceId};
 use crate::shared::settings_modal::SettingsEditFlow;
@@ -12,6 +13,7 @@ use leptos_icons::Icon;
 
 #[component]
 pub fn EntitiesTab(client: Client, flow: SettingsEditFlow) -> impl IntoView {
+    let i18n = use_i18n();
     let bipartite = client.read();
     let delete_target = RwSignal::new(Option::<(ResourceId, bool)>::None);
 
@@ -21,7 +23,7 @@ pub fn EntitiesTab(client: Client, flow: SettingsEditFlow) -> impl IntoView {
                 class="resource-add-btn"
                 on:click=move |_| flow.open_editor(Platform::new_resource())
             >
-                "+ リソースを追加"
+                {t!(i18n, entities_add)}
             </button>
 
             {move || {
@@ -29,7 +31,7 @@ pub fn EntitiesTab(client: Client, flow: SettingsEditFlow) -> impl IntoView {
 
                 if s.catalog.is_empty() {
                     return view! {
-                        <p class="resource-tab-empty">"リソースがありません"</p>
+                        <p class="resource-tab-empty">{t!(i18n, entities_empty)}</p>
                     }
                     .into_any();
                 }
@@ -50,7 +52,7 @@ pub fn EntitiesTab(client: Client, flow: SettingsEditFlow) -> impl IntoView {
                                     <button
                                         class="resource-row-edit"
                                         on:click=move |_| flow.open_editor(r_edit.clone())
-                                        title="編集"
+                                        title=move || t_string!(i18n, action_edit)
                                     >
                                         <Icon icon=icon::HiPencilOutlineLg width="14" height="14" />
                                     </button>

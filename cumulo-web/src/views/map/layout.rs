@@ -8,7 +8,6 @@ use crate::category::{CategoryAttribute, CategoryId};
 use crate::resource::{ResourceAttribute, ResourceId};
 
 pub const DEFAULT_COLOR: &str = "#6b8099";
-pub const OTHER_LABEL: &str = "その他";
 
 const BASELINE_LEAVES: usize = 3;
 const TOP_MAX_RADIUS_FACTOR: f64 = 0.22;
@@ -303,7 +302,7 @@ impl<'a> LayoutEngine<'a> {
 
     fn key_label(&self, key: &PathSeg) -> String {
         match key {
-            PathSeg::Other => OTHER_LABEL.to_string(),
+            PathSeg::Other => String::new(),
             PathSeg::Category(id) => match self.taxonomy.node(id) {
                 Some(c) if !c.label.is_empty() => c.label.clone(),
                 _ => id.to_string(),

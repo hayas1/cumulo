@@ -1,0 +1,77 @@
+{
+  "action_cancel": "Cancel",
+  "action_delete": "Delete",
+  "action_save": "Save",
+  "action_clear": "Clear",
+  "action_edit": "Edit",
+  "add_resource": "Add resource",
+
+  "nav_facet": "Facet",
+  "nav_map": "Map",
+
+  "settings_title": "Settings",
+  "settings_tab_data": "Data",
+  "settings_tab_resource": "Resources",
+  "settings_tab_category": "Categories",
+  "settings_export": "Export",
+  "settings_import": "Import",
+  "settings_import_action": "Import...",
+  "settings_delete_local": "Delete local data",
+  "settings_export_and_clear": "Export and clear",
+  "settings_clear_confirm": "This will export your data before clearing it.",
+  "settings_cleared": "Local data deleted",
+  "lang_en": "English",
+  "lang_ja": "日本語",
+  "import_done": "Import complete: {{ resources }} resources, {{ categories }} categories",
+
+  "save_failed_invalid": "Could not save (invalid data)",
+  "save_failed_storage": "Failed to save",
+
+  "facet_no_match": "No matching resources",
+  "facet_collapse": "Collapse",
+  "facet_zoom_axis": "Use as zoom axis",
+  "facet_filter_axis": "Filter by this whole axis",
+
+  "palette_placeholder": "Filter... (e.g. service, auth)",
+  "palette_candidates": "Suggestions:",
+
+  "form_title_new": "Add resource",
+  "form_title_edit": "Edit resource",
+  "form_label_optional": "Label (optional)",
+  "form_label_placeholder": "Auto-generated from category values if blank",
+  "form_console_url": "Console URL",
+  "form_access_freq": "Access frequency",
+  "form_category": "Category",
+
+  "detail_category": "Category",
+  "detail_access_freq": "Access frequency: ",
+
+  "entities_add": "+ Add resource",
+  "entities_empty": "No resources",
+
+  "category_placeholder_label": "Label",
+  "category_drop_here": "⬚ Move here",
+  "category_delete_confirm": "Delete this category?",
+  "category_add_child": "Add child",
+  "category_add_value": "+ Add value",
+  "category_add_axis": "+ Add axis",
+  "category_drag_reparent": "Drag to change parent",
+  "category_id_taken": "That ID is already in use",
+
+  "confirm_delete_label": "Delete \"{{ label }}\"",
+  "confirm_more": "{{ count }} more",
+  "rename_message": "Rename \"{{ old }}\" to \"{{ new }}\". {{ count }} referencing resources will also be updated.",
+  "rename_confirm": "Rename",
+  "rename_failed": "Could not rename",
+  "promote_children": "Promote children",
+  "delete_subtree": "Delete subtree",
+  "impact_promote_parent": "Promote children: reassign {{ promote }} resources to \"{{ parent }}\" / Delete subtree: remove the tag from {{ total }} resources.",
+  "impact_reparent": "Reassign {{ total }} referencing resources to \"{{ parent }}\".",
+  "impact_promote_root": "Promote children: {{ promote }} / Delete subtree: remove the tag from {{ total }} resources.",
+  "impact_untag": "Remove the tag from {{ total }} referencing resources.",
+
+  "map_zoom_out": "Zoom out",
+  "map_zoom_in": "Zoom in",
+  "map_fit": "Fit to view",
+  "map_other": "Other"
+}

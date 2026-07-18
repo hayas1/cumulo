@@ -1,10 +1,12 @@
 use crate::category::CategoryAttribute;
 use crate::client::Client;
+use crate::i18n::*;
+use crate::locale::Lang;
 use crate::platform::Platform;
 use crate::query::{QueryState, View};
 use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
-use crate::shared::{palette::Palette, settings_modal::SettingsModal};
+use crate::shared::{palette::Palette, settings_modal::SettingsModal, Toast};
 use crate::storage::{DynStore, LOCAL_STORE};
 use crate::views::{facet::FacetView, map::MapView};
 use cumulo_model::Resource;
@@ -27,13 +29,16 @@ pub fn RootLocalStore() -> impl IntoView {
 pub fn Root(store: &'static DynStore) -> impl IntoView {
     view! {
         <Router base=Platform::router_base()>
-            <App store=store />
+            <I18nContextProvider>
+                <App store=store />
+            </I18nContextProvider>
         </Router>
     }
 }
 
 #[component]
 pub fn App(store: &'static DynStore) -> impl IntoView {
+    let i18n = use_i18n();
     let client = Client::new(store);
     let editing = RwSignal::new(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
     let settings_open = RwSignal::new(false);
@@ -69,6 +74,20 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
         }
     });
 
+    Effect::new(move |_| {
+        if let Some(loc) = state.with(|q| q.lang).map(Locale::from) {
+            if untrack(|| i18n.get_locale()) != loc {
+                i18n.set_locale(loc);
+            }
+        }
+    });
+    Effect::new(move |_| {
+        let lang = Lang::from(i18n.get_locale());
+        if state.with_untracked(|q| q.lang != Some(lang)) {
+            state.update(|q| q.lang = Some(lang));
+        }
+    });
+
     view! {
         <div class="app">
             <header class="app-header">
@@ -82,20 +101,20 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
                         class:active=move || view.get() == View::Facet
                         on:click=move |_| state.update(|q| q.view = View::Facet)
                     >
-                        "ファセット"
+                        {t!(i18n, nav_facet)}
                     </button>
                     <button
                         class="nav-link"
                         class:active=move || view.get() == View::Map
                         on:click=move |_| state.update(|q| q.view = View::Map)
                     >
-                        "マップ"
+                        {t!(i18n, nav_map)}
                     </button>
                 </nav>
                 <button
                     class="header-settings-btn"
                     on:click=move |_| settings_open.set(true)
-                    title="設定"
+                    title=move || t_string!(i18n, settings_title)
                 >
                     <Icon icon=icon::HiCog6ToothOutlineLg width="18" height="18" />
                 </button>
@@ -131,16 +150,24 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
                 </div>
             })}
 
-            {move || client.toast().get().map(|msg| view! {
-                <div class="import-toast error-toast">
-                    <span class="import-toast-msg">{msg}</span>
-                    <button
-                        class="import-toast-close"
-                        on:click=move |_| client.toast().set(None)
-                    >
-                        "×"
-                    </button>
-                </div>
+            {move || client.toast().get().map(|toast| {
+                let msg = match toast {
+                    Toast::SaveFailedInvalid => t_string!(i18n, save_failed_invalid),
+                    Toast::SaveFailedStorage => t_string!(i18n, save_failed_storage),
+                    Toast::CategoryIdTaken => t_string!(i18n, category_id_taken),
+                    Toast::RenameFailed => t_string!(i18n, rename_failed),
+                };
+                view! {
+                    <div class="import-toast error-toast">
+                        <span class="import-toast-msg">{msg}</span>
+                        <button
+                            class="import-toast-close"
+                            on:click=move |_| client.toast().set(None)
+                        >
+                            "×"
+                        </button>
+                    </div>
+                }
             })}
         </div>
     }
