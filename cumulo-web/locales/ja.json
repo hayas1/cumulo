@@ -20,7 +20,6 @@
   "settings_export_and_clear": "エクスポートして消去",
   "settings_clear_confirm": "エクスポートしてから消去します。",
   "settings_cleared": "ローカルのデータを削除しました",
-  "settings_language": "言語",
   "lang_en": "English",
   "lang_ja": "日本語",
   "import_done": "インポート完了: リソース {{ resources }}件、カテゴリ {{ categories }}件",

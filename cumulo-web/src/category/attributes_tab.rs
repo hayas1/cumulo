@@ -3,7 +3,7 @@ use crate::client::Client;
 use crate::i18n::*;
 use crate::platform::Platform;
 use crate::shared::{
-    CategoryDeleteConfirm, CategoryRename, CategoryRenameConfirm, Color, ConfirmDialog,
+    CategoryDeleteConfirm, CategoryRename, CategoryRenameConfirm, Color, ConfirmDialog, Toast,
 };
 use cumulo_model::{Category, Forest, ForestMut};
 
@@ -87,9 +87,7 @@ impl CategoryTabActions {
             )
         });
         if id_taken {
-            let i18n = use_i18n();
-            self.0
-                .notify(t_string!(i18n, category_id_taken).to_string());
+            self.0.notify(Toast::CategoryIdTaken);
             return false;
         }
         if affected > 0 {

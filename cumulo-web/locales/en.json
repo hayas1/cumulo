@@ -20,7 +20,6 @@
   "settings_export_and_clear": "Export and clear",
   "settings_clear_confirm": "This will export your data before clearing it.",
   "settings_cleared": "Local data deleted",
-  "settings_language": "Language",
   "lang_en": "English",
   "lang_ja": "日本語",
   "import_done": "Import complete: {{ resources }} resources, {{ categories }} categories",

@@ -1,3 +1,4 @@
+use super::Toast;
 use crate::category::{CategoryAttribute, CategoryId};
 use crate::client::Client;
 use crate::i18n::*;
@@ -133,7 +134,7 @@ pub fn CategoryRenameConfirm(
                     client.save();
                     on_after.run(());
                 } else {
-                    client.notify(t_string!(i18n, rename_failed).to_string());
+                    client.notify(Toast::RenameFailed);
                 }
             };
             view! {

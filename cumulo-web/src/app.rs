@@ -6,7 +6,7 @@ use crate::platform::Platform;
 use crate::query::{QueryState, View};
 use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
-use crate::shared::{palette::Palette, settings_modal::SettingsModal};
+use crate::shared::{palette::Palette, settings_modal::SettingsModal, Toast};
 use crate::storage::{DynStore, LOCAL_STORE};
 use crate::views::{facet::FacetView, map::MapView};
 use cumulo_model::Resource;
@@ -150,16 +150,24 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
                 </div>
             })}
 
-            {move || client.toast().get().map(|msg| view! {
-                <div class="import-toast error-toast">
-                    <span class="import-toast-msg">{msg}</span>
-                    <button
-                        class="import-toast-close"
-                        on:click=move |_| client.toast().set(None)
-                    >
-                        "×"
-                    </button>
-                </div>
+            {move || client.toast().get().map(|toast| {
+                let msg = match toast {
+                    Toast::SaveFailedInvalid => t_string!(i18n, save_failed_invalid),
+                    Toast::SaveFailedStorage => t_string!(i18n, save_failed_storage),
+                    Toast::CategoryIdTaken => t_string!(i18n, category_id_taken),
+                    Toast::RenameFailed => t_string!(i18n, rename_failed),
+                };
+                view! {
+                    <div class="import-toast error-toast">
+                        <span class="import-toast-msg">{msg}</span>
+                        <button
+                            class="import-toast-close"
+                            on:click=move |_| client.toast().set(None)
+                        >
+                            "×"
+                        </button>
+                    </div>
+                }
             })}
         </div>
     }
