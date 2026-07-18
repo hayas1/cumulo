@@ -174,7 +174,7 @@ impl NodeRenderer {
                     font-size=count_fs
                     style:opacity=move || count_opacity().to_string()
                 >
-                    {t!(i18n, map_resources, count = move || leaf_count)}
+                    {leaf_count}
                 </text>
                 {children}
             </g>

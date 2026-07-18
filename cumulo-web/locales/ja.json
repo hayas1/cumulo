@@ -3,8 +3,8 @@
   "action_delete": "削除",
   "action_save": "保存",
   "action_clear": "クリア",
-  "action_add": "+ 追加",
   "action_edit": "編集",
+  "add_resource": "リソースを追加",
 
   "nav_facet": "ファセット",
   "nav_map": "マップ",
@@ -29,8 +29,6 @@
   "save_failed_storage": "保存に失敗しました",
 
   "facet_no_match": "マッチするリソースがありません",
-  "count_items_one": "{{ count }} 件",
-  "count_items_other": "{{ count }} 件",
   "facet_collapse": "折りたたむ",
   "facet_zoom_axis": "ズーム軸にする",
   "facet_filter_axis": "この軸全体で絞り込む",
@@ -53,7 +51,6 @@
   "entities_empty": "リソースがありません",
 
   "category_placeholder_label": "ラベル",
-  "category_no_label": "（ラベルなし）",
   "category_drop_here": "⬚ 直下へ",
   "category_delete_confirm": "このカテゴリを削除しますか？",
   "category_add_child": "子を追加",
@@ -74,12 +71,8 @@
   "impact_promote_root": "子を繰り上げ: {{ promote }} 件 / サブツリーごと: {{ total }} 件 のリソースからタグを外します。",
   "impact_untag": "参照している {{ total }} 件のリソースからタグを外します。",
 
-  "map_add": "+ 追加",
-  "map_count": "{{ current }} / {{ total }} 件",
   "map_zoom_out": "ズームアウト",
   "map_zoom_in": "ズームイン",
   "map_fit": "全体表示",
-  "map_other": "その他",
-  "map_resources_one": "{{ count }} リソース",
-  "map_resources_other": "{{ count }} リソース"
+  "map_other": "その他"
 }

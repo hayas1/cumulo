@@ -335,7 +335,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                             >
                                                 <span class="category-label-text">
                                                     {if root.label.is_empty() {
-                                                        t_string!(i18n, category_no_label).to_string()
+                                                        "—".to_string()
                                                     } else {
                                                         root.label.clone()
                                                     }}

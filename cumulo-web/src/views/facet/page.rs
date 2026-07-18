@@ -44,12 +44,13 @@ pub fn FacetView(
                         let entity_count = entities.len();
                         view! {
                             <div class="results-header-row">
-                                <span class="results-count">{t!(i18n, count_items, count = move || entity_count)}</span>
+                                <span class="results-count">{entity_count}</span>
                                 <button
                                     class="add-resource-btn"
                                     on:click=move |_| editing.set(Some(Platform::new_resource()))
+                                    title=move || t_string!(i18n, add_resource)
                                 >
-                                    {t!(i18n, action_add)}
+                                    "+"
                                 </button>
                             </div>
                             <div class="results-list">

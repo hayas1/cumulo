@@ -35,14 +35,15 @@ pub fn Controls(
                 <button
                     class="add-resource-btn"
                     on:click=move |_| editing.set(Some(Platform::new_resource()))
+                    title=move || t_string!(i18n, add_resource)
                 >
-                    {t!(i18n, map_add)}
+                    "+"
                 </button>
                 <span class="level-badge">
                     "Lv." {move || zoom_level.get()}
                 </span>
                 <span class="resource-count">
-                    {move || t_string!(i18n, map_count, current = resource_count.get(), total = total_count.get())}
+                    {move || format!("{} / {}", resource_count.get(), total_count.get())}
                 </span>
                 <div class="zoom-buttons">
                     <button

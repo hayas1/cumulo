@@ -3,8 +3,8 @@
   "action_delete": "Delete",
   "action_save": "Save",
   "action_clear": "Clear",
-  "action_add": "+ Add",
   "action_edit": "Edit",
+  "add_resource": "Add resource",
 
   "nav_facet": "Facet",
   "nav_map": "Map",
@@ -29,8 +29,6 @@
   "save_failed_storage": "Failed to save",
 
   "facet_no_match": "No matching resources",
-  "count_items_one": "{{ count }} item",
-  "count_items_other": "{{ count }} items",
   "facet_collapse": "Collapse",
   "facet_zoom_axis": "Use as zoom axis",
   "facet_filter_axis": "Filter by this whole axis",
@@ -53,7 +51,6 @@
   "entities_empty": "No resources",
 
   "category_placeholder_label": "Label",
-  "category_no_label": "(no label)",
   "category_drop_here": "⬚ Move here",
   "category_delete_confirm": "Delete this category?",
   "category_add_child": "Add child",
@@ -74,12 +71,8 @@
   "impact_promote_root": "Promote children: {{ promote }} / Delete subtree: remove the tag from {{ total }} resources.",
   "impact_untag": "Remove the tag from {{ total }} referencing resources.",
 
-  "map_add": "+ Add",
-  "map_count": "{{ current }} / {{ total }}",
   "map_zoom_out": "Zoom out",
   "map_zoom_in": "Zoom in",
   "map_fit": "Fit to view",
-  "map_other": "Other",
-  "map_resources_one": "{{ count }} resource",
-  "map_resources_other": "{{ count }} resources"
+  "map_other": "Other"
 }
