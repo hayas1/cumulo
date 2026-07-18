@@ -96,6 +96,27 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
         cursor.set(PaletteFocus::Input);
     };
 
+    let remove_pill = move |i: usize| {
+        let pills_len = filters.with(|t| t.iter().count());
+        state.update(|q| {
+            let root = q.filters.iter().nth(i).map(|(k, _)| k.clone());
+            if let Some(root) = root {
+                q.filters.remove_root(&root);
+            }
+        });
+        cursor.set(PaletteFocus::Pill(i).after_removal(pills_len.saturating_sub(1)));
+    };
+
+    let submit_focus = move || match cursor.get_untracked() {
+        PaletteFocus::Candidate(i) => {
+            if let Some((k, v)) = suggestions.with(|s| s.get(i).cloned()) {
+                commit_tag(k, v);
+            }
+        }
+        PaletteFocus::Pill(i) => remove_pill(i),
+        PaletteFocus::Input => {}
+    };
+
     view! {
         <div class="palette-bar">
             <div class="palette-input-row">
@@ -105,7 +126,6 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
                         .into_iter()
                         .enumerate()
                         .map(|(i, (k, v))| {
-                            let root = k.clone();
                             view! {
                                 <span
                                     class="tag-pill"
@@ -116,10 +136,7 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
                                     <span class="pill-val">{v.to_string()}</span>
                                     <button
                                         class="pill-remove"
-                                        on:click=move |_| {
-                                            state.update(|q| q.filters.remove_root(&root));
-                                            cursor.set(PaletteFocus::Input);
-                                        }
+                                        on:click=move |_| remove_pill(i)
                                     >
                                         "×"
                                     </button>
@@ -129,7 +146,14 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
                         .collect::<Vec<_>>()
                 }}
 
-                <div class="palette-input-wrapper">
+                // on:submit, not keydown Enter, so IME confirmation Enter never commits a tag
+                <form
+                    class="palette-input-wrapper"
+                    on:submit=move |ev| {
+                        ev.prevent_default();
+                        submit_focus();
+                    }
+                >
                     <input
                         type="text"
                         class="palette-input"
@@ -165,15 +189,9 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
                                     ev.prevent_default();
                                     cursor.set(cur.down(cand_len));
                                 }
-                                (PaletteFocus::Pill(i), "Backspace" | "Delete" | "Enter") => {
+                                (PaletteFocus::Pill(i), "Backspace" | "Delete") => {
                                     ev.prevent_default();
-                                    state.update(|q| {
-                                        let root = q.filters.iter().nth(i).map(|(k, _)| k.clone());
-                                        if let Some(root) = root {
-                                            q.filters.remove_root(&root);
-                                        }
-                                    });
-                                    cursor.set(cur.after_removal(pills_len.saturating_sub(1)));
+                                    remove_pill(i);
                                 }
                                 (PaletteFocus::Candidate(_), "ArrowLeft") => {
                                     ev.prevent_default();
@@ -187,12 +205,6 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
                                     ev.prevent_default();
                                     cursor.set(cur.up());
                                 }
-                                (PaletteFocus::Candidate(i), "Enter") => {
-                                    if let Some((k, v)) = suggestions.with(|s| s.get(i).cloned()) {
-                                        ev.prevent_default();
-                                        commit_tag(k, v);
-                                    }
-                                }
                                 (_, "Escape") => {
                                     ev.prevent_default();
                                     cursor.set(PaletteFocus::Input);
@@ -201,7 +213,7 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
                             }
                         }
                     />
-                </div>
+                </form>
 
                 <Show when=move || !filters.with(|t| t.is_empty())>
                     <button

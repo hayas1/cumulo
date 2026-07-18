@@ -14,7 +14,7 @@ async fn palette_keyboard_selects_a_suggestion_and_filters() {
     app.press_key(".palette-input", "ArrowDown").await;
     app.wait_for(".suggestion-btn.focused").await;
 
-    app.press_key(".palette-input", "Enter").await;
+    app.press_key_native(".palette-input", "Enter").await;
     app.wait_for(".tag-pill").await;
     app.wait_for_query("filters").await;
 }
