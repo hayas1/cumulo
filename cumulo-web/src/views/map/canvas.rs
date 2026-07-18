@@ -1,5 +1,6 @@
 use cumulo_model::Bipartite;
 use leptos::prelude::*;
+use leptos::svg::Svg;
 use wasm_bindgen::JsCast;
 use web_sys::{MouseEvent, PointerEvent, WheelEvent};
 
@@ -272,23 +273,23 @@ pub fn MapCanvas(
         layout.set(result);
     });
 
+    let svg_ref = NodeRef::<Svg>::new();
+
     Effect::new(move |_| {
         request_animation_frame(move || {
-            if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
-                if let Some(el) = doc.get_element_by_id("main-svg") {
-                    let rect = el.get_bounding_client_rect();
-                    let w = if rect.width() > 0.0 {
-                        rect.width()
-                    } else {
-                        900.0
-                    };
-                    let h = if rect.height() > 0.0 {
-                        rect.height()
-                    } else {
-                        600.0
-                    };
-                    controller.viewport.set((w, h));
-                }
+            if let Some(el) = svg_ref.get_untracked() {
+                let rect = el.get_bounding_client_rect();
+                let w = if rect.width() > 0.0 {
+                    rect.width()
+                } else {
+                    900.0
+                };
+                let h = if rect.height() > 0.0 {
+                    rect.height()
+                } else {
+                    600.0
+                };
+                controller.viewport.set((w, h));
             }
             request_animation_frame(move || {
                 let axis = zoom_axis
@@ -367,6 +368,7 @@ pub fn MapCanvas(
     view! {
         <div id="map-container">
             <svg
+                node_ref=svg_ref
                 id="main-svg"
                 on:wheel=on_wheel
                 on:pointerdown=on_pointer_down
