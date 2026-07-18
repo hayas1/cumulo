@@ -350,6 +350,20 @@ body {
   gap: 0.6rem;
 }
 
+.category-tab:focus {
+  outline: none;
+}
+
+.editor-submit {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .category-row {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -698,6 +712,8 @@ body {
   gap: 0.75rem;
   animation: toast-in 0.2s ease;
 }
+
+.error-toast { border-color: #e05c5c; }
 
 .import-toast-msg { white-space: nowrap; }
 
@@ -1735,6 +1751,18 @@ body {
   font-size: 0.9rem;
   margin: 0;
   text-align: center;
+}
+.confirm-list {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  max-height: 9rem;
+  overflow-y: auto;
+  list-style: disc;
+}
+.confirm-list li {
+  margin: 0.15rem 0;
 }
 .confirm-btns {
   display: flex;

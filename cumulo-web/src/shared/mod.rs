@@ -4,4 +4,7 @@ pub mod palette;
 pub mod settings_modal;
 
 pub use color::Color;
-pub use confirm::{ConfirmDialog, ForestDeleteConfirm};
+pub use confirm::{
+    CategoryDeleteConfirm, CategoryRename, CategoryRenameConfirm, ConfirmDialog,
+    ForestDeleteConfirm,
+};

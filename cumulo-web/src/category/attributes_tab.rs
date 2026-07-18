@@ -1,9 +1,10 @@
 use crate::category::{CategoryAttribute, CategoryId, DEFAULT_COLOR};
 use crate::client::Client;
 use crate::platform::Platform;
-use crate::resource::ResourceAttribute;
-use crate::shared::{Color, ConfirmDialog, ForestDeleteConfirm};
-use cumulo_model::{Bipartite, Category, Forest, ForestMut};
+use crate::shared::{
+    CategoryDeleteConfirm, CategoryRename, CategoryRenameConfirm, Color, ConfirmDialog,
+};
+use cumulo_model::{Category, Forest};
 
 use icondata as icon;
 use leptos::html::{Div, Input};
@@ -18,16 +19,29 @@ struct CategoryTabActions(Client);
 
 impl CategoryTabActions {
     fn reparent(self, dragged: CategoryId, new_parent: Option<CategoryId>) {
-        self.0.update(|s| s.taxonomy.reparent(&dragged, new_parent));
+        let moved = self
+            .0
+            .signal()
+            .try_update(|s| s.taxonomy.reparent(&dragged, new_parent).is_ok())
+            .unwrap_or(false);
+        if moved {
+            self.0.save();
+        }
     }
 
     fn move_relative(self, dragged: CategoryId, target: CategoryId, after: bool) {
-        self.0
-            .update(|s| s.taxonomy.move_relative(&dragged, &target, after));
+        let moved = self
+            .0
+            .signal()
+            .try_update(|s| s.taxonomy.move_relative(&dragged, &target, after).is_ok())
+            .unwrap_or(false);
+        if moved {
+            self.0.save();
+        }
     }
 
     fn delete_subtree(self, node_id: CategoryId) {
-        self.0.update(|s| s.taxonomy.delete_subtree(&node_id));
+        self.0.update(|s| s.delete_category(&node_id, true));
     }
 
     fn commit_node_edit(
@@ -36,9 +50,10 @@ impl CategoryTabActions {
         id_ref: NodeRef<Input>,
         label_ref: NodeRef<Input>,
         color_ref: NodeRef<Input>,
-    ) {
+        rename_confirm: RwSignal<Option<CategoryRename>>,
+    ) -> bool {
         let Some(old_id) = editing_id.get_untracked() else {
-            return;
+            return true;
         };
         let new_id = id_ref
             .get_untracked()
@@ -53,19 +68,49 @@ impl CategoryTabActions {
             .map(|el| el.value())
             .unwrap_or_default();
         if new_id.trim().is_empty() {
-            return;
+            return true;
         }
-        self.0.update(|s| {
-            s.taxonomy.rename_node(
-                &old_id,
-                new_id.try_into().unwrap(),
-                &new_label,
-                CategoryAttribute {
-                    color: Color::from_hex(&new_color),
+        let new_id: CategoryId = new_id.try_into().unwrap();
+        let attribute = CategoryAttribute {
+            color: Color::from_hex(&new_color),
+        };
+        let changed_id = new_id != old_id;
+        let (id_taken, affected) = self.0.signal().with_untracked(|s| {
+            (
+                changed_id && s.taxonomy.node(&new_id).is_some(),
+                if changed_id {
+                    s.resources_with_category(&old_id).len()
+                } else {
+                    0
                 },
             )
         });
-        editing_id.set(None);
+        if id_taken {
+            self.0.notify("その ID は既に使われています");
+            return false;
+        }
+        if affected > 0 {
+            rename_confirm.set(Some(CategoryRename {
+                old_id,
+                new_id,
+                label: new_label,
+                attribute,
+            }));
+            return false;
+        }
+        let applied = self
+            .0
+            .signal()
+            .try_update(|s| {
+                s.rename_category(&old_id, new_id, &new_label, attribute)
+                    .is_ok()
+            })
+            .unwrap_or(false);
+        if applied {
+            self.0.save();
+            editing_id.set(None);
+        }
+        applied
     }
 }
 
@@ -142,6 +187,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
     let acts = CategoryTabActions(client);
 
     let delete_target = RwSignal::new(Option::<(CategoryId, bool)>::None);
+    let rename_confirm = RwSignal::new(Option::<CategoryRename>::None);
 
     Effect::new(move |_| {
         let Some(eid) = editing_id.get() else {
@@ -165,7 +211,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
     });
 
     view! {
-        <div class="category-tab">
+        <div class="category-tab" tabindex="-1">
             {move || {
                 let s = bipartite.get();
                 let collapsed_set = collapsed.get();
@@ -211,11 +257,15 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                     {if is_root_editing {
                                         let rid_cancel = root_id_header.clone();
                                         view! {
-                                            <div
+                                            <form
                                                 class="category-name-editor"
+                                                on:submit=move |ev: web_sys::SubmitEvent| {
+                                                    ev.prevent_default();
+                                                    acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm);
+                                                }
                                                 on:focusout=move |ev: web_sys::FocusEvent| {
                                                     if UiHelper::focus_left(&ev, ".category-name-editor") {
-                                                        acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
+                                                        acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm);
                                                     }
                                                 }
                                             >
@@ -243,6 +293,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                     }
                                                 />
                                                 <button
+                                                    type="button"
                                                     class="category-row-cancel"
                                                     on:click=move |_| {
                                                         editing_id.set(None);
@@ -263,7 +314,8 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                 >
                                                     "キャンセル"
                                                 </button>
-                                            </div>
+                                                <button type="submit" class="editor-submit" tabindex="-1" aria-hidden="true" />
+                                            </form>
                                         }
                                         .into_any()
                                     } else {
@@ -272,8 +324,9 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                             <button
                                                 class="category-name-btn"
                                                 on:click=move |_| {
-                                                    acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
-                                                    editing_id.set(Some(rid_click.clone()));
+                                                    if acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm) {
+                                                        editing_id.set(Some(rid_click.clone()));
+                                                    }
                                                 }
                                             >
                                                 <span class="category-label-text">
@@ -414,11 +467,15 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
 
                                             let row_body = if is_node_editing {
                                                 view! {
-                                                    <div
+                                                    <form
                                                         class="chip-editor category-node-editor"
+                                                        on:submit=move |ev: web_sys::SubmitEvent| {
+                                                            ev.prevent_default();
+                                                            acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm);
+                                                        }
                                                         on:focusout=move |ev: web_sys::FocusEvent| {
                                                             if UiHelper::focus_left(&ev, ".chip-editor") {
-                                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
+                                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm);
                                                             }
                                                         }
                                                     >
@@ -446,6 +503,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                             }
                                                         />
                                                         <button
+                                                            type="button"
                                                             class="chip-editor-randomize"
                                                             on:click=move |_| {
                                                                 let color = Platform::random_color();
@@ -463,12 +521,14 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                             />
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             class="chip-editor-cancel"
                                                             on:click=move |_| editing_id.set(None)
                                                         >
                                                             "キャンセル"
                                                         </button>
-                                                    </div>
+                                                        <button type="submit" class="editor-submit" tabindex="-1" aria-hidden="true" />
+                                                    </form>
                                                 }
                                                 .into_any()
                                             } else {
@@ -502,12 +562,16 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                         }
                                                         on:click=move |_| {
                                                             let cur = editing_id.get_untracked();
-                                                            if cur.as_deref() != Some(nid_click.as_str())
+                                                            let proceed = if cur.as_deref() != Some(nid_click.as_str())
                                                                 && cur.is_some()
                                                             {
-                                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
+                                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm)
+                                                            } else {
+                                                                true
+                                                            };
+                                                            if proceed {
+                                                                editing_id.set(Some(nid_click.clone()));
                                                             }
-                                                            editing_id.set(Some(nid_click.clone()));
                                                         }
                                                     >
                                                         {node_label_text}
@@ -516,8 +580,10 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                         class="category-node-add-child"
                                                         title="子を追加"
                                                         on:click=move |_| {
-                                                            if editing_id.get_untracked().is_some() {
-                                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
+                                                            if editing_id.get_untracked().is_some()
+                                                                && !acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm)
+                                                            {
+                                                                return;
                                                             }
                                                             let parent = nid_add.clone();
                                                             let new_id = Platform::new_node_id();
@@ -638,8 +704,10 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                     <button
                                         class="category-add-root"
                                         on:click=move |_| {
-                                            if editing_id.get_untracked().is_some() {
-                                                acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
+                                            if editing_id.get_untracked().is_some()
+                                                && !acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm)
+                                            {
+                                                return;
                                             }
                                             let new_id = Platform::new_node_id();
                                             let new_id2 = new_id.clone();
@@ -669,7 +737,9 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
             <button
                 class="category-add-btn"
                 on:click=move |_| {
-                    acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref);
+                    if !acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm) {
+                        return;
+                    }
                     let new_id = Platform::new_node_id();
                     let new_id2 = new_id.clone();
                     bipartite.update(|s| {
@@ -706,11 +776,15 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
             })
         }}
 
-        <ForestDeleteConfirm
+        <CategoryDeleteConfirm
             client=client
-            select={|b: &mut Bipartite<ResourceAttribute, CategoryAttribute>| &mut b.taxonomy}
             target=delete_target
-            label={|id: &CategoryId| id.to_string()}
+            on_after=Callback::new(move |_| editing_id.set(None))
+        />
+
+        <CategoryRenameConfirm
+            client=client
+            pending=rename_confirm
             on_after=Callback::new(move |_| editing_id.set(None))
         />
     }

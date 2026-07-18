@@ -1,9 +1,9 @@
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::category::{Category, Taxonomy};
-use crate::error::{Errors, ParseError, ValidationError};
+use crate::error::{Errors, ForestError, ParseError, ValidationError};
 use crate::filters::Filters;
-use crate::forest::{Forest, ForestNode};
+use crate::forest::{Forest, ForestMut, ForestNode};
 use crate::id::Id;
 use crate::resource::{Catalog, Resource};
 
@@ -64,6 +64,81 @@ impl<RA, CA> Bipartite<RA, CA> {
             Ok(self)
         } else {
             Err(Errors(errors))
+        }
+    }
+
+    pub fn resources_with_category(&self, category: &Id<Category<CA>>) -> Vec<&Resource<RA, CA>> {
+        self.catalog
+            .iter()
+            .filter(|r| r.categories.iter().any(|c| c == category))
+            .collect()
+    }
+
+    pub fn rename_category(
+        &mut self,
+        old_id: &Id<Category<CA>>,
+        new_id: Id<Category<CA>>,
+        label: &str,
+        attribute: CA,
+    ) -> Result<(), ForestError> {
+        self.taxonomy
+            .rename_node(old_id, new_id.clone(), label, attribute)?;
+        if old_id != &new_id {
+            for resource in self.catalog.iter_mut() {
+                for c in resource.categories.iter_mut() {
+                    if c == old_id {
+                        *c = new_id.clone();
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn categories_removed_by_delete(
+        &self,
+        node_id: &Id<Category<CA>>,
+        subtree: bool,
+    ) -> std::collections::HashSet<Id<Category<CA>>> {
+        if subtree {
+            self.taxonomy.collect_descendants(node_id)
+        } else {
+            std::iter::once(node_id.clone()).collect()
+        }
+    }
+
+    pub fn resources_affected_by_delete(
+        &self,
+        node_id: &Id<Category<CA>>,
+        subtree: bool,
+    ) -> Vec<&Resource<RA, CA>> {
+        let removed = self.categories_removed_by_delete(node_id, subtree);
+        self.catalog
+            .iter()
+            .filter(|r| r.categories.iter().any(|c| removed.contains(c)))
+            .collect()
+    }
+
+    pub fn delete_category(&mut self, node_id: &Id<Category<CA>>, subtree: bool) {
+        if subtree {
+            let removed = self.categories_removed_by_delete(node_id, true);
+            self.taxonomy.delete_subtree(node_id);
+            for resource in self.catalog.iter_mut() {
+                resource.categories.retain(|c| !removed.contains(c));
+            }
+        } else {
+            let parent = self.taxonomy.node(node_id).and_then(|n| n.parent.clone());
+            self.taxonomy.delete_promote(node_id);
+            for resource in self.catalog.iter_mut() {
+                match &parent {
+                    Some(parent) => resource.categories.iter_mut().for_each(|c| {
+                        if c == node_id {
+                            *c = parent.clone();
+                        }
+                    }),
+                    None => resource.categories.retain(|c| c != node_id),
+                }
+            }
         }
     }
 }
@@ -715,5 +790,109 @@ mod tests {
     #[test]
     fn try_new_returns_ok_for_empty_bipartite() {
         assert!(Bipartite::<(), ()>::try_new(Catalog(vec![]), Taxonomy(vec![])).is_ok());
+    }
+
+    #[test]
+    fn resources_with_category_lists_referencing_resources() {
+        let b = valid_bipartite();
+        let users = b.resources_with_category(&cid("bigquery"));
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].id, rid("r1"));
+        assert!(b.resources_with_category(&cid("bigtable")).is_empty());
+    }
+
+    #[test]
+    fn rename_category_cascades_to_resources() {
+        let mut b = valid_bipartite();
+        b.rename_category(&cid("bigquery"), cid("bq"), "BQ", ())
+            .unwrap();
+        assert!(b.taxonomy.node(&cid("bigquery")).is_none());
+        assert_eq!(b.taxonomy.node(&cid("bq")).unwrap().label, "BQ");
+        assert!(b.catalog[0].categories.contains(&cid("bq")));
+        assert!(!b.catalog[0].categories.contains(&cid("bigquery")));
+        assert!(b.validate().is_ok());
+    }
+
+    #[test]
+    fn rename_category_label_only_keeps_references() {
+        let mut b = valid_bipartite();
+        b.rename_category(&cid("bigquery"), cid("bigquery"), "BigQuery 2", ())
+            .unwrap();
+        assert_eq!(
+            b.taxonomy.node(&cid("bigquery")).unwrap().label,
+            "BigQuery 2"
+        );
+        assert!(b.catalog[0].categories.contains(&cid("bigquery")));
+    }
+
+    #[test]
+    fn rename_category_to_existing_id_is_rejected_and_leaves_unchanged() {
+        use crate::error::ForestError;
+        let mut b = valid_bipartite();
+        let err = b
+            .rename_category(&cid("bigquery"), cid("bigtable"), "x", ())
+            .unwrap_err();
+        assert!(matches!(err, ForestError::DuplicateId { id } if id == "bigtable"));
+        assert!(b.taxonomy.node(&cid("bigquery")).is_some());
+        assert!(b.catalog[0].categories.contains(&cid("bigquery")));
+    }
+
+    #[test]
+    fn delete_category_promote_reassigns_resources_to_parent() {
+        let mut b = valid_bipartite();
+        b.delete_category(&cid("bigquery"), false);
+        assert!(b.taxonomy.node(&cid("bigquery")).is_none());
+        assert!(!b.catalog[0].categories.contains(&cid("bigquery")));
+        assert!(b.catalog[0].categories.contains(&cid("platform")));
+        assert!(b.catalog[0].categories.contains(&cid("prod")));
+        assert!(b.validate().is_ok());
+    }
+
+    #[test]
+    fn delete_category_promote_at_root_removes_the_tag() {
+        let mut b: Bipartite<(), ()> = Bipartite {
+            taxonomy: Taxonomy(vec![Category {
+                id: cid("axis"),
+                label: "Axis".into(),
+                parent: None,
+                attribute: (),
+            }]),
+            catalog: Catalog(vec![Resource {
+                id: rid("r1"),
+                label: None,
+                parent: None,
+                categories: vec![cid("axis")],
+                attribute: (),
+            }]),
+        };
+        b.delete_category(&cid("axis"), false);
+        assert!(b.taxonomy.node(&cid("axis")).is_none());
+        assert!(b.catalog[0].categories.is_empty());
+        assert!(b.validate().is_ok());
+    }
+
+    #[test]
+    fn delete_category_subtree_strips_descendants_from_resources() {
+        let mut b = valid_bipartite();
+        b.delete_category(&cid("platform"), true);
+        assert!(b.taxonomy.node(&cid("platform")).is_none());
+        assert!(b.taxonomy.node(&cid("bigquery")).is_none());
+        assert!(b.taxonomy.node(&cid("bigtable")).is_none());
+        assert_eq!(b.catalog[0].categories, vec![cid("prod")]);
+        assert!(b.validate().is_ok());
+    }
+
+    #[test]
+    fn resources_affected_by_delete_reports_referencing_resources() {
+        let b = valid_bipartite();
+        let subtree = b.resources_affected_by_delete(&cid("platform"), true);
+        assert_eq!(subtree.len(), 1);
+        assert_eq!(subtree[0].id, rid("r1"));
+        assert!(b
+            .resources_affected_by_delete(&cid("platform"), false)
+            .is_empty());
+        assert!(b
+            .resources_affected_by_delete(&cid("bigtable"), false)
+            .is_empty());
     }
 }

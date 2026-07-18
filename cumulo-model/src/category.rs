@@ -109,15 +109,22 @@ impl<CA> Taxonomy<CA> {
         }
     }
 
-    pub fn reparent(&mut self, dragged: &Id<Category<CA>>, new_parent: Option<Id<Category<CA>>>) {
+    pub fn reparent(
+        &mut self,
+        dragged: &Id<Category<CA>>,
+        new_parent: Option<Id<Category<CA>>>,
+    ) -> Result<(), ForestError> {
         if let Some(np) = &new_parent {
             if np == dragged || self.ancestry_contains(np, dragged) {
-                return;
+                return Err(ForestError::Cycle {
+                    id: dragged.as_str().to_string(),
+                });
             }
         }
         if let Some(n) = self.iter_mut().find(|n| &n.id == dragged) {
             n.parent = new_parent;
         }
+        Ok(())
     }
 
     pub fn move_relative(
@@ -125,9 +132,9 @@ impl<CA> Taxonomy<CA> {
         dragged: &Id<Category<CA>>,
         target: &Id<Category<CA>>,
         after: bool,
-    ) {
+    ) -> Result<(), ForestError> {
         if dragged == target {
-            return;
+            return Ok(());
         }
         let new_parent = self
             .iter()
@@ -135,11 +142,13 @@ impl<CA> Taxonomy<CA> {
             .and_then(|n| n.parent.clone());
         if let Some(np) = &new_parent {
             if self.ancestry_contains(np, dragged) {
-                return;
+                return Err(ForestError::Cycle {
+                    id: dragged.as_str().to_string(),
+                });
             }
         }
         let Some(dpos) = self.iter().position(|n| &n.id == dragged) else {
-            return;
+            return Ok(());
         };
         let mut node = self.remove(dpos);
         node.parent = new_parent;
@@ -150,6 +159,7 @@ impl<CA> Taxonomy<CA> {
         let insert_at = if after { tpos + 1 } else { tpos };
         let len = self.len();
         self.insert(insert_at.min(len), node);
+        Ok(())
     }
 
     pub fn rename_node(
@@ -158,8 +168,13 @@ impl<CA> Taxonomy<CA> {
         new_id: Id<Category<CA>>,
         label: &str,
         attribute: CA,
-    ) {
+    ) -> Result<(), ForestError> {
         if old_id != &new_id {
+            if self.iter().any(|n| n.id == new_id) {
+                return Err(ForestError::DuplicateId {
+                    id: new_id.as_str().to_string(),
+                });
+            }
             for other in self.iter_mut() {
                 if other.parent.as_ref() == Some(old_id) {
                     other.parent = Some(new_id.clone());
@@ -171,6 +186,7 @@ impl<CA> Taxonomy<CA> {
             n.label = label.to_string();
             n.attribute = attribute;
         }
+        Ok(())
     }
 }
 
@@ -337,5 +353,117 @@ pub(crate) mod tests {
     #[test]
     fn try_new_empty_is_ok() {
         assert!(Taxonomy::<()>::try_new(vec![]).is_ok());
+    }
+
+    #[test]
+    fn rename_to_fresh_id_updates_node_and_children() {
+        let mut t = Taxonomy(vec![
+            Category {
+                id: id("old"),
+                label: "Old".into(),
+                parent: None,
+                attribute: (),
+            },
+            Category {
+                id: id("child"),
+                label: "Child".into(),
+                parent: Some(id("old")),
+                attribute: (),
+            },
+        ]);
+        t.rename_node(&id("old"), id("new"), "New", ()).unwrap();
+        assert!(t.node(&id("old")).is_none());
+        assert_eq!(t.node(&id("new")).unwrap().label, "New");
+        assert_eq!(t.node(&id("child")).unwrap().parent, Some(id("new")));
+    }
+
+    #[test]
+    fn rename_keeping_id_updates_label_only() {
+        let mut t = Taxonomy(vec![Category {
+            id: id("a"),
+            label: "A".into(),
+            parent: None,
+            attribute: (),
+        }]);
+        t.rename_node(&id("a"), id("a"), "A2", ()).unwrap();
+        assert_eq!(t.node(&id("a")).unwrap().label, "A2");
+    }
+
+    #[test]
+    fn rename_to_existing_id_is_rejected() {
+        use crate::error::ForestError;
+        let mut t = Taxonomy(vec![
+            Category {
+                id: id("a"),
+                label: "A".into(),
+                parent: None,
+                attribute: (),
+            },
+            Category {
+                id: id("b"),
+                label: "B".into(),
+                parent: None,
+                attribute: (),
+            },
+        ]);
+        let err = t.rename_node(&id("a"), id("b"), "A2", ()).unwrap_err();
+        assert!(matches!(err, ForestError::DuplicateId { id } if id == "b"));
+        assert_eq!(t.node(&id("a")).unwrap().label, "A");
+        assert_eq!(t.node(&id("b")).unwrap().label, "B");
+    }
+
+    #[test]
+    fn reparent_to_valid_parent_succeeds() {
+        let mut t = test_forest();
+        t.reparent(&id("bigquery"), Some(id("aws"))).unwrap();
+        assert_eq!(t.node(&id("bigquery")).unwrap().parent, Some(id("aws")));
+    }
+
+    #[test]
+    fn reparent_to_root_succeeds() {
+        let mut t = test_forest();
+        t.reparent(&id("bigquery"), None).unwrap();
+        assert_eq!(t.node(&id("bigquery")).unwrap().parent, None);
+    }
+
+    #[test]
+    fn reparent_under_self_is_rejected_as_cycle() {
+        let mut t = test_forest();
+        let err = t.reparent(&id("gcp"), Some(id("gcp"))).unwrap_err();
+        assert!(matches!(err, ForestError::Cycle { id } if id == "gcp"));
+        assert_eq!(t.node(&id("gcp")).unwrap().parent, Some(id("cloud")));
+    }
+
+    #[test]
+    fn reparent_under_descendant_is_rejected_as_cycle() {
+        let mut t = test_forest();
+        let err = t.reparent(&id("gcp"), Some(id("bigquery"))).unwrap_err();
+        assert!(matches!(err, ForestError::Cycle { id } if id == "gcp"));
+        assert_eq!(t.node(&id("gcp")).unwrap().parent, Some(id("cloud")));
+    }
+
+    #[test]
+    fn move_relative_reorders_under_same_parent_and_succeeds() {
+        let mut t = test_forest();
+        t.move_relative(&id("bigtable"), &id("bigquery"), false)
+            .unwrap();
+        assert_eq!(t.node(&id("bigtable")).unwrap().parent, Some(id("gcp")));
+    }
+
+    #[test]
+    fn move_relative_same_node_is_noop_ok() {
+        let mut t = test_forest();
+        t.move_relative(&id("gcp"), &id("gcp"), true).unwrap();
+        assert_eq!(t.node(&id("gcp")).unwrap().parent, Some(id("cloud")));
+    }
+
+    #[test]
+    fn move_relative_into_descendant_is_rejected_as_cycle() {
+        let mut t = test_forest();
+        let err = t
+            .move_relative(&id("gcp"), &id("bigquery"), false)
+            .unwrap_err();
+        assert!(matches!(err, ForestError::Cycle { id } if id == "gcp"));
+        assert_eq!(t.node(&id("gcp")).unwrap().parent, Some(id("cloud")));
     }
 }

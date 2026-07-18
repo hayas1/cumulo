@@ -191,6 +191,20 @@ impl Session {
         );
     }
 
+    pub async fn press_key_native(&self, selector: &str, key: &str) {
+        let element = self.wait_for(selector).await;
+        let press = async {
+            element.focus().await?;
+            element.press_key(key).await?;
+            Ok::<_, chromiumoxide::error::CdpError>(())
+        };
+        match timeout(CALL_TIMEOUT, press).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => panic!("press_key_native `{selector}` failed: {e:?}"),
+            Err(_) => panic!("press_key_native `{selector}` timed out after {CALL_TIMEOUT:?}"),
+        }
+    }
+
     pub async fn click_nth(&self, selector: &str, index: usize) {
         let deadline = Instant::now() + SELECTOR_TIMEOUT;
         let element = loop {
