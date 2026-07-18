@@ -79,7 +79,7 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
             .with(|q| q.lang.clone())
             .and_then(|code| code.parse::<Locale>().ok())
         {
-            if i18n.get_locale() != loc {
+            if untrack(|| i18n.get_locale()) != loc {
                 i18n.set_locale(loc);
             }
         }
