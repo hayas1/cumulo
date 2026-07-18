@@ -4,7 +4,7 @@ use leptos::svg::Svg;
 use wasm_bindgen::JsCast;
 use web_sys::{MouseEvent, PointerEvent, WheelEvent};
 
-use super::layout::{Cluster, Layout, LayoutEngine, MapNode, Placement, ResourceNode};
+use super::layout::{Cluster, Layout, LayoutEngine, MapNode, PathSeg, Placement, ResourceNode};
 use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
 use crate::category::{CategoryAttribute, Filters};
@@ -110,7 +110,12 @@ impl NodeRenderer {
         };
 
         let i18n = use_i18n();
-        let label = c.label.clone();
+        let key = c.key.clone();
+        let base_label = c.label.clone();
+        let label = move || match &key {
+            PathSeg::Other => t_string!(i18n, map_other).to_string(),
+            _ => base_label.clone(),
+        };
         let leaf_count = c.leaf_count;
         let label_base_fs = if depth == 0 {
             (radius / CLUSTER_LABEL_FS_DIVISOR_TOP).max(CLUSTER_LABEL_FS_MIN_TOP)
@@ -255,7 +260,6 @@ pub fn MapCanvas(
     controller: ZoomController,
     fit_action: Callback<()>,
 ) -> impl IntoView {
-    let i18n = use_i18n();
     let bipartite = client.read();
     let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
     let zoom_axis = Memo::new(move |_| state.with(|q| q.zoom_axis.clone()));
@@ -271,8 +275,7 @@ pub fn MapCanvas(
             .get()
             .unwrap_or_else(|| client.default_zoom_axis());
         let (w, h) = controller.viewport.get();
-        let other_label = t_string!(i18n, map_other).to_string();
-        let result = LayoutEngine::new(&b.taxonomy, &zd, other_label, w, h).build(&b.catalog);
+        let result = LayoutEngine::new(&b.taxonomy, &zd, w, h).build(&b.catalog);
         controller.content_bounds.set(result.content_bounds());
         layout.set(result);
     });
