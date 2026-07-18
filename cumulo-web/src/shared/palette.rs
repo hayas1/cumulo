@@ -1,5 +1,6 @@
 use crate::category::CategoryId;
 use crate::client::Client;
+use crate::i18n::*;
 use crate::query::QueryState;
 use cumulo_model::{Forest, Selection};
 use leptos::prelude::*;
@@ -70,6 +71,7 @@ impl PaletteFocus {
 
 #[component]
 pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
+    let i18n = use_i18n();
     let bipartite = client.read();
     let filters = Memo::new(move |_| state.with(|q| q.filters.clone()));
     let input_text = RwSignal::new(String::new());
@@ -157,7 +159,7 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
                     <input
                         type="text"
                         class="palette-input"
-                        placeholder="絞り込み... (例: service, auth)"
+                        placeholder=move || t_string!(i18n, palette_placeholder)
                         prop:value=move || input_text.get()
                         on:input=move |ev| {
                             input_text.set(event_target_value(&ev));
@@ -223,14 +225,14 @@ pub fn Palette(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
                             input_text.set(String::new());
                         }
                     >
-                        "クリア"
+                        {t!(i18n, action_clear)}
                     </button>
                 </Show>
             </div>
 
             <Show when=move || suggestions.with(|s| !s.is_empty())>
                 <div class="palette-suggestions">
-                    <span class="suggestions-label">"候補:"</span>
+                    <span class="suggestions-label">{t!(i18n, palette_candidates)}</span>
                     {move || {
                         suggestions
                             .get()

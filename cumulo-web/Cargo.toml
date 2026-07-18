@@ -9,6 +9,7 @@ license-file.workspace = true
 [dependencies]
 cumulo-model = { path = "../cumulo-model", features = ["demo"] }
 leptos = { version = "0.8", features = ["csr"] }
+leptos_i18n = { version = "0.6", features = ["csr", "plurals"] }
 leptos_router = { version = "0.8" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -30,3 +31,6 @@ console_error_panic_hook = "0.1"
 
 [dev-dependencies]
 leptos_router = { version = "0.8", features = ["ssr"] }
+
+[build-dependencies]
+leptos_i18n_build = { version = "0.6", features = ["plurals", "csr"] }

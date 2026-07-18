@@ -9,6 +9,7 @@ use super::lod::Lod;
 use super::zoom::{Pan, Transform, ZoomController};
 use crate::category::{CategoryAttribute, Filters};
 use crate::client::Client;
+use crate::i18n::*;
 use crate::query::QueryState;
 use crate::resource::{ResourceAttribute, ResourceId};
 
@@ -108,6 +109,7 @@ impl NodeRenderer {
             zoom_level.set(1);
         };
 
+        let i18n = use_i18n();
         let label = c.label.clone();
         let leaf_count = c.leaf_count;
         let label_base_fs = if depth == 0 {
@@ -167,7 +169,7 @@ impl NodeRenderer {
                     font-size=count_fs
                     style:opacity=move || count_opacity().to_string()
                 >
-                    {format!("{leaf_count} リソース")}
+                    {t!(i18n, map_resources, count = move || leaf_count)}
                 </text>
                 {children}
             </g>
@@ -253,6 +255,7 @@ pub fn MapCanvas(
     controller: ZoomController,
     fit_action: Callback<()>,
 ) -> impl IntoView {
+    let i18n = use_i18n();
     let bipartite = client.read();
     let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
     let zoom_axis = Memo::new(move |_| state.with(|q| q.zoom_axis.clone()));
@@ -268,7 +271,8 @@ pub fn MapCanvas(
             .get()
             .unwrap_or_else(|| client.default_zoom_axis());
         let (w, h) = controller.viewport.get();
-        let result = LayoutEngine::new(&b.taxonomy, &zd, w, h).build(&b.catalog);
+        let other_label = t_string!(i18n, map_other).to_string();
+        let result = LayoutEngine::new(&b.taxonomy, &zd, other_label, w, h).build(&b.catalog);
         controller.content_bounds.set(result.content_bounds());
         layout.set(result);
     });

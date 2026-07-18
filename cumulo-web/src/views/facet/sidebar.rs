@@ -1,5 +1,6 @@
 use crate::category::CategoryId;
 use crate::client::Client;
+use crate::i18n::*;
 use crate::query::{QueryState, View};
 use cumulo_model::{Forest, Selection};
 use leptos::prelude::*;
@@ -7,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 #[component]
 pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
+    let i18n = use_i18n();
     let bipartite = client.read();
     let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
     let map_mode = state.with_untracked(|q| q.view) == View::Map;
@@ -59,7 +61,7 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                             view! {
                                 <button
                                     class="facet-panel-chevron"
-                                    title="折りたたむ"
+                                    title=move || t_string!(i18n, facet_collapse)
                                     on:click=move |_| {
                                         collapsed.update(|c| {
                                             if !c.remove(&rid_toggle) {
@@ -80,7 +82,7 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                                 <button
                                     class="facet-panel-title facet-panel-title-btn"
                                     class:active=move || state.with(|q| q.zoom_axis.as_ref() == Some(&did_eq))
-                                    title="ズーム軸にする"
+                                    title=move || t_string!(i18n, facet_zoom_axis)
                                     on:click=move |_| state.update(|q| q.zoom_axis = Some(did.clone()))
                                 >
                                     <span class="fv-label">{root_label}</span>
@@ -98,7 +100,7 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                                     } else {
                                         "facet-panel-title facet-panel-title-btn"
                                     }
-                                    title="この軸全体で絞り込む"
+                                    title=move || t_string!(i18n, facet_filter_axis)
                                     on:click=move |_| {
                                         state.update(|q| q.filters.toggle(rid.clone(), rid.clone()));
                                     }

@@ -1,3 +1,5 @@
+include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
+
 mod app;
 mod category;
 mod client;

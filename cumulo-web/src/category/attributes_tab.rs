@@ -1,5 +1,6 @@
 use crate::category::{CategoryAttribute, CategoryId, DEFAULT_COLOR};
 use crate::client::Client;
+use crate::i18n::*;
 use crate::platform::Platform;
 use crate::shared::{
     CategoryDeleteConfirm, CategoryRename, CategoryRenameConfirm, Color, ConfirmDialog,
@@ -86,7 +87,9 @@ impl CategoryTabActions {
             )
         });
         if id_taken {
-            self.0.notify("その ID は既に使われています");
+            let i18n = use_i18n();
+            self.0
+                .notify(t_string!(i18n, category_id_taken).to_string());
             return false;
         }
         if affected > 0 {
@@ -116,12 +119,12 @@ impl CategoryTabActions {
 
 #[derive(Copy, Clone)]
 struct ConfirmState {
-    msg: RwSignal<Option<&'static str>>,
+    msg: RwSignal<Option<String>>,
     action: RwSignal<Option<Arc<dyn Fn() + Send + Sync>>>,
 }
 
 impl ConfirmState {
-    fn prompt(self, msg: &'static str, action: impl Fn() + Send + Sync + 'static) {
+    fn prompt(self, msg: String, action: impl Fn() + Send + Sync + 'static) {
         self.msg.set(Some(msg));
         self.action.set(Some(Arc::new(action)));
     }
@@ -169,6 +172,7 @@ impl UiHelper {
 
 #[component]
 pub fn AttributesTab(client: Client) -> impl IntoView {
+    let i18n = use_i18n();
     let bipartite = client.signal();
     let editing_id = RwSignal::new(Option::<CategoryId>::None);
     let id_ref = NodeRef::<Input>::new();
@@ -273,7 +277,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                     node_ref=label_ref
                                                     class="category-input"
                                                     type="text"
-                                                    placeholder="ラベル"
+                                                    placeholder=move || t_string!(i18n, category_placeholder_label)
                                                 />
                                                 <span class="category-name-sep">"/"</span>
                                                 <input
@@ -312,7 +316,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                         client.save();
                                                     }
                                                 >
-                                                    "キャンセル"
+                                                    {t!(i18n, action_cancel)}
                                                 </button>
                                                 <button type="submit" class="editor-submit" tabindex="-1" aria-hidden="true" />
                                             </form>
@@ -331,7 +335,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                             >
                                                 <span class="category-label-text">
                                                     {if root.label.is_empty() {
-                                                        "（ラベルなし）".to_string()
+                                                        t_string!(i18n, category_no_label).to_string()
                                                     } else {
                                                         root.label.clone()
                                                     }}
@@ -376,7 +380,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                             drag_over.set(None);
                                                         }
                                                     >
-                                                        "⬚ 直下へ"
+                                                        {t!(i18n, category_drop_here)}
                                                     </div>
                                                 }
                                                 .into_any()
@@ -395,7 +399,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                     let id = rid_d.clone();
                                                     editing_id.set(None);
                                                     confirm.prompt(
-                                                        "このカテゴリを削除しますか？",
+                                                        t_string!(i18n, category_delete_confirm).to_string(),
                                                         move || acts.delete_subtree(id.clone()),
                                                     );
                                                 }
@@ -483,7 +487,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                             node_ref=label_ref
                                                             class="chip-editor-val"
                                                             type="text"
-                                                            placeholder="ラベル"
+                                                            placeholder=move || t_string!(i18n, category_placeholder_label)
                                                         />
                                                         <span class="category-name-sep">"/"</span>
                                                         <input
@@ -525,7 +529,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                             class="chip-editor-cancel"
                                                             on:click=move |_| editing_id.set(None)
                                                         >
-                                                            "キャンセル"
+                                                            {t!(i18n, action_cancel)}
                                                         </button>
                                                         <button type="submit" class="editor-submit" tabindex="-1" aria-hidden="true" />
                                                     </form>
@@ -578,7 +582,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                     </button>
                                                     <button
                                                         class="category-node-add-child"
-                                                        title="子を追加"
+                                                        title=move || t_string!(i18n, category_add_child)
                                                         on:click=move |_| {
                                                             if editing_id.get_untracked().is_some()
                                                                 && !acts.commit_node_edit(editing_id, id_ref, label_ref, color_ref, rename_confirm)
@@ -609,7 +613,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                     </button>
                                                     <button
                                                         class="category-node-delete"
-                                                        title="削除"
+                                                        title=move || t_string!(i18n, action_delete)
                                                         on:click=move |_| {
                                                             delete_target
                                                                 .set(Some((
@@ -677,7 +681,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                                     <span
                                                         class="category-drag-handle"
                                                         draggable="true"
-                                                        title="ドラッグで親を付け替え"
+                                                        title=move || t_string!(i18n, category_drag_reparent)
                                                         on:dragstart=move |ev: web_sys::DragEvent| {
                                                             dragging.set(Some(v_drag.clone()));
                                                             if let Some(dt) = ev.data_transfer() {
@@ -725,7 +729,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                                             editing_id.set(Some(new_id2));
                                         }
                                     >
-                                        "+ 値を追加"
+                                        {t!(i18n, category_add_value)}
                                     </button>
                                 </div>
                             </div>
@@ -754,7 +758,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                     editing_id.set(Some(new_id2));
                 }
             >
-                "+ 軸を追加"
+                {t!(i18n, category_add_axis)}
             </button>
         </div>
 
@@ -763,7 +767,7 @@ pub fn AttributesTab(client: Client) -> impl IntoView {
                 view! {
                     <ConfirmDialog
                         message=msg
-                        confirm_label="削除"
+                        confirm_label=t_string!(i18n, action_delete)
                         on_confirm=Callback::new(move |_| {
                             if let Some(action) = confirm.action.get_untracked() {
                                 action();

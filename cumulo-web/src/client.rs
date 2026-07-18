@@ -1,4 +1,5 @@
 use crate::category::{CategoryAttribute, CategoryId};
+use crate::i18n::*;
 use crate::platform::Platform;
 use crate::resource::ResourceAttribute;
 use crate::storage::{DynStore, SaveError};
@@ -41,9 +42,10 @@ impl Client {
     pub fn save(&self) {
         if let Err(e) = self.store.save(&self.bipartite.get_untracked()) {
             web_sys::console::warn_1(&format!("[cumulo] {e}").into());
+            let i18n = use_i18n();
             self.notify(match e {
-                SaveError::Invalid(_) => "保存できませんでした（データが不正です）",
-                SaveError::Storage(_) => "保存に失敗しました",
+                SaveError::Invalid(_) => t_string!(i18n, save_failed_invalid),
+                SaveError::Storage(_) => t_string!(i18n, save_failed_storage),
             });
         }
     }

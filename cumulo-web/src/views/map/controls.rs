@@ -1,6 +1,7 @@
 use super::zoom::ZoomController;
 use crate::category::CategoryAttribute;
 use crate::client::Client;
+use crate::i18n::*;
 use crate::platform::Platform;
 use crate::query::QueryState;
 use crate::resource::ResourceAttribute;
@@ -16,6 +17,7 @@ pub fn Controls(
     controller: ZoomController,
     fit_action: Callback<()>,
 ) -> impl IntoView {
+    let i18n = use_i18n();
     let bipartite = client.read();
     let selected_tags = Memo::new(move |_| state.with(|q| q.filters.clone()));
     let resource_count = Memo::new(move |_| {
@@ -34,35 +36,32 @@ pub fn Controls(
                     class="add-resource-btn"
                     on:click=move |_| editing.set(Some(Platform::new_resource()))
                 >
-                    "+ 追加"
+                    {t!(i18n, map_add)}
                 </button>
                 <span class="level-badge">
                     "Lv." {move || zoom_level.get()}
                 </span>
                 <span class="resource-count">
-                    {move || resource_count.get()}
-                    " / "
-                    {move || total_count.get()}
-                    " 件"
+                    {move || t_string!(i18n, map_count, current = resource_count.get(), total = total_count.get())}
                 </span>
                 <div class="zoom-buttons">
                     <button
                         class="zoom-btn"
-                        title="ズームアウト"
+                        title=move || t_string!(i18n, map_zoom_out)
                         on:click=move |_| controller.zoom_out()
                     >
                         "−"
                     </button>
                     <button
                         class="zoom-btn"
-                        title="ズームイン"
+                        title=move || t_string!(i18n, map_zoom_in)
                         on:click=move |_| controller.zoom_in()
                     >
                         "+"
                     </button>
                     <button
                         class="zoom-btn zoom-fit"
-                        title="全体表示"
+                        title=move || t_string!(i18n, map_fit)
                         on:click=move |_| fit_action.run(())
                     >
                         "⊡"

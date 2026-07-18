@@ -1,5 +1,6 @@
 use crate::category::CategoryAttribute;
 use crate::client::Client;
+use crate::i18n::*;
 use crate::platform::Platform;
 use crate::query::{QueryState, View};
 use crate::resource::form::ResourceForm;
@@ -27,13 +28,16 @@ pub fn RootLocalStore() -> impl IntoView {
 pub fn Root(store: &'static DynStore) -> impl IntoView {
     view! {
         <Router base=Platform::router_base()>
-            <App store=store />
+            <I18nContextProvider>
+                <App store=store />
+            </I18nContextProvider>
         </Router>
     }
 }
 
 #[component]
 pub fn App(store: &'static DynStore) -> impl IntoView {
+    let i18n = use_i18n();
     let client = Client::new(store);
     let editing = RwSignal::new(Option::<Resource<ResourceAttribute, CategoryAttribute>>::None);
     let settings_open = RwSignal::new(false);
@@ -82,20 +86,20 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
                         class:active=move || view.get() == View::Facet
                         on:click=move |_| state.update(|q| q.view = View::Facet)
                     >
-                        "ファセット"
+                        {t!(i18n, nav_facet)}
                     </button>
                     <button
                         class="nav-link"
                         class:active=move || view.get() == View::Map
                         on:click=move |_| state.update(|q| q.view = View::Map)
                     >
-                        "マップ"
+                        {t!(i18n, nav_map)}
                     </button>
                 </nav>
                 <button
                     class="header-settings-btn"
                     on:click=move |_| settings_open.set(true)
-                    title="設定"
+                    title=move || t_string!(i18n, settings_title)
                 >
                     <Icon icon=icon::HiCog6ToothOutlineLg width="18" height="18" />
                 </button>

@@ -8,7 +8,6 @@ use crate::category::{CategoryAttribute, CategoryId};
 use crate::resource::{ResourceAttribute, ResourceId};
 
 pub const DEFAULT_COLOR: &str = "#6b8099";
-pub const OTHER_LABEL: &str = "その他";
 
 const BASELINE_LEAVES: usize = 3;
 const TOP_MAX_RADIUS_FACTOR: f64 = 0.22;
@@ -218,6 +217,7 @@ impl Layout {
 pub struct LayoutEngine<'a> {
     taxonomy: &'a Taxonomy<CategoryAttribute>,
     zoom_axis: &'a CategoryId,
+    other_label: String,
     width: f64,
     height: f64,
 }
@@ -234,12 +234,14 @@ impl<'a> LayoutEngine<'a> {
     pub fn new(
         taxonomy: &'a Taxonomy<CategoryAttribute>,
         zoom_axis: &'a CategoryId,
+        other_label: String,
         width: f64,
         height: f64,
     ) -> Self {
         LayoutEngine {
             taxonomy,
             zoom_axis,
+            other_label,
             width,
             height,
         }
@@ -303,7 +305,7 @@ impl<'a> LayoutEngine<'a> {
 
     fn key_label(&self, key: &PathSeg) -> String {
         match key {
-            PathSeg::Other => OTHER_LABEL.to_string(),
+            PathSeg::Other => self.other_label.clone(),
             PathSeg::Category(id) => match self.taxonomy.node(id) {
                 Some(c) if !c.label.is_empty() => c.label.clone(),
                 _ => id.to_string(),
@@ -551,7 +553,7 @@ mod tests {
     fn zoom_path_excludes_axis_root_and_orders_top_down() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let r = res("r1", &["bigquery"], 1);
         assert_eq!(
             engine.zoom_path(&r),
@@ -566,7 +568,7 @@ mod tests {
     fn zoom_path_without_value_is_other() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let r = res("r1", &[], 1);
         assert_eq!(engine.zoom_path(&r), vec![PathSeg::Other]);
     }
@@ -575,7 +577,7 @@ mod tests {
     fn build_groups_resources_under_shared_ancestors() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let resources = vec![
             res("r1", &["bigquery"], 1),
             res("r2", &["bigtable"], 1),
@@ -599,7 +601,7 @@ mod tests {
     fn cluster_carries_label_and_color() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let layout = engine.build(&[res("r1", &["bigquery"], 1)]);
         let MapNode::Cluster(gcp) = &layout.tree[0] else {
             panic!("expected cluster");
@@ -613,7 +615,7 @@ mod tests {
     fn build_assigns_finite_placement() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let layout = engine.build(&[res("r1", &["bigquery"], 1), res("r2", &["s3"], 1)]);
         for node in &layout.tree {
             let p = match node {
@@ -629,7 +631,7 @@ mod tests {
     fn cluster_drill_target_is_axis_and_value() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let layout = engine.build(&[res("r1", &["bigquery"], 1)]);
         let MapNode::Cluster(gcp) = &layout.tree[0] else {
             panic!("expected cluster");
@@ -641,7 +643,7 @@ mod tests {
     fn other_cluster_has_no_drill_target() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let layout = engine.build(&[res("r1", &[], 1)]);
         let MapNode::Cluster(other) = &layout.tree[0] else {
             panic!("expected cluster");
@@ -654,7 +656,7 @@ mod tests {
     fn empty_resources_produce_empty_tree() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let layout = engine.build(&[]);
         assert!(layout.tree.is_empty());
     }
@@ -663,7 +665,7 @@ mod tests {
     fn works_with_catalog_slice() {
         let tax = taxonomy();
         let zd = cid("platform");
-        let engine = LayoutEngine::new(&tax, &zd, 900.0, 600.0);
+        let engine = LayoutEngine::new(&tax, &zd, "Other".to_string(), 900.0, 600.0);
         let catalog = Catalog(vec![res("r1", &["bigquery"], 3)]);
         let layout = engine.build(&catalog);
         assert_eq!(layout.tree.len(), 1);
