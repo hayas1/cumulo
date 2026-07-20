@@ -194,7 +194,9 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         let cols = self.taxonomy.children_of(col_axis);
         let row_buckets: std::collections::HashSet<_> = rows.iter().map(|c| c.id.clone()).collect();
         let col_buckets: std::collections::HashSet<_> = cols.iter().map(|c| c.id.clone()).collect();
-        let base = base.without_root(row_axis).without_root(col_axis);
+        let row_root = self.taxonomy.root_or_self(row_axis);
+        let col_root = self.taxonomy.root_or_self(col_axis);
+        let base = base.without_root(&row_root).without_root(&col_root);
 
         let mut counts = std::collections::HashMap::new();
         for resource in self.catalog.iter() {
@@ -202,8 +204,8 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
                 continue;
             }
             let (Some(row), Some(col)) = (
-                self.bucketed_value(resource, row_axis, &row_buckets),
-                self.bucketed_value(resource, col_axis, &col_buckets),
+                self.bucketed_value(resource, &row_root, &row_buckets),
+                self.bucketed_value(resource, &col_root, &col_buckets),
             ) else {
                 continue;
             };
@@ -215,10 +217,10 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
     fn bucketed_value(
         &self,
         resource: &Resource<RA, CA>,
-        axis: &Id<Category<CA>>,
+        root: &Id<Category<CA>>,
         buckets: &std::collections::HashSet<Id<Category<CA>>>,
     ) -> Option<Id<Category<CA>>> {
-        let value = resource.category(&self.taxonomy, axis)?;
+        let value = resource.category(&self.taxonomy, root)?;
         self.taxonomy
             .ancestry(value)
             .into_iter()
@@ -1053,6 +1055,26 @@ mod tests {
         let base = Filters::from_iter([(cid("platform"), cid("aws"))]);
         let p = b.pivot(&cid("platform"), &cid("env"), &base);
         assert_eq!(p.count(&cid("gcp"), &cid("dev")), 2);
+    }
+
+    #[test]
+    fn pivot_with_a_deep_axis_shows_that_nodes_children_within_its_subtree() {
+        let b = pivot_bipartite();
+        let p = b.pivot(&cid("gcp"), &cid("env"), &Filters::new());
+        let rows: Vec<_> = p.rows.iter().map(|c| c.id.as_str()).collect();
+        assert_eq!(rows, vec!["bigquery"]);
+        assert_eq!(p.count(&cid("bigquery"), &cid("prod")), 1);
+        assert_eq!(p.count(&cid("bigquery"), &cid("dev")), 1);
+        assert_eq!(p.total(), 2);
+    }
+
+    #[test]
+    fn pivot_with_a_deep_axis_ignores_base_entries_on_its_root() {
+        let b = pivot_bipartite();
+        let base = Filters::from_iter([(cid("platform"), cid("aws"))]);
+        let p = b.pivot(&cid("gcp"), &cid("env"), &base);
+        assert_eq!(p.count(&cid("bigquery"), &cid("prod")), 1);
+        assert_eq!(p.count(&cid("bigquery"), &cid("dev")), 1);
     }
 
     #[test]

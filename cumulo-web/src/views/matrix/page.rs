@@ -7,9 +7,11 @@ use crate::resource::{ResourceAttribute, ResourceCard};
 use crate::views::facet::sidebar::FacetSidebar;
 use cumulo_model::{Category, Forest, Resource, Selection};
 use leptos::prelude::*;
+use std::collections::HashSet;
 
 type Cat = Category<CategoryAttribute>;
 type Axes = (CategoryId, CategoryId);
+type AxisOption = (CategoryId, usize);
 type Editing = RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>;
 
 #[derive(Clone, PartialEq)]
@@ -44,20 +46,40 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
     let selection = RwSignal::new(Option::<CellSel>::None);
 
     let effective = Memo::new(move |_| {
-        let roots: Vec<CategoryId> =
-            bipartite.with(|s| s.taxonomy.roots().iter().map(|r| r.id.clone()).collect());
+        let options: Vec<AxisOption> = bipartite.with(|s| {
+            s.taxonomy
+                .roots()
+                .iter()
+                .filter(|root| !s.taxonomy.children_of(&root.id).is_empty())
+                .flat_map(|root| {
+                    std::iter::once((root.id.clone(), 0)).chain(
+                        s.taxonomy
+                            .dfs_order(&root.id, &HashSet::new())
+                            .into_iter()
+                            .filter(|(_, _, has_children)| *has_children)
+                            .map(|(id, depth, _)| (id, depth + 1)),
+                    )
+                })
+                .collect()
+        });
+        let roots: Vec<CategoryId> = options
+            .iter()
+            .filter(|(_, depth)| *depth == 0)
+            .map(|(id, _)| id.clone())
+            .collect();
         let axes = (!roots.is_empty()).then(|| {
+            let pickable: HashSet<&CategoryId> = options.iter().map(|(id, _)| id).collect();
             let (chosen_row, chosen_col) = state.with(|q| (q.row_axis.clone(), q.col_axis.clone()));
             let resolve = |chosen: Option<CategoryId>, fallback: &CategoryId| {
                 chosen
-                    .filter(|id| roots.contains(id))
+                    .filter(|id| pickable.contains(id))
                     .unwrap_or_else(|| fallback.clone())
             };
             let row = resolve(chosen_row, &roots[0]);
             let col = resolve(chosen_col, roots.get(1).unwrap_or(&roots[0]));
             (row, col)
         });
-        (roots, axes)
+        (options, axes)
     });
 
     Effect::new(move |_| {
@@ -72,7 +94,7 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
                 <FacetSidebar client=client state=state />
                 <main class="matrix-main">
                     {move || {
-                        let (roots, axes) = effective.get();
+                        let (options, axes) = effective.get();
                         let Some((row_axis, col_axis)) = axes else {
                             return view! {
                                 <div class="matrix-inner">
@@ -88,7 +110,7 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
                                         <AxisPicker
                                             client=client
                                             state=state
-                                            roots=roots.clone()
+                                            options=options.clone()
                                             selected=col_axis.clone()
                                             is_row=false
                                         />
@@ -97,7 +119,7 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
                                         <AxisPicker
                                             client=client
                                             state=state
-                                            roots=roots
+                                            options=options
                                             selected=row_axis.clone()
                                             is_row=true
                                         />
@@ -133,19 +155,21 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
 fn AxisPicker(
     client: Client,
     state: RwSignal<QueryState>,
-    roots: Vec<CategoryId>,
+    options: Vec<AxisOption>,
     selected: CategoryId,
     is_row: bool,
 ) -> impl IntoView {
     let i18n = use_i18n();
     let bipartite = client.read();
     let axis_label = move |id: &CategoryId| bipartite.with(|s| s.taxonomy.label_of(id));
-    let options = roots
+    let options = options
         .iter()
-        .map(|id| {
+        .map(|(id, depth)| {
+            let indent = "\u{00a0}\u{00a0}".repeat(*depth);
+            let prefix = if *depth > 0 { "\u{203a} " } else { "" };
             view! {
                 <option value=id.to_string() selected=id == &selected>
-                    {axis_label(id)}
+                    {format!("{indent}{prefix}{}", axis_label(id))}
                 </option>
             }
         })
@@ -192,6 +216,8 @@ fn Grid(
             let s = bipartite.get();
             let filters = state.with(|q| q.filters.clone());
             let sel = selection.get();
+            let row_root = s.taxonomy.root_or_self(&row_axis);
+            let col_root = s.taxonomy.root_or_self(&col_axis);
             let pivot = s.pivot(&row_axis, &col_axis, &filters);
             if pivot.rows.is_empty() || pivot.cols.is_empty() {
                 return view! {
@@ -219,7 +245,7 @@ fn Grid(
                 .cols
                 .iter()
                 .map(|c| {
-                    let ca = col_axis.clone();
+                    let ca = col_root.clone();
                     let cv = c.id.clone();
                     view! {
                         <th
@@ -256,9 +282,9 @@ fn Grid(
                                 String::new()
                             };
                             let selected = sel.as_ref().is_some_and(|s| s.is_cell(&r.id, &c.id));
-                            let ra = row_axis.clone();
+                            let ra = row_root.clone();
                             let rv = r.id.clone();
-                            let ca = col_axis.clone();
+                            let ca = col_root.clone();
                             let cv = c.id.clone();
                             view! {
                                 <td
@@ -278,9 +304,9 @@ fn Grid(
                             }
                         })
                         .collect::<Vec<_>>();
-                    let ra = row_axis.clone();
+                    let ra = row_root.clone();
                     let rv = r.id.clone();
-                    let rt_axis = row_axis.clone();
+                    let rt_axis = row_root.clone();
                     let rt_val = r.id.clone();
                     view! {
                         <tr>
@@ -311,7 +337,7 @@ fn Grid(
                 .cols
                 .iter()
                 .map(|c| {
-                    let ca = col_axis.clone();
+                    let ca = col_root.clone();
                     let cv = c.id.clone();
                     view! {
                         <td
@@ -360,7 +386,7 @@ fn CellPanel(
     client: Client,
     state: RwSignal<QueryState>,
     selection: RwSignal<Option<CellSel>>,
-    effective: Memo<(Vec<CategoryId>, Option<Axes>)>,
+    effective: Memo<(Vec<AxisOption>, Option<Axes>)>,
     editing: Editing,
 ) -> impl IntoView {
     let i18n = use_i18n();
@@ -377,7 +403,10 @@ fn CellPanel(
                 };
                 let s = bipartite.get();
                 let (_, axes) = effective.get();
-                let filters = sel.compose(&state.with(|q| q.filters.clone()), axes.as_ref());
+                let roots = axes
+                    .as_ref()
+                    .map(|(row, col)| (s.taxonomy.root_or_self(row), s.taxonomy.root_or_self(col)));
+                let filters = sel.compose(&state.with(|q| q.filters.clone()), roots.as_ref());
 
                 let parts: Vec<_> = [&sel.row, &sel.col]
                     .into_iter()
