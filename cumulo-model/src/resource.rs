@@ -35,13 +35,7 @@ impl<RA, CA: Clone> Resource<RA, CA> {
             .categories
             .iter()
             .filter_map(|v| forest.node(v))
-            .map(|n| {
-                if n.label.is_empty() {
-                    n.id.to_string()
-                } else {
-                    n.label.clone()
-                }
-            })
+            .map(|n| n.display_label().to_string())
             .collect();
         parts.sort();
         (!parts.is_empty()).then(|| parts.join(" / "))

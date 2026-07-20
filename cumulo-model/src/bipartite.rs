@@ -251,10 +251,12 @@ impl<RA, CA> Selection for ResourceSelection<'_, RA, CA> {
     }
 }
 
+type CellCounts<CA> = std::collections::HashMap<(Id<Category<CA>>, Id<Category<CA>>), usize>;
+
 pub struct Pivot<'a, CA> {
     pub rows: Vec<&'a Category<CA>>,
     pub cols: Vec<&'a Category<CA>>,
-    counts: std::collections::HashMap<(Id<Category<CA>>, Id<Category<CA>>), usize>,
+    counts: CellCounts<CA>,
 }
 
 impl<CA> Pivot<'_, CA> {

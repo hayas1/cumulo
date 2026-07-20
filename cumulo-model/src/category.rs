@@ -17,6 +17,16 @@ pub struct Category<CA> {
     pub attribute: CA,
 }
 
+impl<CA> Category<CA> {
+    pub fn display_label(&self) -> &str {
+        if self.label.is_empty() {
+            self.id.as_str()
+        } else {
+            &self.label
+        }
+    }
+}
+
 impl<CA> ForestNode for Category<CA> {
     fn id(&self) -> &Id<Self> {
         &self.id
@@ -141,6 +151,12 @@ impl<CA> Taxonomy<CA> {
     pub fn try_new(nodes: Vec<Category<CA>>) -> Result<Self, Errors<ForestError>> {
         Taxonomy(nodes).validated()
     }
+
+    pub fn label_of(&self, id: &Id<Category<CA>>) -> String {
+        self.node(id)
+            .map(|n| n.display_label().to_string())
+            .unwrap_or_else(|| id.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -196,6 +212,51 @@ pub(crate) mod tests {
                 attribute: (),
             },
         ])
+    }
+
+    #[test]
+    fn display_label_returns_label_when_present() {
+        let c = Category {
+            id: id("gcp"),
+            label: "GCP".into(),
+            parent: None,
+            attribute: (),
+        };
+        assert_eq!(c.display_label(), "GCP");
+    }
+
+    #[test]
+    fn display_label_falls_back_to_id_when_label_empty() {
+        let c = Category {
+            id: id("gcp"),
+            label: String::new(),
+            parent: None,
+            attribute: (),
+        };
+        assert_eq!(c.display_label(), "gcp");
+    }
+
+    #[test]
+    fn label_of_resolves_the_node_label() {
+        let f = test_forest();
+        assert_eq!(f.label_of(&id("bigquery")), "BigQuery");
+    }
+
+    #[test]
+    fn label_of_falls_back_to_id_for_missing_node() {
+        let f = test_forest();
+        assert_eq!(f.label_of(&id("ghost")), "ghost");
+    }
+
+    #[test]
+    fn label_of_falls_back_to_id_for_empty_label() {
+        let f = Taxonomy(vec![Category {
+            id: id("x"),
+            label: String::new(),
+            parent: None,
+            attribute: (),
+        }]);
+        assert_eq!(f.label_of(&id("x")), "x");
     }
 
     #[test]

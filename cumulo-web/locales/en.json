@@ -79,5 +79,7 @@
   "matrix_rows": "Rows",
   "matrix_cols": "Columns",
   "matrix_total": "Total",
-  "matrix_empty": "Pick two axes that have values to cross-tabulate."
+  "matrix_empty": "Pick two axes that have values to cross-tabulate.",
+  "matrix_pick_cell": "Click a cell to list the resources at that intersection.",
+  "matrix_open_facet": "Open in Facet"
 }

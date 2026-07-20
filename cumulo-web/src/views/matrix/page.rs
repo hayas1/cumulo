@@ -1,23 +1,47 @@
-use crate::category::{CategoryAttribute, CategoryId, DEFAULT_COLOR};
+use crate::category::{CategoryAttribute, CategoryId, Filters, DEFAULT_COLOR};
 use crate::client::Client;
 use crate::i18n::*;
 use crate::platform::Platform;
 use crate::query::{QueryState, View};
-use crate::resource::ResourceAttribute;
+use crate::resource::{ResourceAttribute, ResourceCard};
 use crate::views::facet::sidebar::FacetSidebar;
 use cumulo_model::{Category, Forest, Resource, Selection};
 use leptos::prelude::*;
 
 type Cat = Category<CategoryAttribute>;
+type Axes = (CategoryId, CategoryId);
+type Editing = RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>;
+
+#[derive(Clone, PartialEq)]
+struct CellSel {
+    row: Option<(CategoryId, CategoryId)>,
+    col: Option<(CategoryId, CategoryId)>,
+}
+
+impl CellSel {
+    fn is_cell(&self, row_val: &CategoryId, col_val: &CategoryId) -> bool {
+        self.row.as_ref().map(|(_, v)| v) == Some(row_val)
+            && self.col.as_ref().map(|(_, v)| v) == Some(col_val)
+    }
+
+    fn compose(&self, base: &Filters, axes: Option<&Axes>) -> Filters {
+        let mut filters = base.clone();
+        if let Some((row_axis, col_axis)) = axes {
+            filters.remove_root(row_axis);
+            filters.remove_root(col_axis);
+        }
+        for (axis, value) in [&self.row, &self.col].into_iter().flatten() {
+            filters.set(axis.clone(), value.clone());
+        }
+        filters
+    }
+}
 
 #[component]
-pub fn MatrixView(
-    client: Client,
-    state: RwSignal<QueryState>,
-    editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
-) -> impl IntoView {
+pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing) -> impl IntoView {
     let i18n = use_i18n();
     let bipartite = client.read();
+    let selection = RwSignal::new(Option::<CellSel>::None);
 
     let effective = Memo::new(move |_| {
         let roots: Vec<CategoryId> =
@@ -34,6 +58,11 @@ pub fn MatrixView(
             (row, col)
         });
         (roots, axes)
+    });
+
+    Effect::new(move |_| {
+        effective.with(|_| ());
+        selection.set(None);
     });
 
     view! {
@@ -55,17 +84,29 @@ pub fn MatrixView(
                         view! {
                             <div class="matrix-inner">
                                 <div class="matrix-panel">
-                                    <AxisBar
-                                        client=client
-                                        state=state
-                                        roots=roots
-                                        row_axis=row_axis.clone()
-                                        col_axis=col_axis.clone()
-                                    />
+                                    <div class="matrix-pick matrix-pick-cols">
+                                        <AxisPicker
+                                            client=client
+                                            state=state
+                                            roots=roots.clone()
+                                            selected=col_axis.clone()
+                                            is_row=false
+                                        />
+                                    </div>
+                                    <div class="matrix-pick matrix-pick-rows">
+                                        <AxisPicker
+                                            client=client
+                                            state=state
+                                            roots=roots
+                                            selected=row_axis.clone()
+                                            is_row=true
+                                        />
+                                    </div>
                                     <div class="matrix-grid">
                                         <Grid
                                             client=client
                                             state=state
+                                            selection=selection
                                             row_axis=row_axis
                                             col_axis=col_axis
                                         />
@@ -76,74 +117,60 @@ pub fn MatrixView(
                         .into_any()
                     }}
                 </main>
+                <CellPanel
+                    client=client
+                    state=state
+                    selection=selection
+                    effective=effective
+                    editing=editing
+                />
             </div>
         </div>
     }
 }
 
 #[component]
-fn AxisBar(
+fn AxisPicker(
     client: Client,
     state: RwSignal<QueryState>,
     roots: Vec<CategoryId>,
-    row_axis: CategoryId,
-    col_axis: CategoryId,
+    selected: CategoryId,
+    is_row: bool,
 ) -> impl IntoView {
     let i18n = use_i18n();
     let bipartite = client.read();
-    let axis_label = move |id: &CategoryId| {
-        bipartite.with(|s| {
-            s.taxonomy
-                .node(id)
-                .map(|n| if n.label.is_empty() { id.to_string() } else { n.label.clone() })
-                .unwrap_or_else(|| id.to_string())
+    let axis_label = move |id: &CategoryId| bipartite.with(|s| s.taxonomy.label_of(id));
+    let options = roots
+        .iter()
+        .map(|id| {
+            view! {
+                <option value=id.to_string() selected=id == &selected>
+                    {axis_label(id)}
+                </option>
+            }
         })
-    };
-    let options = |roots: &[CategoryId], selected: &CategoryId, label: &dyn Fn(&CategoryId) -> String| {
-        roots
-            .iter()
-            .map(|id| {
-                view! {
-                    <option value=id.to_string() selected=id == selected>
-                        {label(id)}
-                    </option>
-                }
-            })
-            .collect::<Vec<_>>()
-    };
-    let row_options = options(&roots, &row_axis, &axis_label);
-    let col_options = options(&roots, &col_axis, &axis_label);
+        .collect::<Vec<_>>();
 
     view! {
-        <div class="matrix-axis-bar">
-            <label class="matrix-axis-pick">
-                <span class="matrix-axis-name">{t!(i18n, matrix_rows)}</span>
-                <select
-                    class="matrix-axis-select"
-                    on:change=move |ev| {
-                        if let Ok(id) = CategoryId::try_from(event_target_value(&ev)) {
-                            state.update(|q| q.row_axis = Some(id));
+        <span class="matrix-axis-name">
+            {if is_row { t!(i18n, matrix_rows).into_any() } else { t!(i18n, matrix_cols).into_any() }}
+        </span>
+        <select
+            class="matrix-axis-select"
+            on:change=move |ev| {
+                if let Ok(id) = CategoryId::try_from(event_target_value(&ev)) {
+                    state.update(move |q| {
+                        if is_row {
+                            q.row_axis = Some(id);
+                        } else {
+                            q.col_axis = Some(id);
                         }
-                    }
-                >
-                    {row_options}
-                </select>
-            </label>
-            <span class="matrix-axis-x">"×"</span>
-            <label class="matrix-axis-pick">
-                <span class="matrix-axis-name">{t!(i18n, matrix_cols)}</span>
-                <select
-                    class="matrix-axis-select"
-                    on:change=move |ev| {
-                        if let Ok(id) = CategoryId::try_from(event_target_value(&ev)) {
-                            state.update(|q| q.col_axis = Some(id));
-                        }
-                    }
-                >
-                    {col_options}
-                </select>
-            </label>
-        </div>
+                    });
+                }
+            }
+        >
+            {options}
+        </select>
     }
 }
 
@@ -151,6 +178,7 @@ fn AxisBar(
 fn Grid(
     client: Client,
     state: RwSignal<QueryState>,
+    selection: RwSignal<Option<CellSel>>,
     row_axis: CategoryId,
     col_axis: CategoryId,
 ) -> impl IntoView {
@@ -163,6 +191,7 @@ fn Grid(
             let col_axis = col_axis.clone();
             let s = bipartite.get();
             let filters = state.with(|q| q.filters.clone());
+            let sel = selection.get();
             let pivot = s.pivot(&row_axis, &col_axis, &filters);
             if pivot.rows.is_empty() || pivot.cols.is_empty() {
                 return view! {
@@ -171,18 +200,12 @@ fn Grid(
                 .into_any();
             }
 
-            let label = |c: &Cat| if c.label.is_empty() { c.id.to_string() } else { c.label.clone() };
+            let label = |c: &Cat| c.display_label().to_string();
             let color = |c: &Cat| {
                 c.attribute
                     .color
                     .map(|c| c.to_hex())
                     .unwrap_or_else(|| DEFAULT_COLOR.to_hex())
-            };
-            let drill = move |axis: CategoryId, value: CategoryId| {
-                state.update(|q| {
-                    q.filters.set(axis, value);
-                    q.view = View::Facet;
-                });
             };
 
             let mut max = 0;
@@ -201,7 +224,9 @@ fn Grid(
                     view! {
                         <th
                             class="matrix-colhead matrix-head-btn"
-                            on:click=move |_| drill(ca.clone(), cv.clone())
+                            on:click=move |_| {
+                                selection.set(Some(CellSel { row: None, col: Some((ca.clone(), cv.clone())) }))
+                            }
                         >
                             <span class="matrix-swatch" style=format!("background:{}", color(c)) />
                             {label(c)}
@@ -230,6 +255,7 @@ fn Grid(
                             } else {
                                 String::new()
                             };
+                            let selected = sel.as_ref().is_some_and(|s| s.is_cell(&r.id, &c.id));
                             let ra = row_axis.clone();
                             let rv = r.id.clone();
                             let ca = col_axis.clone();
@@ -238,13 +264,13 @@ fn Grid(
                                 <td
                                     class="matrix-cell"
                                     class:matrix-cell-zero=(n == 0)
+                                    class:matrix-cell-sel=selected
                                     style=style
                                     on:click=move |_| {
-                                        state.update(|q| {
-                                            q.filters.set(ra.clone(), rv.clone());
-                                            q.filters.set(ca.clone(), cv.clone());
-                                            q.view = View::Facet;
-                                        });
+                                        selection.set(Some(CellSel {
+                                            row: Some((ra.clone(), rv.clone())),
+                                            col: Some((ca.clone(), cv.clone())),
+                                        }))
                                     }
                                 >
                                     {n}
@@ -254,17 +280,28 @@ fn Grid(
                         .collect::<Vec<_>>();
                     let ra = row_axis.clone();
                     let rv = r.id.clone();
+                    let rt_axis = row_axis.clone();
+                    let rt_val = r.id.clone();
                     view! {
                         <tr>
                             <th
                                 class="matrix-rowhead matrix-head-btn"
-                                on:click=move |_| drill(ra.clone(), rv.clone())
+                                on:click=move |_| {
+                                    selection.set(Some(CellSel { row: Some((ra.clone(), rv.clone())), col: None }))
+                                }
                             >
                                 <span class="matrix-swatch" style=format!("background:{row_color}") />
                                 {label(r)}
                             </th>
                             {cells}
-                            <td class="matrix-total">{pivot.row_total(&r.id)}</td>
+                            <td
+                                class="matrix-total matrix-total-btn"
+                                on:click=move |_| {
+                                    selection.set(Some(CellSel { row: Some((rt_axis.clone(), rt_val.clone())), col: None }))
+                                }
+                            >
+                                {pivot.row_total(&r.id)}
+                            </td>
                         </tr>
                     }
                 })
@@ -273,7 +310,20 @@ fn Grid(
             let total_cells = pivot
                 .cols
                 .iter()
-                .map(|c| view! { <td class="matrix-total">{pivot.col_total(&c.id)}</td> })
+                .map(|c| {
+                    let ca = col_axis.clone();
+                    let cv = c.id.clone();
+                    view! {
+                        <td
+                            class="matrix-total matrix-total-btn"
+                            on:click=move |_| {
+                                selection.set(Some(CellSel { row: None, col: Some((ca.clone(), cv.clone())) }))
+                            }
+                        >
+                            {pivot.col_total(&c.id)}
+                        </td>
+                    }
+                })
                 .collect::<Vec<_>>();
 
             view! {
@@ -290,7 +340,12 @@ fn Grid(
                         <tr class="matrix-totals-row">
                             <th class="matrix-rowhead matrix-total">{t!(i18n, matrix_total)}</th>
                             {total_cells}
-                            <td class="matrix-total">{pivot.total()}</td>
+                            <td
+                                class="matrix-total matrix-total-btn"
+                                on:click=move |_| selection.set(Some(CellSel { row: None, col: None }))
+                            >
+                                {pivot.total()}
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -301,11 +356,85 @@ fn Grid(
 }
 
 #[component]
-fn MatrixControls(
+fn CellPanel(
     client: Client,
     state: RwSignal<QueryState>,
-    editing: RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>,
+    selection: RwSignal<Option<CellSel>>,
+    effective: Memo<(Vec<CategoryId>, Option<Axes>)>,
+    editing: Editing,
 ) -> impl IntoView {
+    let i18n = use_i18n();
+    let bipartite = client.read();
+
+    view! {
+        <aside class="matrix-detail">
+            {move || {
+                let Some(sel) = selection.get() else {
+                    return view! {
+                        <div class="matrix-detail-empty">{t!(i18n, matrix_pick_cell)}</div>
+                    }
+                    .into_any();
+                };
+                let s = bipartite.get();
+                let (_, axes) = effective.get();
+                let filters = sel.compose(&state.with(|q| q.filters.clone()), axes.as_ref());
+
+                let parts: Vec<_> = [&sel.row, &sel.col]
+                    .into_iter()
+                    .flatten()
+                    .map(|(_, v)| s.taxonomy.label_of(v))
+                    .collect();
+                let title = if parts.is_empty() {
+                    t_string!(i18n, matrix_total).to_string()
+                } else {
+                    parts.join(" × ")
+                };
+
+                let resources: Vec<_> =
+                    s.filtered(&filters).items().iter().map(|r| (*r).clone()).collect();
+                let count = resources.len();
+                let facet_filters = filters.clone();
+
+                let list = if resources.is_empty() {
+                    view! { <div class="matrix-detail-empty">{t!(i18n, facet_no_match)}</div> }
+                        .into_any()
+                } else {
+                    resources
+                        .into_iter()
+                        .map(|r| {
+                            view! { <ResourceCard client=client resource=r editing=editing /> }
+                        })
+                        .collect::<Vec<_>>()
+                        .into_any()
+                };
+
+                view! {
+                    <div class="matrix-detail-header">
+                        <span class="matrix-detail-title">{title}</span>
+                        <span class="matrix-detail-count">{count}</span>
+                    </div>
+                    <button
+                        class="matrix-detail-facet"
+                        on:click=move |_| {
+                            let f = facet_filters.clone();
+                            state.update(move |q| {
+                                q.filters = f;
+                                q.view = View::Facet;
+                            });
+                        }
+                    >
+                        {t!(i18n, matrix_open_facet)}
+                    </button>
+                    <div class="matrix-detail-list">{list}</div>
+                }
+                .into_any()
+            }}
+        </aside>
+    }
+}
+
+#[component]
+fn MatrixControls(client: Client, state: RwSignal<QueryState>, editing: Editing) -> impl IntoView {
     let i18n = use_i18n();
     let bipartite = client.read();
     let filtered = Memo::new(move |_| {
@@ -330,5 +459,77 @@ fn MatrixControls(
                 </span>
             </div>
         </div>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cid(s: &str) -> CategoryId {
+        s.try_into().unwrap()
+    }
+
+    fn cell(row: (&str, &str), col: (&str, &str)) -> CellSel {
+        CellSel {
+            row: Some((cid(row.0), cid(row.1))),
+            col: Some((cid(col.0), cid(col.1))),
+        }
+    }
+
+    #[test]
+    fn is_cell_matches_only_when_both_values_equal() {
+        let sel = cell(("env", "prod"), ("platform", "gcp"));
+        assert!(sel.is_cell(&cid("prod"), &cid("gcp")));
+        assert!(!sel.is_cell(&cid("prod"), &cid("aws")));
+        assert!(!sel.is_cell(&cid("stg"), &cid("gcp")));
+    }
+
+    #[test]
+    fn is_cell_is_false_for_row_or_column_only_selection() {
+        let row_only = CellSel {
+            row: Some((cid("env"), cid("prod"))),
+            col: None,
+        };
+        assert!(!row_only.is_cell(&cid("prod"), &cid("gcp")));
+    }
+
+    #[test]
+    fn compose_sets_both_axes_for_a_cell_and_keeps_unrelated_base() {
+        let axes = (cid("env"), cid("platform"));
+        let base: Filters = [(cid("team"), cid("data"))].into_iter().collect();
+        let f = cell(("env", "prod"), ("platform", "gcp")).compose(&base, Some(&axes));
+        assert_eq!(f.get(&cid("team")), Some(&cid("data")));
+        assert_eq!(f.get(&cid("env")), Some(&cid("prod")));
+        assert_eq!(f.get(&cid("platform")), Some(&cid("gcp")));
+    }
+
+    #[test]
+    fn compose_row_only_selection_clears_the_column_axis() {
+        let axes = (cid("env"), cid("platform"));
+        let base: Filters = [(cid("platform"), cid("aws"))].into_iter().collect();
+        let sel = CellSel {
+            row: Some((cid("env"), cid("prod"))),
+            col: None,
+        };
+        let f = sel.compose(&base, Some(&axes));
+        assert_eq!(f.get(&cid("env")), Some(&cid("prod")));
+        assert_eq!(f.get(&cid("platform")), None);
+    }
+
+    #[test]
+    fn compose_total_selection_clears_both_axes() {
+        let axes = (cid("env"), cid("platform"));
+        let base: Filters = [(cid("env"), cid("prod")), (cid("platform"), cid("gcp"))]
+            .into_iter()
+            .collect();
+        let sel = CellSel {
+            row: None,
+            col: None,
+        };
+        let f = sel.compose(&base, Some(&axes));
+        assert_eq!(f.get(&cid("env")), None);
+        assert_eq!(f.get(&cid("platform")), None);
+        assert!(f.is_empty());
     }
 }

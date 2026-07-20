@@ -4,11 +4,9 @@ use crate::client::Client;
 use crate::i18n::*;
 use crate::platform::Platform;
 use crate::query::QueryState;
-use crate::resource::ResourceAttribute;
-use cumulo_model::{Forest, Resource, Selection};
-use icondata as icon;
+use crate::resource::{ResourceAttribute, ResourceCard};
+use cumulo_model::{Resource, Selection};
 use leptos::prelude::*;
-use leptos_icons::Icon;
 
 #[component]
 pub fn FacetView(
@@ -57,65 +55,7 @@ pub fn FacetView(
                                 {entities
                                     .into_iter()
                                     .map(|r| {
-                                        let url = r.attribute.console_url.clone();
-
-                                        let chips: Vec<(String, String, String)> = r.rooted_nodes(&s.taxonomy)
-                                            .into_iter()
-                                            .map(|(k, v)| {
-                                                let color = s.taxonomy.node(&v)
-                                                    .and_then(|n| n.attribute.color)
-                                                    .map(|c| c.to_hex())
-                                                    .unwrap_or_default();
-                                                let label = s.taxonomy.node(&v)
-                                                    .map(|n| n.label.clone())
-                                                    .unwrap_or_else(|| v.to_string());
-                                                (k.to_string(), label, color)
-                                            })
-                                            .collect();
-
-                                        let r_for_edit = r.clone();
-                                        view! {
-                                            <div class="result-card">
-                                                <div class="result-card-header">
-                                                    <span
-                                                        class="result-name result-name-link"
-                                                        on:click=move |_| Platform::open_url(&url)
-                                                    >
-                                                        {r.resolved_label(&s.taxonomy).unwrap_or_else(|| r.id.to_string())}
-                                                    </span>
-                                                    <div class="result-card-actions">
-                                                        <button
-                                                            class="result-edit-btn"
-                                                            on:click=move |_| {
-                                                                editing.set(Some(r_for_edit.clone()))
-                                                            }
-                                                            title=move || t_string!(i18n, action_edit)
-                                                        >
-                                                            <Icon icon=icon::HiPencilOutlineLg width="14" height="14" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div class="result-value">
-                                                    {chips
-                                                        .into_iter()
-                                                        .map(|(k, label, color)| {
-                                                            let style = if !color.is_empty() {
-                                                                format!("border-color:{color};background:{color}1a")
-                                                            } else {
-                                                                String::new()
-                                                            };
-                                                            view! {
-                                                                <span class="result-chip" style=style>
-                                                                    <span class="chip-k">{k}</span>
-                                                                    <span class="chip-sep">":"</span>
-                                                                    <span class="chip-v">{label}</span>
-                                                                </span>
-                                                            }
-                                                        })
-                                                        .collect::<Vec<_>>()}
-                                                </div>
-                                            </div>
-                                        }
+                                        view! { <ResourceCard client=client resource=r editing=editing /> }
                                     })
                                     .collect::<Vec<_>>()}
                             </div>
