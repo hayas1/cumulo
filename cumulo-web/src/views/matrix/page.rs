@@ -11,7 +11,7 @@ use std::collections::HashSet;
 
 type Cat = Category<CategoryAttribute>;
 type Axes = (CategoryId, CategoryId);
-type Expanded = RwSignal<Option<CategoryId>>;
+type Expanded = RwSignal<HashSet<CategoryId>>;
 type Editing = RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>;
 
 const TREE_INDENT_BASE_REM: f32 = 0.35;
@@ -47,8 +47,8 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
     let i18n = use_i18n();
     let bipartite = client.read();
     let selection = RwSignal::new(Option::<CellSel>::None);
-    let row_expanded: Expanded = RwSignal::new(None);
-    let col_expanded: Expanded = RwSignal::new(None);
+    let row_expanded: Expanded = RwSignal::new(HashSet::new());
+    let col_expanded: Expanded = RwSignal::new(HashSet::new());
 
     let effective = Memo::new(move |_| {
         bipartite.with(|s| {
@@ -75,8 +75,8 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
     Effect::new(move |_| {
         effective.with(|_| ());
         selection.set(None);
-        row_expanded.set(None);
-        col_expanded.set(None);
+        row_expanded.set(HashSet::new());
+        col_expanded.set(HashSet::new());
     });
 
     view! {
@@ -143,10 +143,8 @@ fn Grid(
             let s = bipartite.get();
             let filters = state.with(|q| q.filters.clone());
             let sel = selection.get();
-            let row_open = row_expanded.get();
-            let col_open = col_expanded.get();
-            let expanded_rows: HashSet<CategoryId> = row_open.iter().cloned().collect();
-            let expanded_cols: HashSet<CategoryId> = col_open.iter().cloned().collect();
+            let expanded_rows = row_expanded.get();
+            let expanded_cols = col_expanded.get();
             let row_root = s.taxonomy.root_or_self(&row_axis);
             let col_root = s.taxonomy.root_or_self(&col_axis);
             let pivot = s.tree_pivot(&row_axis, &col_axis, &expanded_rows, &expanded_cols, &filters);
@@ -163,14 +161,34 @@ fn Grid(
                     .map(|c| c.to_hex())
                     .unwrap_or_else(|| DEFAULT_COLOR.to_hex())
             };
-            let parent_color = |open: &Option<CategoryId>| {
-                open.as_ref()
-                    .and_then(|id| s.taxonomy.node(id))
-                    .map(color)
-                    .unwrap_or_else(|| DEFAULT_COLOR.to_hex())
+            let band = |node: &Cat, expanded: &HashSet<CategoryId>| {
+                if let Some(parent) = node.parent.as_ref() {
+                    if expanded.contains(parent) {
+                        return s.taxonomy.node(parent).map(&color);
+                    }
+                }
+                expanded.contains(&node.id).then(|| color(node))
             };
-            let row_parent_color = parent_color(&row_open);
-            let col_parent_color = parent_color(&col_open);
+            let strict_ancestors = |id: &CategoryId| -> HashSet<CategoryId> {
+                s.taxonomy
+                    .ancestry(id)
+                    .into_iter()
+                    .filter(|node| node != id)
+                    .collect()
+            };
+            let toggle = |signal: Expanded,
+                          id: CategoryId,
+                          ancestors: HashSet<CategoryId>,
+                          descendants: HashSet<CategoryId>| {
+                signal.update(move |set| {
+                    if set.contains(&id) {
+                        set.retain(|node| !descendants.contains(node));
+                    } else {
+                        set.retain(|node| ancestors.contains(node));
+                        set.insert(id);
+                    }
+                });
+            };
             let indent = |depth: usize| {
                 format!(
                     "padding-left:{}rem",
@@ -191,28 +209,26 @@ fn Grid(
                 .map(|c| {
                     let ca = col_root.clone();
                     let cv = c.node.id.clone();
-                    let nested = c.depth > 0;
-                    let col_style = if nested {
-                        format!("{};border-top:3px solid {col_parent_color}", indent(c.depth))
-                    } else {
-                        indent(c.depth)
+                    let band_color = band(c.node, &expanded_cols);
+                    let grouped = band_color.is_some();
+                    let col_style = match &band_color {
+                        Some(bc) => format!(
+                            "{};background:{bc}1a;border-top:3px solid {bc}",
+                            indent(c.depth)
+                        ),
+                        None => indent(c.depth),
                     };
-                    let chevron = (c.depth == 0 && c.has_children).then(|| {
+                    let chevron = c.has_children.then(|| {
                         let id = c.node.id.clone();
-                        let open = col_open.as_ref() == Some(&c.node.id);
+                        let open = expanded_cols.contains(&c.node.id);
+                        let ancestors = strict_ancestors(&c.node.id);
+                        let descendants = s.taxonomy.collect_descendants(&c.node.id);
                         view! {
                             <button
                                 class="matrix-tree-chevron"
                                 class:open=open
                                 on:click=move |_| {
-                                    let id = id.clone();
-                                    col_expanded.update(move |e| {
-                                        *e = if e.as_ref() == Some(&id) {
-                                            None
-                                        } else {
-                                            Some(id.clone())
-                                        };
-                                    });
+                                    toggle(col_expanded, id.clone(), ancestors.clone(), descendants.clone());
                                 }
                             >
                                 {if open { "\u{25be}" } else { "\u{25b8}" }}
@@ -220,7 +236,7 @@ fn Grid(
                         }
                     });
                     view! {
-                        <th class="matrix-colhead" class:matrix-nested=nested style=col_style>
+                        <th class="matrix-colhead" class:matrix-grouped=grouped style=col_style>
                             {chevron}
                             <button
                                 class="matrix-head-btn"
@@ -241,28 +257,26 @@ fn Grid(
                 .iter()
                 .map(|r| {
                     let row_color = color(r.node);
-                    let nested = r.depth > 0;
-                    let row_style = if nested {
-                        format!("{};border-left:3px solid {row_parent_color}", indent(r.depth))
-                    } else {
-                        indent(r.depth)
+                    let band_color = band(r.node, &expanded_rows);
+                    let grouped = band_color.is_some();
+                    let row_style = match &band_color {
+                        Some(bc) => format!(
+                            "{};background:{bc}1a;border-left:3px solid {bc}",
+                            indent(r.depth)
+                        ),
+                        None => indent(r.depth),
                     };
-                    let chevron = (r.depth == 0 && r.has_children).then(|| {
+                    let chevron = r.has_children.then(|| {
                         let id = r.node.id.clone();
-                        let open = row_open.as_ref() == Some(&r.node.id);
+                        let open = expanded_rows.contains(&r.node.id);
+                        let ancestors = strict_ancestors(&r.node.id);
+                        let descendants = s.taxonomy.collect_descendants(&r.node.id);
                         view! {
                             <button
                                 class="matrix-tree-chevron"
                                 class:open=open
                                 on:click=move |_| {
-                                    let id = id.clone();
-                                    row_expanded.update(move |e| {
-                                        *e = if e.as_ref() == Some(&id) {
-                                            None
-                                        } else {
-                                            Some(id.clone())
-                                        };
-                                    });
+                                    toggle(row_expanded, id.clone(), ancestors.clone(), descendants.clone());
                                 }
                             >
                                 {if open { "\u{25be}" } else { "\u{25b8}" }}
@@ -313,7 +327,7 @@ fn Grid(
                     let rt_val = r.node.id.clone();
                     view! {
                         <tr>
-                            <th class="matrix-rowhead" class:matrix-nested=nested style=row_style>
+                            <th class="matrix-rowhead" class:matrix-grouped=grouped style=row_style>
                                 {chevron}
                                 <button
                                     class="matrix-head-btn"

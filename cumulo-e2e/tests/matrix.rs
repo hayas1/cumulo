@@ -39,7 +39,7 @@ async fn expanding_a_row_reveals_its_child_rows() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn only_one_row_stays_expanded_at_a_time() {
+async fn expanding_a_child_keeps_the_parent_expanded() {
     let app = Session::open("/").await;
 
     app.wait_for(".facet-view").await;
@@ -48,10 +48,36 @@ async fn only_one_row_stays_expanded_at_a_time() {
     app.wait_for(".matrix-rowhead .matrix-tree-chevron").await;
 
     app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0).await;
-    app.wait_for(".matrix-rowhead .matrix-tree-chevron.open").await;
+    app.wait_until(
+        "document.querySelectorAll('.matrix-rowhead .matrix-tree-chevron.open').length === 1",
+    )
+    .await;
 
-    let second = app.count(".matrix-rowhead .matrix-tree-chevron").await - 1;
-    app.click_nth(".matrix-rowhead .matrix-tree-chevron", second)
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 1).await;
+    app.wait_until(
+        "document.querySelectorAll('.matrix-rowhead .matrix-tree-chevron.open').length === 2",
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn expanding_a_sibling_collapses_the_previous_branch() {
+    let app = Session::open("/").await;
+
+    app.wait_for(".facet-view").await;
+    app.click_nth(".app-nav .nav-link", 2).await;
+    app.wait_for(".matrix-view").await;
+    app.wait_for(".matrix-rowhead .matrix-tree-chevron").await;
+
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0).await;
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 1).await;
+    app.wait_until(
+        "document.querySelectorAll('.matrix-rowhead .matrix-tree-chevron.open').length === 2",
+    )
+    .await;
+
+    let last = app.count(".matrix-rowhead .matrix-tree-chevron").await - 1;
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", last)
         .await;
     app.wait_until(
         "document.querySelectorAll('.matrix-rowhead .matrix-tree-chevron.open').length === 1",
