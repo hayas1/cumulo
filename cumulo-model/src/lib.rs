@@ -6,7 +6,9 @@ pub mod forest;
 pub mod id;
 pub mod resource;
 
-pub use bipartite::{Bipartite, CategorySelection, ExportData, Pivot, ResourceSelection, Selection};
+pub use bipartite::{
+    Bipartite, CategorySelection, ExportData, Pivot, ResourceSelection, Selection,
+};
 pub use category::{Category, Taxonomy};
 pub use error::{Errors, ForestError, IdError, ParseError, ValidationError};
 pub use filters::Filters;

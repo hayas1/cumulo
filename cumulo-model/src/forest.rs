@@ -255,8 +255,14 @@ mod tests {
     #[test]
     fn root_or_self_returns_root_for_a_descendant_and_self_for_unknown() {
         let t = Taxonomy(vec![cat("root", None), cat("child", Some("root"))]);
-        assert_eq!(t.root_or_self(&Id::new_unchecked("child")), Id::new_unchecked("root"));
-        assert_eq!(t.root_or_self(&Id::new_unchecked("ghost")), Id::new_unchecked("ghost"));
+        assert_eq!(
+            t.root_or_self(&Id::new_unchecked("child")),
+            Id::new_unchecked("root")
+        );
+        assert_eq!(
+            t.root_or_self(&Id::new_unchecked("ghost")),
+            Id::new_unchecked("ghost")
+        );
     }
 
     #[test]
