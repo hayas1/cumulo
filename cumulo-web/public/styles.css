@@ -1933,6 +1933,10 @@ body {
   transition: color 0.1s;
 }
 .matrix-tree-chevron:hover { color: var(--accent); }
+.matrix-tree-chevron.open { color: var(--text-secondary); }
+.matrix-nested { background: var(--bg-card); }
+.matrix-rowhead.matrix-nested { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+.matrix-colhead.matrix-nested { border-top-left-radius: 4px; border-top-right-radius: 4px; }
 .matrix-swatch {
   display: inline-block;
   width: 8px;

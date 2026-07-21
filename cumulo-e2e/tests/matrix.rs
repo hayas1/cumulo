@@ -39,6 +39,27 @@ async fn expanding_a_row_reveals_its_child_rows() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn only_one_row_stays_expanded_at_a_time() {
+    let app = Session::open("/").await;
+
+    app.wait_for(".facet-view").await;
+    app.click_nth(".app-nav .nav-link", 2).await;
+    app.wait_for(".matrix-view").await;
+    app.wait_for(".matrix-rowhead .matrix-tree-chevron").await;
+
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0).await;
+    app.wait_for(".matrix-rowhead .matrix-tree-chevron.open").await;
+
+    let second = app.count(".matrix-rowhead .matrix-tree-chevron").await - 1;
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", second)
+        .await;
+    app.wait_until(
+        "document.querySelectorAll('.matrix-rowhead .matrix-tree-chevron.open').length === 1",
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn picking_a_row_axis_in_the_facet_updates_the_selection() {
     let app = Session::open("/").await;
 
