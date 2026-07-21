@@ -181,16 +181,6 @@ impl Session {
         );
     }
 
-    pub async fn select_option(&self, selector: &str, value: &str) {
-        let expression = format!(
-            "(() => {{ const el = document.querySelector({selector:?}); if (!el) return false; el.value = {value:?}; el.dispatchEvent(new Event('change', {{ bubbles: true }})); return true; }})()"
-        );
-        assert!(
-            self.eval_bool(&expression).await,
-            "no element `{selector}` to select value on"
-        );
-    }
-
     pub async fn press_key(&self, selector: &str, key: &str) {
         let expression = format!(
             "(() => {{ const el = document.querySelector({selector:?}); if (!el) return false; el.focus(); el.dispatchEvent(new KeyboardEvent('keydown', {{ key: {key:?}, bubbles: true, cancelable: true }})); return true; }})()"

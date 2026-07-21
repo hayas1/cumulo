@@ -1,18 +1,21 @@
+use super::axis_facet::AxisFacet;
 use crate::category::{CategoryAttribute, CategoryId, Filters, DEFAULT_COLOR};
 use crate::client::Client;
 use crate::i18n::*;
 use crate::platform::Platform;
 use crate::query::{QueryState, View};
 use crate::resource::{ResourceAttribute, ResourceCard};
-use crate::views::facet::sidebar::FacetSidebar;
 use cumulo_model::{Category, Forest, Resource, Selection};
 use leptos::prelude::*;
 use std::collections::HashSet;
 
 type Cat = Category<CategoryAttribute>;
 type Axes = (CategoryId, CategoryId);
-type AxisOption = (CategoryId, usize);
+type Expanded = RwSignal<HashSet<CategoryId>>;
 type Editing = RwSignal<Option<Resource<ResourceAttribute, CategoryAttribute>>>;
+
+const TREE_INDENT_BASE_REM: f32 = 0.35;
+const TREE_INDENT_STEP_REM: f32 = 0.85;
 
 #[derive(Clone, PartialEq)]
 struct CellSel {
@@ -44,157 +47,79 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
     let i18n = use_i18n();
     let bipartite = client.read();
     let selection = RwSignal::new(Option::<CellSel>::None);
+    let row_expanded: Expanded = RwSignal::new(HashSet::new());
+    let col_expanded: Expanded = RwSignal::new(HashSet::new());
 
     let effective = Memo::new(move |_| {
-        let options: Vec<AxisOption> = bipartite.with(|s| {
-            s.taxonomy
+        bipartite.with(|s| {
+            let axis_of = |id: &CategoryId| {
+                s.taxonomy.node(id).is_some() && !s.taxonomy.children_of(id).is_empty()
+            };
+            let roots: Vec<CategoryId> = s
+                .taxonomy
                 .roots()
                 .iter()
-                .filter(|root| !s.taxonomy.children_of(&root.id).is_empty())
-                .flat_map(|root| {
-                    std::iter::once((root.id.clone(), 0)).chain(
-                        s.taxonomy
-                            .dfs_order(&root.id, &HashSet::new())
-                            .into_iter()
-                            .filter(|(_, _, has_children)| *has_children)
-                            .map(|(id, depth, _)| (id, depth + 1)),
-                    )
-                })
-                .collect()
-        });
-        let roots: Vec<CategoryId> = options
-            .iter()
-            .filter(|(_, depth)| *depth == 0)
-            .map(|(id, _)| id.clone())
-            .collect();
-        let axes = (!roots.is_empty()).then(|| {
-            let pickable: HashSet<&CategoryId> = options.iter().map(|(id, _)| id).collect();
+                .filter(|r| !s.taxonomy.children_of(&r.id).is_empty())
+                .map(|r| r.id.clone())
+                .collect();
+            let first = roots.first()?.clone();
             let (chosen_row, chosen_col) = state.with(|q| (q.row_axis.clone(), q.col_axis.clone()));
-            let resolve = |chosen: Option<CategoryId>, fallback: &CategoryId| {
-                chosen
-                    .filter(|id| pickable.contains(id))
-                    .unwrap_or_else(|| fallback.clone())
-            };
-            let row = resolve(chosen_row, &roots[0]);
-            let col = resolve(chosen_col, roots.get(1).unwrap_or(&roots[0]));
-            (row, col)
-        });
-        (options, axes)
+            let row = chosen_row.filter(|id| axis_of(id)).unwrap_or_else(|| first.clone());
+            let col = chosen_col
+                .filter(|id| axis_of(id))
+                .unwrap_or_else(|| roots.get(1).cloned().unwrap_or(first));
+            Some((row, col))
+        })
     });
 
     Effect::new(move |_| {
         effective.with(|_| ());
         selection.set(None);
+        row_expanded.set(HashSet::new());
+        col_expanded.set(HashSet::new());
     });
 
     view! {
         <div class="matrix-view">
             <MatrixControls client=client state=state editing=editing />
             <div class="matrix-area">
-                <FacetSidebar client=client state=state />
-                <main class="matrix-main">
-                    {move || {
-                        let (options, axes) = effective.get();
-                        let Some((row_axis, col_axis)) = axes else {
-                            return view! {
-                                <div class="matrix-inner">
-                                    <div class="matrix-empty">{t!(i18n, matrix_empty)}</div>
-                                </div>
-                            }
-                            .into_any();
-                        };
-                        view! {
+                {move || {
+                    let Some((row_axis, col_axis)) = effective.get() else {
+                        return view! {
+                            <div class="matrix-empty matrix-empty-full">{t!(i18n, matrix_empty)}</div>
+                        }
+                        .into_any();
+                    };
+                    view! {
+                        <AxisFacet client=client state=state selected=row_axis.clone() is_row=true />
+                        <AxisFacet client=client state=state selected=col_axis.clone() is_row=false />
+                        <main class="matrix-main">
                             <div class="matrix-inner">
-                                <div class="matrix-panel">
-                                    <div class="matrix-pick matrix-pick-cols">
-                                        <AxisPicker
-                                            client=client
-                                            state=state
-                                            options=options.clone()
-                                            selected=col_axis.clone()
-                                            is_row=false
-                                        />
-                                    </div>
-                                    <div class="matrix-pick matrix-pick-rows">
-                                        <AxisPicker
-                                            client=client
-                                            state=state
-                                            options=options
-                                            selected=row_axis.clone()
-                                            is_row=true
-                                        />
-                                    </div>
-                                    <div class="matrix-grid">
-                                        <Grid
-                                            client=client
-                                            state=state
-                                            selection=selection
-                                            row_axis=row_axis
-                                            col_axis=col_axis
-                                        />
-                                    </div>
+                                <div class="matrix-grid">
+                                    <Grid
+                                        client=client
+                                        state=state
+                                        selection=selection
+                                        row_expanded=row_expanded
+                                        col_expanded=col_expanded
+                                        row_axis=row_axis
+                                        col_axis=col_axis
+                                    />
                                 </div>
                             </div>
-                        }
-                        .into_any()
-                    }}
-                </main>
-                <CellPanel
-                    client=client
-                    state=state
-                    selection=selection
-                    effective=effective
-                    editing=editing
-                />
+                        </main>
+                        <CellPanel
+                            client=client
+                            state=state
+                            selection=selection
+                            effective=effective
+                            editing=editing
+                        />
+                    }
+                    .into_any()
+                }}
             </div>
         </div>
-    }
-}
-
-#[component]
-fn AxisPicker(
-    client: Client,
-    state: RwSignal<QueryState>,
-    options: Vec<AxisOption>,
-    selected: CategoryId,
-    is_row: bool,
-) -> impl IntoView {
-    let i18n = use_i18n();
-    let bipartite = client.read();
-    let axis_label = move |id: &CategoryId| bipartite.with(|s| s.taxonomy.label_of(id));
-    let options = options
-        .iter()
-        .map(|(id, depth)| {
-            let indent = "\u{00a0}\u{00a0}".repeat(*depth);
-            let prefix = if *depth > 0 { "\u{203a} " } else { "" };
-            view! {
-                <option value=id.to_string() selected=id == &selected>
-                    {format!("{indent}{prefix}{}", axis_label(id))}
-                </option>
-            }
-        })
-        .collect::<Vec<_>>();
-
-    view! {
-        <span class="matrix-axis-name">
-            {if is_row { t!(i18n, matrix_rows).into_any() } else { t!(i18n, matrix_cols).into_any() }}
-        </span>
-        <select
-            class="matrix-axis-select"
-            on:change=move |ev| {
-                if let Ok(id) = CategoryId::try_from(event_target_value(&ev)) {
-                    state.update(move |q| {
-                        if is_row {
-                            q.row_axis = Some(id);
-                        } else {
-                            q.col_axis = Some(id);
-                        }
-                    });
-                }
-            }
-        >
-            {options}
-        </select>
     }
 }
 
@@ -203,6 +128,8 @@ fn Grid(
     client: Client,
     state: RwSignal<QueryState>,
     selection: RwSignal<Option<CellSel>>,
+    row_expanded: Expanded,
+    col_expanded: Expanded,
     row_axis: CategoryId,
     col_axis: CategoryId,
 ) -> impl IntoView {
@@ -216,9 +143,11 @@ fn Grid(
             let s = bipartite.get();
             let filters = state.with(|q| q.filters.clone());
             let sel = selection.get();
+            let expanded_rows = row_expanded.get();
+            let expanded_cols = col_expanded.get();
             let row_root = s.taxonomy.root_or_self(&row_axis);
             let col_root = s.taxonomy.root_or_self(&col_axis);
-            let pivot = s.pivot(&row_axis, &col_axis, &filters);
+            let pivot = s.tree_pivot(&row_axis, &col_axis, &expanded_rows, &expanded_cols, &filters);
             if pivot.rows.is_empty() || pivot.cols.is_empty() {
                 return view! {
                     <div class="matrix-empty">{t!(i18n, matrix_empty)}</div>
@@ -226,18 +155,23 @@ fn Grid(
                 .into_any();
             }
 
-            let label = |c: &Cat| c.display_label().to_string();
             let color = |c: &Cat| {
                 c.attribute
                     .color
                     .map(|c| c.to_hex())
                     .unwrap_or_else(|| DEFAULT_COLOR.to_hex())
             };
+            let indent = |depth: usize| {
+                format!(
+                    "padding-left:{}rem",
+                    TREE_INDENT_BASE_REM + depth as f32 * TREE_INDENT_STEP_REM
+                )
+            };
 
             let mut max = 0;
             for r in &pivot.rows {
                 for c in &pivot.cols {
-                    max = max.max(pivot.count(&r.id, &c.id));
+                    max = max.max(pivot.count(&r.node.id, &c.node.id));
                 }
             }
 
@@ -246,16 +180,39 @@ fn Grid(
                 .iter()
                 .map(|c| {
                     let ca = col_root.clone();
-                    let cv = c.id.clone();
+                    let cv = c.node.id.clone();
+                    let indent = indent(c.depth);
+                    let chevron = c.has_children.then(|| {
+                        let id = c.node.id.clone();
+                        let open = expanded_cols.contains(&c.node.id);
+                        view! {
+                            <button
+                                class="matrix-tree-chevron"
+                                on:click=move |_| {
+                                    let id = id.clone();
+                                    col_expanded.update(move |e| {
+                                        if !e.remove(&id) {
+                                            e.insert(id.clone());
+                                        }
+                                    });
+                                }
+                            >
+                                {if open { "\u{25be}" } else { "\u{25b8}" }}
+                            </button>
+                        }
+                    });
                     view! {
-                        <th
-                            class="matrix-colhead matrix-head-btn"
-                            on:click=move |_| {
-                                selection.set(Some(CellSel { row: None, col: Some((ca.clone(), cv.clone())) }))
-                            }
-                        >
-                            <span class="matrix-swatch" style=format!("background:{}", color(c)) />
-                            {label(c)}
+                        <th class="matrix-colhead" style=indent>
+                            {chevron}
+                            <button
+                                class="matrix-head-btn"
+                                on:click=move |_| {
+                                    selection.set(Some(CellSel { row: None, col: Some((ca.clone(), cv.clone())) }))
+                                }
+                            >
+                                <span class="matrix-swatch" style=format!("background:{}", color(c.node)) />
+                                {c.node.display_label().to_string()}
+                            </button>
                         </th>
                     }
                 })
@@ -265,12 +222,32 @@ fn Grid(
                 .rows
                 .iter()
                 .map(|r| {
-                    let row_color = color(r);
+                    let row_color = color(r.node);
+                    let indent = indent(r.depth);
+                    let chevron = r.has_children.then(|| {
+                        let id = r.node.id.clone();
+                        let open = expanded_rows.contains(&r.node.id);
+                        view! {
+                            <button
+                                class="matrix-tree-chevron"
+                                on:click=move |_| {
+                                    let id = id.clone();
+                                    row_expanded.update(move |e| {
+                                        if !e.remove(&id) {
+                                            e.insert(id.clone());
+                                        }
+                                    });
+                                }
+                            >
+                                {if open { "\u{25be}" } else { "\u{25b8}" }}
+                            </button>
+                        }
+                    });
                     let cells = pivot
                         .cols
                         .iter()
                         .map(|c| {
-                            let n = pivot.count(&r.id, &c.id);
+                            let n = pivot.count(&r.node.id, &c.node.id);
                             let alpha = if max > 0 {
                                 0x22 + (n as f32 / max as f32 * 0xaa as f32) as u32
                             } else {
@@ -281,11 +258,11 @@ fn Grid(
                             } else {
                                 String::new()
                             };
-                            let selected = sel.as_ref().is_some_and(|s| s.is_cell(&r.id, &c.id));
+                            let selected = sel.as_ref().is_some_and(|s| s.is_cell(&r.node.id, &c.node.id));
                             let ra = row_root.clone();
-                            let rv = r.id.clone();
+                            let rv = r.node.id.clone();
                             let ca = col_root.clone();
-                            let cv = c.id.clone();
+                            let cv = c.node.id.clone();
                             view! {
                                 <td
                                     class="matrix-cell"
@@ -305,19 +282,22 @@ fn Grid(
                         })
                         .collect::<Vec<_>>();
                     let ra = row_root.clone();
-                    let rv = r.id.clone();
+                    let rv = r.node.id.clone();
                     let rt_axis = row_root.clone();
-                    let rt_val = r.id.clone();
+                    let rt_val = r.node.id.clone();
                     view! {
                         <tr>
-                            <th
-                                class="matrix-rowhead matrix-head-btn"
-                                on:click=move |_| {
-                                    selection.set(Some(CellSel { row: Some((ra.clone(), rv.clone())), col: None }))
-                                }
-                            >
-                                <span class="matrix-swatch" style=format!("background:{row_color}") />
-                                {label(r)}
+                            <th class="matrix-rowhead" style=indent>
+                                {chevron}
+                                <button
+                                    class="matrix-head-btn"
+                                    on:click=move |_| {
+                                        selection.set(Some(CellSel { row: Some((ra.clone(), rv.clone())), col: None }))
+                                    }
+                                >
+                                    <span class="matrix-swatch" style=format!("background:{row_color}") />
+                                    {r.node.display_label().to_string()}
+                                </button>
                             </th>
                             {cells}
                             <td
@@ -326,7 +306,7 @@ fn Grid(
                                     selection.set(Some(CellSel { row: Some((rt_axis.clone(), rt_val.clone())), col: None }))
                                 }
                             >
-                                {pivot.row_total(&r.id)}
+                                {pivot.row_total(&r.node.id)}
                             </td>
                         </tr>
                     }
@@ -338,7 +318,7 @@ fn Grid(
                 .iter()
                 .map(|c| {
                     let ca = col_root.clone();
-                    let cv = c.id.clone();
+                    let cv = c.node.id.clone();
                     view! {
                         <td
                             class="matrix-total matrix-total-btn"
@@ -346,7 +326,7 @@ fn Grid(
                                 selection.set(Some(CellSel { row: None, col: Some((ca.clone(), cv.clone())) }))
                             }
                         >
-                            {pivot.col_total(&c.id)}
+                            {pivot.col_total(&c.node.id)}
                         </td>
                     }
                 })
@@ -386,7 +366,7 @@ fn CellPanel(
     client: Client,
     state: RwSignal<QueryState>,
     selection: RwSignal<Option<CellSel>>,
-    effective: Memo<(Vec<AxisOption>, Option<Axes>)>,
+    effective: Memo<Option<Axes>>,
     editing: Editing,
 ) -> impl IntoView {
     let i18n = use_i18n();
@@ -402,7 +382,7 @@ fn CellPanel(
                     .into_any();
                 };
                 let s = bipartite.get();
-                let (_, axes) = effective.get();
+                let axes = effective.get();
                 let roots = axes
                     .as_ref()
                     .map(|(row, col)| (s.taxonomy.root_or_self(row), s.taxonomy.root_or_self(col)));

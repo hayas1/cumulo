@@ -153,6 +153,22 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         ResourceSelection { items }
     }
 
+    pub fn subtree_counts(
+        &self,
+        root: &Id<Category<CA>>,
+        base: &Filters<CA>,
+    ) -> std::collections::HashMap<Id<Category<CA>>, usize> {
+        let mut counts = std::collections::HashMap::new();
+        for resource in self.filtered(base).items() {
+            if let Some(value) = resource.category(&self.taxonomy, root) {
+                for node in self.taxonomy.ancestry(value) {
+                    *counts.entry(node).or_default() += 1;
+                }
+            }
+        }
+        counts
+    }
+
     pub fn matches(&self, id: &Id<Resource<RA, CA>>, filters: &Filters<CA>) -> bool {
         self.catalog
             .node(id)
@@ -184,47 +200,86 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         }
     }
 
-    pub fn pivot<'a>(
+    pub fn tree_pivot<'a>(
         &'a self,
         row_axis: &Id<Category<CA>>,
         col_axis: &Id<Category<CA>>,
+        row_expanded: &std::collections::HashSet<Id<Category<CA>>>,
+        col_expanded: &std::collections::HashSet<Id<Category<CA>>>,
         base: &Filters<CA>,
-    ) -> Pivot<'a, CA> {
-        let rows = self.taxonomy.children_of(row_axis);
-        let cols = self.taxonomy.children_of(col_axis);
-        let row_buckets: std::collections::HashSet<_> = rows.iter().map(|c| c.id.clone()).collect();
-        let col_buckets: std::collections::HashSet<_> = cols.iter().map(|c| c.id.clone()).collect();
+    ) -> TreePivot<'a, CA> {
+        let rows = self.visible_axis_nodes(row_axis, row_expanded);
+        let cols = self.visible_axis_nodes(col_axis, col_expanded);
         let row_root = self.taxonomy.root_or_self(row_axis);
         let col_root = self.taxonomy.root_or_self(col_axis);
         let base = base.without_root(&row_root).without_root(&col_root);
 
-        let mut counts = std::collections::HashMap::new();
+        let mut counts = CellCounts::new();
         for resource in self.catalog.iter() {
             if !self.matches_resource(resource, &base) {
                 continue;
             }
-            let (Some(row), Some(col)) = (
-                self.bucketed_value(resource, &row_root, &row_buckets),
-                self.bucketed_value(resource, &col_root, &col_buckets),
-            ) else {
-                continue;
-            };
-            *counts.entry((row, col)).or_default() += 1;
+            let row_chain = self.axis_chain(resource, row_axis, &row_root);
+            let col_chain = self.axis_chain(resource, col_axis, &col_root);
+            for row in &row_chain {
+                for col in &col_chain {
+                    *counts.entry((row.clone(), col.clone())).or_default() += 1;
+                }
+            }
         }
-        Pivot { rows, cols, counts }
+        TreePivot {
+            rows,
+            cols,
+            row_axis: row_axis.clone(),
+            col_axis: col_axis.clone(),
+            counts,
+        }
     }
 
-    fn bucketed_value(
+    fn visible_axis_nodes<'a>(
+        &'a self,
+        axis: &Id<Category<CA>>,
+        expanded: &std::collections::HashSet<Id<Category<CA>>>,
+    ) -> Vec<PivotNode<'a, CA>> {
+        let mut out = Vec::new();
+        self.collect_visible(axis, 0, expanded, &mut out);
+        out
+    }
+
+    fn collect_visible<'a>(
+        &'a self,
+        parent: &Id<Category<CA>>,
+        depth: usize,
+        expanded: &std::collections::HashSet<Id<Category<CA>>>,
+        out: &mut Vec<PivotNode<'a, CA>>,
+    ) {
+        for child in self.taxonomy.children_of(parent) {
+            let has_children = !self.taxonomy.children_of(&child.id).is_empty();
+            out.push(PivotNode {
+                node: child,
+                depth,
+                has_children,
+            });
+            if has_children && expanded.contains(&child.id) {
+                self.collect_visible(&child.id, depth + 1, expanded, out);
+            }
+        }
+    }
+
+    fn axis_chain(
         &self,
         resource: &Resource<RA, CA>,
+        axis: &Id<Category<CA>>,
         root: &Id<Category<CA>>,
-        buckets: &std::collections::HashSet<Id<Category<CA>>>,
-    ) -> Option<Id<Category<CA>>> {
-        let value = resource.category(&self.taxonomy, root)?;
-        self.taxonomy
-            .ancestry(value)
-            .into_iter()
-            .find(|node| buckets.contains(node))
+    ) -> Vec<Id<Category<CA>>> {
+        let Some(value) = resource.category(&self.taxonomy, root) else {
+            return Vec::new();
+        };
+        let ancestry = self.taxonomy.ancestry(value);
+        match ancestry.iter().position(|node| node == axis) {
+            Some(pos) => ancestry[..=pos].to_vec(),
+            None => Vec::new(),
+        }
     }
 }
 
@@ -255,13 +310,21 @@ impl<RA, CA> Selection for ResourceSelection<'_, RA, CA> {
 
 type CellCounts<CA> = std::collections::HashMap<(Id<Category<CA>>, Id<Category<CA>>), usize>;
 
-pub struct Pivot<'a, CA> {
-    pub rows: Vec<&'a Category<CA>>,
-    pub cols: Vec<&'a Category<CA>>,
+pub struct PivotNode<'a, CA> {
+    pub node: &'a Category<CA>,
+    pub depth: usize,
+    pub has_children: bool,
+}
+
+pub struct TreePivot<'a, CA> {
+    pub rows: Vec<PivotNode<'a, CA>>,
+    pub cols: Vec<PivotNode<'a, CA>>,
+    row_axis: Id<Category<CA>>,
+    col_axis: Id<Category<CA>>,
     counts: CellCounts<CA>,
 }
 
-impl<CA> Pivot<'_, CA> {
+impl<CA> TreePivot<'_, CA> {
     pub fn count(&self, row: &Id<Category<CA>>, col: &Id<Category<CA>>) -> usize {
         self.counts
             .get(&(row.clone(), col.clone()))
@@ -270,15 +333,15 @@ impl<CA> Pivot<'_, CA> {
     }
 
     pub fn row_total(&self, row: &Id<Category<CA>>) -> usize {
-        self.cols.iter().map(|col| self.count(row, &col.id)).sum()
+        self.count(row, &self.col_axis)
     }
 
     pub fn col_total(&self, col: &Id<Category<CA>>) -> usize {
-        self.rows.iter().map(|row| self.count(&row.id, col)).sum()
+        self.count(&self.row_axis, col)
     }
 
     pub fn total(&self) -> usize {
-        self.counts.values().sum()
+        self.count(&self.row_axis, &self.col_axis)
     }
 }
 
@@ -1009,20 +1072,58 @@ mod tests {
         }
     }
 
+    fn no_expand() -> std::collections::HashSet<Id<Category<()>>> {
+        std::collections::HashSet::new()
+    }
+
     #[test]
-    fn pivot_rows_and_cols_are_direct_children_of_axes() {
+    fn subtree_counts_are_ancestry_aware_over_a_dimension() {
         let b = pivot_bipartite();
-        let p = b.pivot(&cid("platform"), &cid("env"), &Filters::new());
-        let rows: Vec<_> = p.rows.iter().map(|c| c.id.as_str()).collect();
-        let cols: Vec<_> = p.cols.iter().map(|c| c.id.as_str()).collect();
-        assert_eq!(rows, vec!["gcp", "aws"]);
+        let counts = b.subtree_counts(&cid("platform"), &Filters::new());
+        assert_eq!(counts.get(&cid("platform")).copied(), Some(4));
+        assert_eq!(counts.get(&cid("gcp")).copied(), Some(3));
+        assert_eq!(counts.get(&cid("bigquery")).copied(), Some(2));
+        assert_eq!(counts.get(&cid("aws")).copied(), Some(1));
+        assert_eq!(counts.get(&cid("s3")).copied(), Some(1));
+        assert_eq!(counts.get(&cid("dev")).copied(), None);
+    }
+
+    #[test]
+    fn subtree_counts_respect_the_base_filter() {
+        let b = pivot_bipartite();
+        let base = Filters::from_iter([(cid("env"), cid("dev"))]);
+        let counts = b.subtree_counts(&cid("platform"), &base);
+        assert_eq!(counts.get(&cid("platform")).copied(), Some(2));
+        assert_eq!(counts.get(&cid("gcp")).copied(), Some(2));
+        assert_eq!(counts.get(&cid("aws")).copied(), None);
+    }
+
+    #[test]
+    fn tree_pivot_rows_and_cols_are_direct_children_of_axes_when_collapsed() {
+        let b = pivot_bipartite();
+        let p = b.tree_pivot(
+            &cid("platform"),
+            &cid("env"),
+            &no_expand(),
+            &no_expand(),
+            &Filters::new(),
+        );
+        let rows: Vec<_> = p.rows.iter().map(|n| (n.node.id.as_str(), n.depth)).collect();
+        let cols: Vec<_> = p.cols.iter().map(|n| n.node.id.as_str()).collect();
+        assert_eq!(rows, vec![("gcp", 0), ("aws", 0)]);
         assert_eq!(cols, vec!["prod", "dev"]);
     }
 
     #[test]
-    fn pivot_cell_counts_respect_ancestry_and_and() {
+    fn tree_pivot_cell_counts_respect_ancestry_and_and() {
         let b = pivot_bipartite();
-        let p = b.pivot(&cid("platform"), &cid("env"), &Filters::new());
+        let p = b.tree_pivot(
+            &cid("platform"),
+            &cid("env"),
+            &no_expand(),
+            &no_expand(),
+            &Filters::new(),
+        );
         assert_eq!(p.count(&cid("gcp"), &cid("prod")), 1);
         assert_eq!(p.count(&cid("gcp"), &cid("dev")), 2);
         assert_eq!(p.count(&cid("aws"), &cid("prod")), 1);
@@ -1030,9 +1131,15 @@ mod tests {
     }
 
     #[test]
-    fn pivot_totals_sum_over_shown_cells() {
+    fn tree_pivot_totals_aggregate_the_axis_subtree() {
         let b = pivot_bipartite();
-        let p = b.pivot(&cid("platform"), &cid("env"), &Filters::new());
+        let p = b.tree_pivot(
+            &cid("platform"),
+            &cid("env"),
+            &no_expand(),
+            &no_expand(),
+            &Filters::new(),
+        );
         assert_eq!(p.row_total(&cid("gcp")), 3);
         assert_eq!(p.row_total(&cid("aws")), 1);
         assert_eq!(p.col_total(&cid("prod")), 2);
@@ -1040,47 +1147,95 @@ mod tests {
     }
 
     #[test]
-    fn pivot_base_filters_on_a_third_axis_narrow_the_grid() {
+    fn tree_pivot_base_filters_on_a_third_axis_narrow_the_grid() {
         let b = pivot_bipartite();
         let base = Filters::from_iter([(cid("team"), cid("t1"))]);
-        let p = b.pivot(&cid("platform"), &cid("env"), &base);
+        let p = b.tree_pivot(&cid("platform"), &cid("env"), &no_expand(), &no_expand(), &base);
         assert_eq!(p.count(&cid("gcp"), &cid("prod")), 1);
         assert_eq!(p.count(&cid("gcp"), &cid("dev")), 1);
         assert_eq!(p.total(), 2);
     }
 
     #[test]
-    fn pivot_ignores_base_entries_on_its_own_axes() {
+    fn tree_pivot_ignores_base_entries_on_its_own_axes() {
         let b = pivot_bipartite();
         let base = Filters::from_iter([(cid("platform"), cid("aws"))]);
-        let p = b.pivot(&cid("platform"), &cid("env"), &base);
+        let p = b.tree_pivot(&cid("platform"), &cid("env"), &no_expand(), &no_expand(), &base);
         assert_eq!(p.count(&cid("gcp"), &cid("dev")), 2);
     }
 
     #[test]
-    fn pivot_with_a_deep_axis_shows_that_nodes_children_within_its_subtree() {
+    fn tree_pivot_expands_a_row_into_indented_children() {
         let b = pivot_bipartite();
-        let p = b.pivot(&cid("gcp"), &cid("env"), &Filters::new());
-        let rows: Vec<_> = p.rows.iter().map(|c| c.id.as_str()).collect();
+        let row_expanded = std::collections::HashSet::from([cid("gcp")]);
+        let p = b.tree_pivot(
+            &cid("platform"),
+            &cid("env"),
+            &row_expanded,
+            &no_expand(),
+            &Filters::new(),
+        );
+        let rows: Vec<_> = p.rows.iter().map(|n| (n.node.id.as_str(), n.depth)).collect();
+        assert_eq!(rows, vec![("gcp", 0), ("bigquery", 1), ("aws", 0)]);
+        let gcp = p.rows.iter().find(|n| n.node.id == cid("gcp")).unwrap();
+        let bigquery = p.rows.iter().find(|n| n.node.id == cid("bigquery")).unwrap();
+        assert!(gcp.has_children);
+        assert!(!bigquery.has_children);
+    }
+
+    #[test]
+    fn tree_pivot_parent_row_total_aggregates_its_children() {
+        let b = pivot_bipartite();
+        let row_expanded = std::collections::HashSet::from([cid("gcp")]);
+        let p = b.tree_pivot(
+            &cid("platform"),
+            &cid("env"),
+            &row_expanded,
+            &no_expand(),
+            &Filters::new(),
+        );
+        assert_eq!(p.row_total(&cid("gcp")), 3);
+        assert_eq!(p.count(&cid("gcp"), &cid("dev")), 2);
+        assert_eq!(p.row_total(&cid("bigquery")), 2);
+        assert_eq!(p.count(&cid("bigquery"), &cid("dev")), 1);
+    }
+
+    #[test]
+    fn tree_pivot_with_a_deep_axis_restricts_to_its_subtree() {
+        let b = pivot_bipartite();
+        let p = b.tree_pivot(
+            &cid("gcp"),
+            &cid("env"),
+            &no_expand(),
+            &no_expand(),
+            &Filters::new(),
+        );
+        let rows: Vec<_> = p.rows.iter().map(|n| n.node.id.as_str()).collect();
         assert_eq!(rows, vec!["bigquery"]);
         assert_eq!(p.count(&cid("bigquery"), &cid("prod")), 1);
         assert_eq!(p.count(&cid("bigquery"), &cid("dev")), 1);
-        assert_eq!(p.total(), 2);
+        assert_eq!(p.total(), 3);
     }
 
     #[test]
-    fn pivot_with_a_deep_axis_ignores_base_entries_on_its_root() {
+    fn tree_pivot_with_a_deep_axis_ignores_base_entries_on_its_root() {
         let b = pivot_bipartite();
         let base = Filters::from_iter([(cid("platform"), cid("aws"))]);
-        let p = b.pivot(&cid("gcp"), &cid("env"), &base);
+        let p = b.tree_pivot(&cid("gcp"), &cid("env"), &no_expand(), &no_expand(), &base);
         assert_eq!(p.count(&cid("bigquery"), &cid("prod")), 1);
         assert_eq!(p.count(&cid("bigquery"), &cid("dev")), 1);
     }
 
     #[test]
-    fn pivot_against_the_same_axis_is_diagonal() {
+    fn tree_pivot_against_the_same_axis_is_diagonal() {
         let b = pivot_bipartite();
-        let p = b.pivot(&cid("platform"), &cid("platform"), &Filters::new());
+        let p = b.tree_pivot(
+            &cid("platform"),
+            &cid("platform"),
+            &no_expand(),
+            &no_expand(),
+            &Filters::new(),
+        );
         assert_eq!(p.count(&cid("gcp"), &cid("gcp")), 3);
         assert_eq!(p.count(&cid("aws"), &cid("aws")), 1);
         assert_eq!(p.count(&cid("gcp"), &cid("aws")), 0);
