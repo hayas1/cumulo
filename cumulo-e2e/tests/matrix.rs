@@ -40,6 +40,21 @@ async fn expanding_a_row_reveals_its_child_rows() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn expanding_a_row_frames_the_group_under_its_header() {
+    let app = Session::open("/").await;
+
+    app.wait_for(".facet-view").await;
+    app.click_nth(".app-nav .nav-link", 2).await;
+    app.wait_for(".matrix-view").await;
+    app.wait_for(".matrix-rowhead .matrix-tree-chevron").await;
+
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0)
+        .await;
+    app.wait_for(".matrix-rowhead.matrix-band-head.matrix-band-cap")
+        .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn expanding_a_child_keeps_the_parent_expanded() {
     let app = Session::open("/").await;
 

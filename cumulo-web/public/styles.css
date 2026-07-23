@@ -1934,8 +1934,47 @@ body {
 }
 .matrix-tree-chevron:hover { color: var(--accent); }
 .matrix-tree-chevron.open { color: var(--text-secondary); }
-.matrix-rowhead.matrix-grouped { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
-.matrix-colhead.matrix-grouped { border-top-left-radius: 4px; border-top-right-radius: 4px; }
+.matrix-colhead.matrix-grouped,
+.matrix-rowhead.matrix-grouped { position: relative; }
+.matrix-colhead.matrix-grouped > *,
+.matrix-rowhead.matrix-grouped > * { position: relative; z-index: 1; }
+
+.matrix-rowhead.matrix-grouped::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  top: -5px;
+  bottom: 0;
+  background: var(--band-fill);
+  border-left: 3px solid var(--band);
+}
+.matrix-rowhead.matrix-band-cap::before {
+  top: 0;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.matrix-colhead.matrix-grouped::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  right: 0;
+  background: var(--band-fill);
+  border-top: 3px solid var(--band);
+}
+.matrix-colhead.matrix-band-cap::before {
+  left: 0;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.matrix-colhead.matrix-band-head,
+.matrix-rowhead.matrix-band-head { color: var(--text-primary); font-weight: 700; }
 .matrix-swatch {
   display: inline-block;
   width: 8px;

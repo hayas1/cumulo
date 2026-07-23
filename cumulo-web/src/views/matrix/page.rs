@@ -161,13 +161,20 @@ fn Grid(
                     .map(|c| c.to_hex())
                     .unwrap_or_else(|| DEFAULT_COLOR.to_hex())
             };
-            let band = |node: &Cat, expanded: &HashSet<CategoryId>| {
-                if let Some(parent) = node.parent.as_ref() {
-                    if expanded.contains(parent) {
-                        return s.taxonomy.node(parent).map(&color);
-                    }
-                }
-                expanded.contains(&node.id).then(|| color(node))
+            let band_of = |node: &Cat, expanded: &HashSet<CategoryId>| {
+                let head = expanded.contains(&node.id);
+                let member = node.parent.as_ref().is_some_and(|p| expanded.contains(p));
+                let hex = if head {
+                    Some(color(node))
+                } else if member {
+                    node.parent
+                        .as_ref()
+                        .and_then(|p| s.taxonomy.node(p))
+                        .map(&color)
+                } else {
+                    None
+                };
+                hex.map(|hex| (hex, head, member))
             };
             let strict_ancestors = |id: &CategoryId| -> HashSet<CategoryId> {
                 s.taxonomy
@@ -209,13 +216,15 @@ fn Grid(
                 .map(|c| {
                     let ca = col_root.clone();
                     let cv = c.node.id.clone();
-                    let band_color = band(c.node, &expanded_cols);
-                    let grouped = band_color.is_some();
-                    let col_style = match &band_color {
-                        Some(bc) => format!(
-                            "{};background:{bc}1a;border-top:3px solid {bc}",
-                            indent(c.depth)
-                        ),
+                    let band = band_of(c.node, &expanded_cols);
+                    let grouped = band.is_some();
+                    let head = band.as_ref().is_some_and(|(_, h, _)| *h);
+                    let cap = band.as_ref().is_some_and(|(_, _, m)| !*m);
+                    let col_style = match &band {
+                        Some((bc, _, _)) => {
+                            let fill = if head { "40" } else { "1a" };
+                            format!("{};--band:{bc};--band-fill:{bc}{fill}", indent(c.depth))
+                        }
                         None => indent(c.depth),
                     };
                     let chevron = c.has_children.then(|| {
@@ -236,7 +245,13 @@ fn Grid(
                         }
                     });
                     view! {
-                        <th class="matrix-colhead" class:matrix-grouped=grouped style=col_style>
+                        <th
+                            class="matrix-colhead"
+                            class:matrix-grouped=grouped
+                            class:matrix-band-head=head
+                            class:matrix-band-cap=cap
+                            style=col_style
+                        >
                             {chevron}
                             <button
                                 class="matrix-head-btn"
@@ -257,13 +272,15 @@ fn Grid(
                 .iter()
                 .map(|r| {
                     let row_color = color(r.node);
-                    let band_color = band(r.node, &expanded_rows);
-                    let grouped = band_color.is_some();
-                    let row_style = match &band_color {
-                        Some(bc) => format!(
-                            "{};background:{bc}1a;border-left:3px solid {bc}",
-                            indent(r.depth)
-                        ),
+                    let band = band_of(r.node, &expanded_rows);
+                    let grouped = band.is_some();
+                    let head = band.as_ref().is_some_and(|(_, h, _)| *h);
+                    let cap = band.as_ref().is_some_and(|(_, _, m)| !*m);
+                    let row_style = match &band {
+                        Some((bc, _, _)) => {
+                            let fill = if head { "40" } else { "1a" };
+                            format!("{};--band:{bc};--band-fill:{bc}{fill}", indent(r.depth))
+                        }
                         None => indent(r.depth),
                     };
                     let chevron = r.has_children.then(|| {
@@ -327,7 +344,13 @@ fn Grid(
                     let rt_val = r.node.id.clone();
                     view! {
                         <tr>
-                            <th class="matrix-rowhead" class:matrix-grouped=grouped style=row_style>
+                            <th
+                                class="matrix-rowhead"
+                                class:matrix-grouped=grouped
+                                class:matrix-band-head=head
+                                class:matrix-band-cap=cap
+                                style=row_style
+                            >
                                 {chevron}
                                 <button
                                     class="matrix-head-btn"
