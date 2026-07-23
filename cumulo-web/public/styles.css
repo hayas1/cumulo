@@ -1325,8 +1325,6 @@ body {
 }
 .facet-value:hover { background: var(--bg-hover); color: var(--text-primary); }
 .facet-value.selected { color: var(--accent); font-weight: 700; }
-.matrix-axis-facet .facet-value.disabled { color: var(--text-muted); cursor: default; opacity: 0.55; }
-.matrix-axis-facet .facet-value.disabled:hover { background: none; color: var(--text-muted); }
 
 .fv-label {
   flex: 1;

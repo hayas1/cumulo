@@ -52,9 +52,7 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
 
     let effective = Memo::new(move |_| {
         bipartite.with(|s| {
-            let axis_of = |id: &CategoryId| {
-                s.taxonomy.node(id).is_some() && !s.taxonomy.children_of(id).is_empty()
-            };
+            let axis_of = |id: &CategoryId| s.taxonomy.node(id).is_some();
             let roots: Vec<CategoryId> = s
                 .taxonomy
                 .roots()

@@ -115,7 +115,7 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                                     Some(
                                         ordered
                                             .iter()
-                                            .map(|(node_id, node_label, depth, count, _)| {
+                                            .map(|(node_id, node_label, depth, count)| {
                                                 let is_sel =
                                                     selected_val.as_deref() == Some(node_id.as_str());
                                                 let indent = format!(

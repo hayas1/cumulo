@@ -242,7 +242,17 @@ impl<RA, CA: Clone + PartialEq> Bipartite<RA, CA> {
         expanded: &std::collections::HashSet<Id<Category<CA>>>,
     ) -> Vec<PivotNode<'a, CA>> {
         let mut out = Vec::new();
-        self.collect_visible(axis, 0, expanded, &mut out);
+        if self.taxonomy.children_of(axis).is_empty() {
+            if let Some(node) = self.taxonomy.node(axis) {
+                out.push(PivotNode {
+                    node,
+                    depth: 0,
+                    has_children: false,
+                });
+            }
+        } else {
+            self.collect_visible(axis, 0, expanded, &mut out);
+        }
         out
     }
 
@@ -1241,5 +1251,49 @@ mod tests {
         assert_eq!(p.count(&cid("gcp"), &cid("aws")), 0);
         assert_eq!(p.count(&cid("aws"), &cid("gcp")), 0);
         assert_eq!(p.total(), 4);
+    }
+
+    #[test]
+    fn tree_pivot_with_a_leaf_row_axis_yields_a_single_row() {
+        let b = pivot_bipartite();
+        let p = b.tree_pivot(
+            &cid("bigquery"),
+            &cid("env"),
+            &no_expand(),
+            &no_expand(),
+            &Filters::new(),
+        );
+        let rows: Vec<_> = p
+            .rows
+            .iter()
+            .map(|n| (n.node.id.as_str(), n.depth, n.has_children))
+            .collect();
+        assert_eq!(rows, vec![("bigquery", 0, false)]);
+        assert_eq!(p.count(&cid("bigquery"), &cid("prod")), 1);
+        assert_eq!(p.count(&cid("bigquery"), &cid("dev")), 1);
+        assert_eq!(p.row_total(&cid("bigquery")), 2);
+        assert_eq!(p.total(), 2);
+    }
+
+    #[test]
+    fn tree_pivot_with_a_leaf_col_axis_yields_a_single_column() {
+        let b = pivot_bipartite();
+        let p = b.tree_pivot(
+            &cid("env"),
+            &cid("bigquery"),
+            &no_expand(),
+            &no_expand(),
+            &Filters::new(),
+        );
+        let cols: Vec<_> = p
+            .cols
+            .iter()
+            .map(|n| (n.node.id.as_str(), n.depth, n.has_children))
+            .collect();
+        assert_eq!(cols, vec![("bigquery", 0, false)]);
+        assert_eq!(p.count(&cid("prod"), &cid("bigquery")), 1);
+        assert_eq!(p.count(&cid("dev"), &cid("bigquery")), 1);
+        assert_eq!(p.col_total(&cid("bigquery")), 2);
+        assert_eq!(p.total(), 2);
     }
 }

@@ -101,7 +101,7 @@ async fn picking_a_row_axis_in_the_facet_updates_the_selection() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn leaf_nodes_are_disabled_as_axis_choices() {
+async fn picking_a_leaf_row_axis_yields_a_single_row() {
     let app = Session::open("/").await;
 
     app.wait_for(".facet-view").await;
@@ -109,16 +109,7 @@ async fn leaf_nodes_are_disabled_as_axis_choices() {
     app.wait_for(".matrix-view").await;
     app.wait_for(".matrix-axis-facet .facet-value").await;
 
-    assert!(
-        app.eval_bool(
-            "!!document.querySelector('.matrix-axis-facet .facet-value.disabled[disabled]')"
-        )
-        .await
-    );
-    assert!(
-        app.eval_bool(
-            "!!document.querySelector('.matrix-axis-facet .facet-value:not(.disabled):not([disabled])')"
-        )
-        .await
-    );
+    app.click_nth(".matrix-axis-facet .facet-value", 2).await;
+    app.wait_until("document.querySelectorAll('.matrix-rowhead:not(.matrix-total)').length === 1")
+        .await;
 }
