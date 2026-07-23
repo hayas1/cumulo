@@ -62,7 +62,9 @@ pub fn MatrixView(client: Client, state: RwSignal<QueryState>, editing: Editing)
                 .collect();
             let first = roots.first()?.clone();
             let (chosen_row, chosen_col) = state.with(|q| (q.row_axis.clone(), q.col_axis.clone()));
-            let row = chosen_row.filter(|id| axis_of(id)).unwrap_or_else(|| first.clone());
+            let row = chosen_row
+                .filter(|id| axis_of(id))
+                .unwrap_or_else(|| first.clone());
             let col = chosen_col
                 .filter(|id| axis_of(id))
                 .unwrap_or_else(|| roots.get(1).cloned().unwrap_or(first));

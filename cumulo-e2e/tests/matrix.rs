@@ -31,7 +31,8 @@ async fn expanding_a_row_reveals_its_child_rows() {
     app.wait_for(".matrix-rowhead .matrix-tree-chevron").await;
 
     let before = app.count(".matrix-rowhead").await;
-    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0).await;
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0)
+        .await;
     app.wait_until(&format!(
         "document.querySelectorAll('.matrix-rowhead').length > {before}"
     ))
@@ -47,13 +48,15 @@ async fn expanding_a_child_keeps_the_parent_expanded() {
     app.wait_for(".matrix-view").await;
     app.wait_for(".matrix-rowhead .matrix-tree-chevron").await;
 
-    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0).await;
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0)
+        .await;
     app.wait_until(
         "document.querySelectorAll('.matrix-rowhead .matrix-tree-chevron.open').length === 1",
     )
     .await;
 
-    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 1).await;
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 1)
+        .await;
     app.wait_until(
         "document.querySelectorAll('.matrix-rowhead .matrix-tree-chevron.open').length === 2",
     )
@@ -69,8 +72,10 @@ async fn expanding_a_sibling_collapses_the_previous_branch() {
     app.wait_for(".matrix-view").await;
     app.wait_for(".matrix-rowhead .matrix-tree-chevron").await;
 
-    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0).await;
-    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 1).await;
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 0)
+        .await;
+    app.click_nth(".matrix-rowhead .matrix-tree-chevron", 1)
+        .await;
     app.wait_until(
         "document.querySelectorAll('.matrix-rowhead .matrix-tree-chevron.open').length === 2",
     )
@@ -92,7 +97,8 @@ async fn picking_a_row_axis_in_the_facet_updates_the_selection() {
     app.wait_for(".facet-view").await;
     app.click_nth(".app-nav .nav-link", 2).await;
     app.wait_for(".matrix-view").await;
-    app.wait_for(".matrix-axis-facet .facet-panel-title-btn").await;
+    app.wait_for(".matrix-axis-facet .facet-panel-title-btn")
+        .await;
 
     app.click_nth(".matrix-axis-facet .facet-panel-title-btn", 1)
         .await;

@@ -1118,7 +1118,11 @@ mod tests {
             &no_expand(),
             &Filters::new(),
         );
-        let rows: Vec<_> = p.rows.iter().map(|n| (n.node.id.as_str(), n.depth)).collect();
+        let rows: Vec<_> = p
+            .rows
+            .iter()
+            .map(|n| (n.node.id.as_str(), n.depth))
+            .collect();
         let cols: Vec<_> = p.cols.iter().map(|n| n.node.id.as_str()).collect();
         assert_eq!(rows, vec![("gcp", 0), ("aws", 0)]);
         assert_eq!(cols, vec!["prod", "dev"]);
@@ -1160,7 +1164,13 @@ mod tests {
     fn tree_pivot_base_filters_on_a_third_axis_narrow_the_grid() {
         let b = pivot_bipartite();
         let base = Filters::from_iter([(cid("team"), cid("t1"))]);
-        let p = b.tree_pivot(&cid("platform"), &cid("env"), &no_expand(), &no_expand(), &base);
+        let p = b.tree_pivot(
+            &cid("platform"),
+            &cid("env"),
+            &no_expand(),
+            &no_expand(),
+            &base,
+        );
         assert_eq!(p.count(&cid("gcp"), &cid("prod")), 1);
         assert_eq!(p.count(&cid("gcp"), &cid("dev")), 1);
         assert_eq!(p.total(), 2);
@@ -1170,7 +1180,13 @@ mod tests {
     fn tree_pivot_ignores_base_entries_on_its_own_axes() {
         let b = pivot_bipartite();
         let base = Filters::from_iter([(cid("platform"), cid("aws"))]);
-        let p = b.tree_pivot(&cid("platform"), &cid("env"), &no_expand(), &no_expand(), &base);
+        let p = b.tree_pivot(
+            &cid("platform"),
+            &cid("env"),
+            &no_expand(),
+            &no_expand(),
+            &base,
+        );
         assert_eq!(p.count(&cid("gcp"), &cid("dev")), 2);
     }
 
@@ -1185,10 +1201,18 @@ mod tests {
             &no_expand(),
             &Filters::new(),
         );
-        let rows: Vec<_> = p.rows.iter().map(|n| (n.node.id.as_str(), n.depth)).collect();
+        let rows: Vec<_> = p
+            .rows
+            .iter()
+            .map(|n| (n.node.id.as_str(), n.depth))
+            .collect();
         assert_eq!(rows, vec![("gcp", 0), ("bigquery", 1), ("aws", 0)]);
         let gcp = p.rows.iter().find(|n| n.node.id == cid("gcp")).unwrap();
-        let bigquery = p.rows.iter().find(|n| n.node.id == cid("bigquery")).unwrap();
+        let bigquery = p
+            .rows
+            .iter()
+            .find(|n| n.node.id == cid("bigquery"))
+            .unwrap();
         assert!(gcp.has_children);
         assert!(!bigquery.has_children);
     }
