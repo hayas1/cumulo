@@ -99,7 +99,7 @@ pub fn AxisFacet(
                                         Some(
                                             ordered
                                                 .iter()
-                                                .map(|(node_id, node_label, depth, count)| {
+                                                .map(|(node_id, node_label, depth, count, has_children)| {
                                                     let indent = format!(
                                                         "padding-left:{}rem",
                                                         0.5 + *depth as f32 * 0.85,
@@ -111,6 +111,8 @@ pub fn AxisFacet(
                                                             <button
                                                                 class="facet-value"
                                                                 class:selected=is_sel
+                                                                class:disabled=!*has_children
+                                                                disabled=!*has_children
                                                                 on:click=move |_| set_axis(nid.clone())
                                                             >
                                                                 <span class="fv-label">

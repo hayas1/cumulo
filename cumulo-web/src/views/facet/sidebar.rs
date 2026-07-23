@@ -32,7 +32,7 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                         let selected_val = tags.get(&root.id).cloned();
 
                         let root_count = counts.get(root.id.as_str()).copied().unwrap_or(0);
-                        let mut ordered: Vec<(CategoryId, String, usize, usize)> = Vec::new();
+                        let mut ordered = Vec::new();
                         s.taxonomy.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
                         let has_children = !s.taxonomy.children_of(&root.id).is_empty();
@@ -115,7 +115,7 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                                     Some(
                                         ordered
                                             .iter()
-                                            .map(|(node_id, node_label, depth, count)| {
+                                            .map(|(node_id, node_label, depth, count, _)| {
                                                 let is_sel =
                                                     selected_val.as_deref() == Some(node_id.as_str());
                                                 let indent = format!(

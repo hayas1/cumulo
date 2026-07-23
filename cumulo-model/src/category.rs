@@ -43,6 +43,8 @@ impl<CA> ForestNode for Category<CA> {
 #[serde(transparent)]
 pub struct Taxonomy<CA>(pub Vec<Category<CA>>);
 
+pub type CountedNode<CA> = (Id<Category<CA>>, String, usize, usize, bool);
+
 impl<CA> Default for Taxonomy<CA> {
     fn default() -> Self {
         Taxonomy(Vec::new())
@@ -107,14 +109,15 @@ impl<CA> Taxonomy<CA> {
         parent_id: &Id<Category<CA>>,
         depth: usize,
         counts: &HashMap<Id<Category<CA>>, usize>,
-        out: &mut Vec<(Id<Category<CA>>, String, usize, usize)>,
+        out: &mut Vec<CountedNode<CA>>,
     ) {
         for child in self.children_of(parent_id) {
             let cnt = counts.get(child.id.as_str()).copied().unwrap_or(0);
             if cnt == 0 {
                 continue;
             }
-            out.push((child.id.clone(), child.label.clone(), depth, cnt));
+            let has_children = !self.children_of(&child.id).is_empty();
+            out.push((child.id.clone(), child.label.clone(), depth, cnt, has_children));
             self.dfs_collect_counts(&child.id, depth + 1, counts, out);
         }
     }

@@ -99,3 +99,26 @@ async fn picking_a_row_axis_in_the_facet_updates_the_selection() {
     app.wait_for_class(".matrix-axis-facet .facet-panel-title-btn", 1, "selected")
         .await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn leaf_nodes_are_disabled_as_axis_choices() {
+    let app = Session::open("/").await;
+
+    app.wait_for(".facet-view").await;
+    app.click_nth(".app-nav .nav-link", 2).await;
+    app.wait_for(".matrix-view").await;
+    app.wait_for(".matrix-axis-facet .facet-value").await;
+
+    assert!(
+        app.eval_bool(
+            "!!document.querySelector('.matrix-axis-facet .facet-value.disabled[disabled]')"
+        )
+        .await
+    );
+    assert!(
+        app.eval_bool(
+            "!!document.querySelector('.matrix-axis-facet .facet-value:not(.disabled):not([disabled])')"
+        )
+        .await
+    );
+}
