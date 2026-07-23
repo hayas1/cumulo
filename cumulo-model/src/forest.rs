@@ -76,6 +76,10 @@ pub trait Forest {
         }
     }
 
+    fn root_or_self(&self, id: &Id<Self::Node>) -> Id<Self::Node> {
+        self.root_of(id).unwrap_or_else(|| id.clone())
+    }
+
     fn collect_descendants(&self, root: &Id<Self::Node>) -> HashSet<Id<Self::Node>> {
         let mut out = HashSet::new();
         let mut stack = vec![root.clone()];
@@ -246,6 +250,19 @@ mod tests {
     fn valid_forest_has_no_errors() {
         let t = Taxonomy(vec![cat("root", None), cat("child", Some("root"))]);
         assert!(t.validate().is_ok());
+    }
+
+    #[test]
+    fn root_or_self_returns_root_for_a_descendant_and_self_for_unknown() {
+        let t = Taxonomy(vec![cat("root", None), cat("child", Some("root"))]);
+        assert_eq!(
+            t.root_or_self(&Id::new_unchecked("child")),
+            Id::new_unchecked("root")
+        );
+        assert_eq!(
+            t.root_or_self(&Id::new_unchecked("ghost")),
+            Id::new_unchecked("ghost")
+        );
     }
 
     #[test]

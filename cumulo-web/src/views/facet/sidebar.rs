@@ -2,9 +2,9 @@ use crate::category::CategoryId;
 use crate::client::Client;
 use crate::i18n::*;
 use crate::query::{QueryState, View};
-use cumulo_model::{Forest, Selection};
+use cumulo_model::Forest;
 use leptos::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[component]
 pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoView {
@@ -23,19 +23,7 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                 s.taxonomy.roots()
                     .into_iter()
                     .filter_map(|root| {
-                        let base = s.filtered(&tags.without_root(&root.id));
-
-                        let mut counts: HashMap<CategoryId, usize> = HashMap::new();
-                        for r in base.items() {
-                            if let Some(leaf_id) = r.category(&s.taxonomy, &root.id) {
-                                *counts.entry(leaf_id.clone()).or_default() += 1;
-                                for anc in s.taxonomy.ancestry(leaf_id) {
-                                    if &anc != leaf_id {
-                                        *counts.entry(anc).or_default() += 1;
-                                    }
-                                }
-                            }
-                        }
+                        let counts = s.subtree_counts(&root.id, &tags.without_root(&root.id));
 
                         if counts.is_empty() {
                             return None;
@@ -44,7 +32,7 @@ pub fn FacetSidebar(client: Client, state: RwSignal<QueryState>) -> impl IntoVie
                         let selected_val = tags.get(&root.id).cloned();
 
                         let root_count = counts.get(root.id.as_str()).copied().unwrap_or(0);
-                        let mut ordered: Vec<(CategoryId, String, usize, usize)> = Vec::new();
+                        let mut ordered = Vec::new();
                         s.taxonomy.dfs_collect_counts(&root.id, 0, &counts, &mut ordered);
 
                         let has_children = !s.taxonomy.children_of(&root.id).is_empty();

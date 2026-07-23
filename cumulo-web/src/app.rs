@@ -8,7 +8,7 @@ use crate::resource::form::ResourceForm;
 use crate::resource::ResourceAttribute;
 use crate::shared::{palette::Palette, settings_modal::SettingsModal, Toast};
 use crate::storage::{DynStore, LOCAL_STORE};
-use crate::views::{facet::FacetView, map::MapView};
+use crate::views::{facet::FacetView, map::MapView, matrix::MatrixView};
 use cumulo_model::Resource;
 
 use icondata as icon;
@@ -110,6 +110,13 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
                     >
                         {t!(i18n, nav_map)}
                     </button>
+                    <button
+                        class="nav-link"
+                        class:active=move || view.get() == View::Matrix
+                        on:click=move |_| state.update(|q| q.view = View::Matrix)
+                    >
+                        {t!(i18n, nav_matrix)}
+                    </button>
                 </nav>
                 <button
                     class="header-settings-btn"
@@ -130,6 +137,10 @@ pub fn App(store: &'static DynStore) -> impl IntoView {
                     .into_any(),
                     View::Map => view! {
                         <MapView client=client state=state editing=editing />
+                    }
+                    .into_any(),
+                    View::Matrix => view! {
+                        <MatrixView client=client state=state editing=editing />
                     }
                     .into_any(),
                 }}

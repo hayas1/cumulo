@@ -8,6 +8,7 @@
 
   "nav_facet": "ファセット",
   "nav_map": "マップ",
+  "nav_matrix": "マトリクス",
 
   "settings_title": "設定",
   "settings_tab_data": "データ",
@@ -73,5 +74,12 @@
   "map_zoom_out": "ズームアウト",
   "map_zoom_in": "ズームイン",
   "map_fit": "全体表示",
-  "map_other": "その他"
+  "map_other": "その他",
+
+  "matrix_rows": "行",
+  "matrix_cols": "列",
+  "matrix_total": "合計",
+  "matrix_empty": "値を持つ軸を2つ選ぶとクロス集計します。",
+  "matrix_pick_cell": "セルをクリックすると、その交点のリソースが一覧表示されます。",
+  "matrix_open_facet": "Facet で開く"
 }
